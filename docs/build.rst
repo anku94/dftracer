@@ -13,11 +13,38 @@ There are three build options:
 ----------
 
 ------------------------------------------
+Create Python environment (Recommended)
+------------------------------------------
+Creating a Python environment is the cleanest way to install DFTracer.
+
+.. code-block:: Bash
+
+    python -m venv <PYTHON-VENV-PATH>
+    source <PYTHON-VENV-PATH>/bin/activate
+
+
+------------------------------------------
 Build DFTracer with pip (Recommended)
 ------------------------------------------
 
 Users can easily install DFTracer using pip. This is the way most python packages are installed.
 This method would work for both native python environments and conda environments.
+
+
+Install DFTracer
+*******************************
+
+From PyPI (Recommended)
+************************
+
+.. code-block:: Bash
+
+    pip install pydftracer
+
+.. attention::
+
+    For pip installations, all libraries will be present within the site-packages/dftracer/lib.
+    This enables clean management of pip installation and uninstallations.
 
 From source
 ************
@@ -71,11 +98,11 @@ Build and Install DFTracer
 
 .. code-block:: Bash
 
-    $ spack install py-dftracer-py
-    $ spack load py-dftracer-py
+    $ spack install py-pydftracer
+    $ spack load py-pydftracer
 
 If the most recent changes on the development branch ('dev') of DFTracer are
-desired, then do ``spack install py-dftracer-py@develop``.
+desired, then do ``spack install py-pydftracer@develop``.
 
 .. attention::
 
