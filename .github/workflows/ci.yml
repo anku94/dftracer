@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04,  ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
         dir: ["clone"]
         perm: ["root", "user", "venv"]
         exclude:
@@ -18,8 +18,6 @@ jobs:
     name: ${{ matrix.os }}-${{ matrix.dir }}-${{ matrix.perm }}
     runs-on: ${{ matrix.os }}
     env:
-      CC: gcc-10
-      CXX: g++-10
       DIR: ${{ matrix.dir }}
       PERM: ${{ matrix.perm }}
       OS: ${{ matrix.os }}
