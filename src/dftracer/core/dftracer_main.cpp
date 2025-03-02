@@ -173,7 +173,8 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
             if (!has_extracted) {
               strcpy(exec_name, basename(exec_cmd + last_index));
               if (exec_name[0] != '-' && strstr(exec_name, "python") == NULL &&
-                  strstr(exec_name, "env") == NULL) {
+                  strstr(exec_name, "env") == NULL &&
+                  strstr(exec_name, "multiprocessing") == NULL) {
                 has_extracted = true;
                 DFTRACER_LOG_INFO("Extracted process_name %s", exec_name);
               }
@@ -187,8 +188,18 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
           }*/
           index++;
         }
+        if (!has_extracted) {
+          if (strstr(exec_name, "multiprocessing") != NULL) {
+            sprintf(exec_name, "DEFAULT-spawn");
+          } else {
+            sprintf(exec_name, "DEFAULT");
+          }
+        }
         exec_cmd[DFT_PATH_MAX - 1] = '\0';
         DFTRACER_LOG_DEBUG("Exec command line %s", exec_cmd);
+      }
+      if (_process_id != nullptr && *_process_id != -1) {
+        sprintf(exec_name, "%s-%lu", exec_name, df_getpid());
       }
       if (_log_file == nullptr) {
         DFTRACER_LOG_INFO("Extracted process_name %s", exec_name);
