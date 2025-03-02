@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 RUN apt-get update && apt-get install -y python3 python3-pip openmpi-bin openmpi-common libopenmpi-dev
 RUN apt-get install -y git cmake
-RUN pip install git+https://github.com/hariharan-devarajan/dftracer.git
+RUN pip install pydftracer
 RUN pip install --disable-pip-version-check \
                                       --no-cache-dir \
                                       --no-compile \
