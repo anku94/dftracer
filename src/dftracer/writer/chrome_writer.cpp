@@ -219,7 +219,7 @@ void dftracer::ChromeWriter::convert_json(
       previous_index = current_index;
       auto written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"%s","pid":%lu,"tid":%lu,"ts":%llu,"dur":%llu,"ph":"X","args":{"hhash":%llu%s}})",
+          R"(%s{"id":%d,"name":"%s","cat":"%s","pid":%lu,"tid":%lu,"ts":%llu,"dur":%llu,"ph":"X","args":{"hhash":"%s"%s}})",
           is_first_char, index, event_name, category, process_id, thread_id,
           start_time, duration, this->hostname_hash, all_stream.str().c_str());
       current_index += written_size;
@@ -260,13 +260,13 @@ void dftracer::ChromeWriter::convert_json_metadata(
     if (is_string) {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":%llu,"name":"%s","value":"%s"}})",
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":"%s"}})",
           is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
           name, value);
     } else {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":%llu,"name":"%s","value":%s}})",
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":%s}})",
           is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
           name, value);
     }
