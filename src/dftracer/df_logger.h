@@ -104,18 +104,21 @@ class DFTLogger {
     }
     this->is_init = true;
   }
-  ~DFTLogger() {}
+  ~DFTLogger() {
+    for (auto &hash : computed_hash) {
+      if (hash.second) free(hash.second);
+    }
+  }
 
   inline HashType get_hash(char *name) {
     uint8_t result[HASH_OUTPUT];
     md5String(name, result);
-    char hash_str[HASH_OUTPUT + 1];
-    for (int i = 0; i < HASH_OUTPUT; ++i) {
+    char *hash_str = (char *)malloc(HASH_OUTPUT * 2 + 1);
+    for (int i = 0; i < HASH_OUTPUT; i += 2) {
       sprintf(hash_str + i, "%02x", result[i]);
     }
-    hash_str[HASH_OUTPUT] = '\0';
-    HashType hash = std::stoull(hash_str, nullptr, 16);
-    return hash;
+    hash_str[HASH_OUTPUT * 2] = '\0';
+    return hash_str;
   }
 
   inline void update_log_file(std::string log_file, std::string exec_name,
@@ -374,9 +377,8 @@ class DFTLogger {
         }
         fix_str(file, PATH_MAX);
         int current_index = this->enter_event();
-        this->writer->log_metadata(current_index, file,
-                                   std::to_string(hash).c_str(), name,
-                                   this->process_id, tid, false);
+        this->writer->log_metadata(current_index, file, hash, name,
+                                   this->process_id, tid, true);
         this->exit_event();
       }
     }
