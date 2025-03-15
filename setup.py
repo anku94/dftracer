@@ -215,6 +215,7 @@ setup(
         "script/dftracer_create_index",
         "script/dftracer_event_count",
         "script/dftracer_validate",
+        "script/dftracer_pgzip",
     ],
     package_dir={
         "dftracer": "dftracer",

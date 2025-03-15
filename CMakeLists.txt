@@ -467,6 +467,15 @@ install(
         bin
 )
 
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/script/dftracer_pgzip ${EXECUTABLE_OUTPUT_PATH}/dftracer_pgzip COPYONLY)
+install(
+        FILES
+        ${EXECUTABLE_OUTPUT_PATH}/dftracer_pgzip
+        DESTINATION
+        bin
+)
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/script/dftracer_split ${EXECUTABLE_OUTPUT_PATH}/dftracer_split COPYONLY)
 install(
         FILES
