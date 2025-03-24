@@ -3,7 +3,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
       when: always
     - when: never
-    
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/$$USER/gitlab-runner-builds"
@@ -13,7 +13,6 @@ variables:
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
-  DFTRCACER_TAG: release/v1.0.9-new
   # test variable
   ENV_NAME: dlio_env_2
 
