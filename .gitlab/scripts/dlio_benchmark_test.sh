@@ -99,6 +99,8 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     $cmd    
 done
 
+echo "We have created $(flux jobs | wc -l) jobs"
+
 echo "Waiting for all training jobs..."
 for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
     flux job status "$job_id" || true
