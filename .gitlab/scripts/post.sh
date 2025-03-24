@@ -52,10 +52,10 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     echo $cmd
     $cmd || { echo "Failed to move .hydra folder"; exit 1; }
     
-    cd $workload_dir/node-$NODES/v${current_version} || { echo "Failed to change directory to $workload_dir/node-$NODES/v${current_version}"; exit 1; }
+    cd $workload_dir/node-$NODES/v${current_version}/RAW || { echo "Failed to change directory to $workload_dir/node-$NODES/v${current_version}"; exit 1; }
     
-    echo "Compacting $(ls RAW/*.pfw.gz 2>/dev/null | wc -l) dftracer files"
-    cmd="dftracer_split -d $PWD/RAW/ -o $PWD/COMPACT/ -s 1024 -n $workload"
+    echo "Compacting $(ls *.pfw.gz 2>/dev/null | wc -l) dftracer files"
+    cmd="dftracer_split -d $PWD -o $PWD/../COMPACT/ -s 1024 -n $workload"
     echo "Generated command: $cmd"
     $cmd || { echo "Failed to compact dftracer files"; exit 1; }
 

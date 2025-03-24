@@ -155,7 +155,7 @@ pushd $LOG_DIR > /dev/null
 files=("$LOG_DIR"/*.zindex)
 total=${#files[@]}
 declare -A count
-counting_file="counting.bak"
+counting_file="$LOG_DIR/counting.bak"
 if [ ! -f $counting_file ] || [ $override == 1 ]; then
   rm ${counting_file}
   touch ${counting_file}
@@ -203,9 +203,9 @@ chunk_index=1
 file_processed=0
 CHUNKS_LINES=()
 while true; do
-  chunk_file=".chunk-${chunk_index}.bak"
+  chunk_file="$LOG_DIR/.chunk-${chunk_index}.bak"
   if [ -f $chunk_file ]; then
-    files_in_chunk=$(wc -l ".chunk-${chunk_index}.bak" | awk {'print $1'})
+    files_in_chunk=$(wc -l "$LOG_DIR/.chunk-${chunk_index}.bak" | awk {'print $1'})
     chunk_index=$((chunk_index + 1))
     file_processed=$((file_processed + files_in_chunk))
     CHUNKS_LINES[$chunk_index]=$file_processed
@@ -223,7 +223,7 @@ scheduled_chunks=0
 CHUNKS_LINES_TOTAL=${#CHUNKS_LINES[@]}
 
 chunk_index=1
-chunk_index_file=".chunk-${chunk_index}.bak"
+chunk_index_file="$LOG_DIR/.chunk-${chunk_index}.bak"
 line_number=0
 total_size=0
 while IFS='|' read -r index file_name size start end; do
@@ -231,7 +231,7 @@ while IFS='|' read -r index file_name size start end; do
   if [ $CHUNKS_LINES_TOTAL -gt 0 ] && [ $line_number -lt $file_processed ]; then
     if [[ $line_number -eq ${CHUNKS_LINES[$chunk_index]} ]]; then
       chunk_index=$((chunk_index + 1))
-      chunk_index_file=".chunk-${chunk_index}.bak"
+      chunk_index_file="$LOG_DIR/.chunk-${chunk_index}.bak"
     fi
     continue
   fi
@@ -271,7 +271,7 @@ while IFS='|' read -r index file_name size start end; do
         } &
         chunk_index=$((chunk_index + 1))
         accumulated_size=0
-        chunk_index_file=".chunk-${chunk_index}.bak"
+        chunk_index_file="$LOG_DIR/.chunk-${chunk_index}.bak"
       fi
     else
       accumulated_size=$(bc -l <<< "scale=8; $accumulated_size + $size")
@@ -333,7 +333,7 @@ SPLIT_LINES_COUNT=$(
     $SCRIPT_DIR/dftracer_event_count -d $dest
   } &)
 wait
-rm -f .chunk* counting.bak
+rm -f $LOG_DIR/.chunk* $LOG_DIR/counting.bak
 
 if [ $LINES_COUNT -ne $SPLIT_LINES_COUNT ]; then
   date_echo "Error: Original lines count $LINES_COUNT does not match split lines count $SPLIT_LINES_COUNT"
