@@ -6,7 +6,7 @@ echo "Running build.sh on $(hostname)" | tee -a "$LOG_FILE"
 
 # shellcheck source=/dev/null
 
-site=$(ls -d $CUSTOM_CI_ENV_DIR/$ENV_NAME/lib/python*/site-packages/ 2>>"$LOG_FILE")
+export site=$(ls -d $CUSTOM_CI_ENV_DIR/$ENV_NAME/lib/python*/site-packages/ 2>>"$LOG_FILE")
 
 echo "Remove preinstall version of dlio_benchmark" | tee -a "$LOG_FILE"
 echo "Command: pip uninstall dlio_benchmark" | tee -a "$LOG_FILE"

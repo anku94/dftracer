@@ -115,9 +115,9 @@ for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
     if [[ "$job_exit_code" -ne "0" ]]; then
        
         echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
-        output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN
+        output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
         echo "Removing trace files from $output as workload has failed"
-        rm -rf $output/*.pfw.gz
+        rm -rf $output/*.pfw*
     else
         echo "Workload $workload is successful"
     fi

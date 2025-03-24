@@ -27,22 +27,22 @@ else
 fi
 
 cd $SYSTEM/$DFTRACER_VERSION || { echo "Failed to change directory to $SYSTEM/$DFTRACER_VERSION"; exit 1; }
-
+export PATH=$site/dftracer/bin:$PATH
 for workload in "${DLIO_WORKLOADS[@]}"; do
-    num_trace_files=$(ls $output/*.pfw 2>/dev/null | wc -l)
+    output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
+    num_trace_files=$(ls $output/*.pfw.gz | wc -l)
     if [ $num_trace_files -eq 0 ]; then
         echo "No trace files found for workload $workload"
         continue
     fi
     echo "Copying trace files for workload $workload"
-    output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
     workload_dir=$(echo $workload | sed 's/_/\//g') || { echo "Failed to process workload directory"; exit 1; }
     echo "workload_dir is $workload_dir"
     mkdir -p $workload_dir/node-$NODES/ || { echo "Failed to create directory $workload_dir/node-$NODES/"; exit 1; }
     current_versions=$(find $workload_dir/node-$NODES/ -name v* | wc -l) || { echo "Failed to find current versions"; exit 1; }
     current_version=$((current_versions + 1))
     mkdir -p $workload_dir/node-$NODES/v${current_version}/RAW || { echo "Failed to create RAW directory"; exit 1; }
-    cmd="mv $output/*.pfw $workload_dir/node-$NODES/v${current_version}/RAW/"
+    cmd="mv $output/*.pfw.gz $workload_dir/node-$NODES/v${current_version}/RAW/"
     echo $cmd
     $cmd || { echo "Failed to move trace files"; exit 1; }
     
