@@ -71,7 +71,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     fi
 
     if [[ $NODES -gt $MAX_NODES ]]; then
-        echo "$NODES"
+        echo "$NODES are too large for $(hostname) cluster."
         export WORKLOAD_JOB_IDS+=("None")
         export COMPRESS_JOB_IDS+=("None")
     continue
@@ -84,7 +84,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     else
         echo "Generating data for workload..."
         scheduler $NODES "$CORES"
-        cmd="${SCHEDULER_CMD[@]} dlio_benchmark workload=$workload ++workload.workflow.generate_data=True ++workload.workflow.train=False ${override_args[@]}"
+        cmd="${SCHEDULER_CMD[@]} --job-name gen_${workload} dlio_benchmark workload=$workload ++workload.workflow.generate_data=True ++workload.workflow.train=False ${override_args[@]}"
         echo "Running command: $cmd"
         $cmd
         generate_data="--dependency=afterany:$(flux job last)"
@@ -97,7 +97,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     
     scheduler $NODES "$GPUS"
     echo "Running training for workload..."
-    cmd="${SCHEDULER_CMD[@]} $generate_data dlio_benchmark workload=$workload ++workload.workflow.generate_data=False ++workload.workflow.train=True ${override_args[@]}"
+    cmd="${SCHEDULER_CMD[@]} $generate_data --job-name train_${workload} dlio_benchmark workload=$workload ++workload.workflow.generate_data=False ++workload.workflow.train=True ${override_args[@]}"
     echo "Running command: $cmd"
     $cmd
     train_data=$(flux job last)
@@ -107,7 +107,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     export WORKLOAD_JOB_IDS+=("$train_data")
     scheduler $NODES "$CORES"
     echo "Compressing $(ls "$output"/*.pfw | wc -l) DFTracer files"
-    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data dftracer_pgzip -d $output/train"
+    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data --job-name comp_${workload} dftracer_pgzip -d $output/train"
     echo "Running command: $cmd"
     $cmd
 
@@ -115,7 +115,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     COMPRESS_JOB_IDS+=("$compress_data")
 
     echo "Removing Checkpoint folder $DATA_PATH/$workload/checkpoint"
-    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data rm -rf $DATA_PATH/$workload/checkpoint"
+    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data --job-name clean_${workload} rm -rf $DATA_PATH/$workload/checkpoint"
     echo "Running command: $cmd"
     $cmd    
 done
