@@ -44,8 +44,7 @@ jobs:
             pip install --upgrade pip
             pip install --upgrade setuptools
           else
-            sudo python3 -m pip install --upgrade pip
-            sudo pip install --upgrade setuptools
+            sudo pip install setuptools>=61
           fi
       - name: Build from ${{ matrix.dir }} on ${{ matrix.perm }}
         run: |

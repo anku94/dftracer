@@ -170,6 +170,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 setup(
     name="pydftracer",
     use_scm_version={
+        'version_scheme': 'post-release',
         "write_to": "dftracer/_version.py",
     },
     setup_requires=["setuptools-scm"],
