@@ -72,7 +72,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     echo "Enabling DFTracer logs..."
     export DFTRACER_ENABLE=1
     export DFTRACER_INC_METADATA=1
-    override_args=(++workload.dataset.data_folder="$DATA_PATH/$workload/data" ++workload.checkpoint.checkpoint_folder="$DATA_PATH/$workload/checkpoint" ++workload.output.folder="$output/train/" ++workload.train.epochs=1)
+    override_args=(++workload.dataset.data_folder="$DATA_PATH/$workload/data" ++workload.checkpoint.checkpoint_folder="$DATA_PATH/$workload/checkpoint" ++workload.output.folder="$output/train/" ++workload.train.epochs=1 hydra.run.dir="$output/train/")
     
     scheduler "$GPUS"
     echo "Running training for workload..."
@@ -86,7 +86,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     export WORKLOAD_JOB_IDS+=("$train_data")
     scheduler "$CORES"
     echo "Compressing $(ls "$output"/*.pfw | wc -l) DFTracer files"
-    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data ./dftracer_pgzip -d $output/train"
+    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data dftracer_pgzip -d $output/train"
     echo "Running command: $cmd"
     $cmd
 
@@ -103,8 +103,25 @@ for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
 done
 
 echo "Waiting for all compression jobs..."
-for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
+for job_id in "${COMPRESS_JOB_IDS[@]}"; do
     flux job status "$job_id" || true
+done
+
+echo "Checking for failed compression jobs..."
+index=0
+for job_id in "${COMPRESS_JOB_IDS[@]}"; do
+    workload="${DLIO_WORKLOADS[$index]}"
+    job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
+    if [[ "$job_exit_code" -ne "0" ]]; then
+       
+        echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
+        output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
+        echo "Compressing traces "
+        dftracer_pgzip -d $output
+    else
+        echo "Compression for workload $workload is successful"
+    fi
+    index=$((index+1))
 done
 
 echo "Deleting failed jobs..."
@@ -112,8 +129,7 @@ index=0
 for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
     workload="${DLIO_WORKLOADS[$index]}"
     job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
-    if [[ "$job_exit_code" -ne "0" ]]; then
-       
+    if [[ "$job_exit_code" -ne "0" ]]; then       
         echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
         output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
         echo "Removing trace files from $output as workload has failed"
@@ -123,3 +139,4 @@ for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
     fi
     index=$((index+1))
 done
+

@@ -11,7 +11,7 @@ pushd $LOG_STORE_DIR || { echo "Failed to change directory to $LOG_STORE_DIR"; e
 
 SYSTEM=$(hostname | sed 's/[0-9]//g') || { echo "Failed to determine SYSTEM"; exit 1; }
 
-LFS_DIR=$DFTRACER_VERSION/$SYSTEM
+LFS_DIR=v$DFTRACER_VERSION/$SYSTEM
 
 if test -d $LFS_DIR; then
     echo "Branch $LFS_DIR Exists"
@@ -29,10 +29,10 @@ else
 fi
 
 cd $LFS_DIR || { echo "Failed to change directory to $LFS_DIR"; exit 1; }
-export PATH=$site/dftracer/bin:$PATH
+
 for workload in "${DLIO_WORKLOADS[@]}"; do
     output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
-    num_trace_files=$(ls $output/*.pfw.gz | wc -l)
+    num_trace_files=$(find $output -name *.pfw.gz | wc -l)
     if [ $num_trace_files -eq 0 ]; then
         echo "No trace files found for workload $workload"
         continue
@@ -47,6 +47,10 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     cmd="mv $output/*.pfw.gz $workload_dir/node-$NODES/v${current_version}/RAW/"
     echo $cmd
     $cmd || { echo "Failed to move trace files"; exit 1; }
+
+    cmd="mv $output/.hydra $workload_dir/node-$NODES/v${current_version}/"
+    echo $cmd
+    $cmd || { echo "Failed to move .hydra folder"; exit 1; }
     
     cd $workload_dir/node-$NODES/v${current_version} || { echo "Failed to change directory to $workload_dir/node-$NODES/v${current_version}"; exit 1; }
     

@@ -52,5 +52,7 @@ echo "Cleaning output folder"
 mkdir -p $CUSTOM_CI_OUTPUR_DIR
 rm -rf $CUSTOM_CI_OUTPUR_DIR/*
 
+env | grep ci
+
 # Disable debugging
 set +x

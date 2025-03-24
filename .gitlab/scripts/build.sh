@@ -65,3 +65,4 @@ if [ $? -ne 0 ]; then
 fi
 
 python -c "import dftracer; import dftracer.logger; print(dftracer.__version__);"
+export PATH=$site/dftracer/bin:$PATH
