@@ -44,7 +44,7 @@ jobs:
             pip install --upgrade pip
             pip install --upgrade setuptools
           else
-            sudo pip install --upgrade pip
+            sudo python -m pip install --upgrade pip
             sudo pip install --upgrade setuptools
           fi
       - name: Build from ${{ matrix.dir }} on ${{ matrix.perm }}
