@@ -94,7 +94,9 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     COMPRESS_JOB_IDS+=("$compress_data")
 
     echo "Removing Checkpoint folder $DATA_PATH/$workload/checkpoint"
-    rm -rf $DATA_PATH/$workload/checkpoint
+    cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data rm -rf $DATA_PATH/$workload/checkpoint"
+    echo "Running command: $cmd"
+    $cmd    
 done
 
 echo "Waiting for all training jobs..."
