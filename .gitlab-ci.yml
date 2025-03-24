@@ -1,9 +1,9 @@
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: true
+      when: always
     - if: $CI_PIPELINE_SOURCE != "schedule"
-      when: false
+      when: never
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
