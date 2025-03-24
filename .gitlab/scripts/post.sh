@@ -11,40 +11,46 @@ pushd $LOG_STORE_DIR || { echo "Failed to change directory to $LOG_STORE_DIR"; e
 
 SYSTEM=$(hostname | sed 's/[0-9]//g') || { echo "Failed to determine SYSTEM"; exit 1; }
 
-if test -d $SYSTEM/$DFTRACER_VERSION; then
-    echo "Branch $SYSTEM/$DFTRACER_VERSION Exists"
+LFS_DIR=v$DFTRACER_VERSION/$SYSTEM
+
+if test -d $LFS_DIR; then
+    echo "Branch $LFS_DIR Exists"
 else
-    git clone ssh://git@czgitlab.llnl.gov:7999/iopp/dftracer-traces.git $SYSTEM/$DFTRACER_VERSION || { echo "Failed to clone repository"; exit 1; }
-    cd $SYSTEM/$DFTRACER_VERSION || { echo "Failed to change directory to $SYSTEM/$DFTRACER_VERSION"; exit 1; }
-    git checkout -b $SYSTEM/$DFTRACER_VERSION || { echo "Failed to create branch $SYSTEM/$DFTRACER_VERSION"; exit 1; }
+    git clone ssh://git@czgitlab.llnl.gov:7999/iopp/dftracer-traces.git $LFS_DIR || { echo "Failed to clone repository"; exit 1; }
+    cd $LFS_DIR || { echo "Failed to change directory to $LFS_DIR"; exit 1; }
+    git checkout -b $LFS_DIR || { echo "Failed to create branch $LFS_DIR"; exit 1; }
     cp $LOG_STORE_DIR/v1.0.5-develop/corona/.gitattributes . || { echo "Failed to copy .gitattributes"; exit 1; }
     cp $LOG_STORE_DIR/v1.0.5-develop/corona/.gitignore . || { echo "Failed to copy .gitignore"; exit 1; }
     cp $LOG_STORE_DIR/v1.0.5-develop/corona/prepare_traces.sh . || { echo "Failed to copy prepare_traces.sh"; exit 1; }
     cp $LOG_STORE_DIR/v1.0.5-develop/corona/README.md . || { echo "Failed to copy README.md"; exit 1; }
     git commit -a -m "added initial files" || { echo "Failed to commit files"; exit 1; }
-    git push origin $SYSTEM/$DFTRACER_VERSION || { echo "Failed to push branch $SYSTEM/$DFTRACER_VERSION"; exit 1; }
+    git push origin $LFS_DIR || { echo "Failed to push branch $LFS_DIR"; exit 1; }
     cd - || { echo "Failed to return to previous directory"; exit 1; }
 fi
 
-cd $SYSTEM/$DFTRACER_VERSION || { echo "Failed to change directory to $SYSTEM/$DFTRACER_VERSION"; exit 1; }
+cd $LFS_DIR || { echo "Failed to change directory to $LFS_DIR"; exit 1; }
 
 for workload in "${DLIO_WORKLOADS[@]}"; do
-    num_trace_files=$(ls $output/*.pfw 2>/dev/null | wc -l)
+    output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
+    num_trace_files=$(find $output -name *.pfw.gz | wc -l)
     if [ $num_trace_files -eq 0 ]; then
         echo "No trace files found for workload $workload"
         continue
     fi
     echo "Copying trace files for workload $workload"
-    output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
     workload_dir=$(echo $workload | sed 's/_/\//g') || { echo "Failed to process workload directory"; exit 1; }
     echo "workload_dir is $workload_dir"
     mkdir -p $workload_dir/node-$NODES/ || { echo "Failed to create directory $workload_dir/node-$NODES/"; exit 1; }
     current_versions=$(find $workload_dir/node-$NODES/ -name v* | wc -l) || { echo "Failed to find current versions"; exit 1; }
     current_version=$((current_versions + 1))
     mkdir -p $workload_dir/node-$NODES/v${current_version}/RAW || { echo "Failed to create RAW directory"; exit 1; }
-    cmd="mv $output/*.pfw $workload_dir/node-$NODES/v${current_version}/RAW/"
+    cmd="mv $output/*.pfw.gz $workload_dir/node-$NODES/v${current_version}/RAW/"
     echo $cmd
     $cmd || { echo "Failed to move trace files"; exit 1; }
+
+    cmd="mv $output/.hydra $workload_dir/node-$NODES/v${current_version}/"
+    echo $cmd
+    $cmd || { echo "Failed to move .hydra folder"; exit 1; }
     
     cd $workload_dir/node-$NODES/v${current_version} || { echo "Failed to change directory to $workload_dir/node-$NODES/v${current_version}"; exit 1; }
     

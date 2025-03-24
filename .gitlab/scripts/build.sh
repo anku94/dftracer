@@ -6,7 +6,7 @@ echo "Running build.sh on $(hostname)" | tee -a "$LOG_FILE"
 
 # shellcheck source=/dev/null
 
-site=$(ls -d $CUSTOM_CI_ENV_DIR/$ENV_NAME/lib/python*/site-packages/ 2>>"$LOG_FILE")
+export site=$(ls -d $CUSTOM_CI_ENV_DIR/$ENV_NAME/lib/python*/site-packages/ 2>>"$LOG_FILE")
 
 echo "Remove preinstall version of dlio_benchmark" | tee -a "$LOG_FILE"
 echo "Command: pip uninstall dlio_benchmark" | tee -a "$LOG_FILE"
@@ -55,9 +55,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Installing DFTracer" | tee -a "$LOG_FILE"
-echo "Command: pip install --no-cache-dir --force-reinstall ." | tee -a "$LOG_FILE"
+echo "Command: pip install --no-cache-dir --force-reinstall git+${DFTRACER_REPO}@${CI_COMMIT_REF_NAME}" | tee -a "$LOG_FILE"
 set -x
-pip install --no-cache-dir --force-reinstall . >>"$LOG_FILE" 2>&1
+pip install --no-cache-dir --force-reinstall git+${DFTRACER_REPO}@${CI_COMMIT_REF_NAME} >>"$LOG_FILE" 2>&1
 set +x
 if [ $? -ne 0 ]; then
     echo "Failed to install DFTracer. Check the log file: $LOG_FILE" | tee -a "$LOG_FILE"
@@ -65,3 +65,4 @@ if [ $? -ne 0 ]; then
 fi
 
 python -c "import dftracer; import dftracer.logger; print(dftracer.__version__);"
+export PATH=$site/dftracer/bin:$PATH

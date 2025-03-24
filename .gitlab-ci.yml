@@ -1,11 +1,8 @@
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push"'
-      when: never  # Prevent pipeline run for push event
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      when: manual
-      allow_failure: true
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    - when: never
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -15,6 +12,7 @@ variables:
   # Reposiroty information
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
+  DFTRACER_REPO: https://github.com/LLNL/dftracer.git
   # test variable
   ENV_NAME: dlio_env_2
 
