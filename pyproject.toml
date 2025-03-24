@@ -1,6 +1,7 @@
 [build-system]
 requires = [
-    "setuptools>=42",
+    "setuptools>=64", 
+    "setuptools-scm>=8",
     "wheel",
     "ninja",
     "cmake>=3.12",
@@ -8,10 +9,11 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[tool.mypy]
+[dftracer]
 files = "setup.py"
 python_version = "3.7"
 strict = true
+dynamic = ["version"]
 show_error_codes = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 warn_unreachable = true
@@ -21,21 +23,21 @@ module = ["ninja"]
 ignore_missing_imports = true
 
 
-[tool.pytest.ini_options]
+[dftracer.pytest.ini_options]
 minversion = "6.0"
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = ["error"]
 testpaths = ["tests"]
 
-[tool.cibuildwheel]
+[dftracer.cibuildwheel]
 test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = "rm -rf {project}/build"
 
-[tool.ruff]
+[dftracer.ruff]
 extend-select = [
   "B",    # flake8-bugbear
   "B904",
@@ -48,3 +50,5 @@ extend-ignore = [
   "E501",   # Line too long
 ]
 target-version = "py38"
+
+[tool.setuptools_scm]
