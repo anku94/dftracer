@@ -17,7 +17,7 @@ scheduler() {
     case $hostname in
         *"corona"*)
             echo "Setting SCHEDULER_CMD for hostname containing 'corona'..."
-            SCHEDULER_CMD=(flux submit -N $NODES --tasks-per-node=$1 -q $QUEUE -t $WALLTIME --exclusive)
+            SCHEDULER_CMD=(flux submit -N $1 --tasks-per-node=$2 -q $QUEUE -t $WALLTIME --exclusive)
             ;;
         *)
             echo "Unknown hostname: $hostname"
@@ -56,13 +56,29 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     echo "Disabling DFTracer logs..."
     export DFTRACER_ENABLE=0
     
+    echo "Setting args for workload:$workload"
     override_args=(++workload.dataset.data_folder="$DATA_PATH/$workload/data" ++workload.checkpoint.checkpoint_folder="$DATA_PATH/$workload/checkpoint" ++workload.output.folder="$output/generate/" ++workload.train.epochs=1)
+    
+    echo "Query workload configurations"
+    tp_size=$(dlio_benchmark_query workload=$workload "${override_args[@]}" ++workload.workflow.query="model.parallelism.tensor")
+    pp_size=$(dlio_benchmark_query workload=$workload "${override_args[@]}" ++workload.workflow.query="model.parallelism.pipeline")
+    num_gpus=$((tp_size*pp_size))
+    if [[ "$num_gpus" == 1 ]]; then
+        NODES=1
+        GPUS=8
+    else
+        NODES=$((num_gpus / GPUS))
+    fi
+    mod=$(($num_gpus % 5))
+
+    
+    
     if [ -d "$DATA_PATH/$workload/data" ]; then
         echo "$DATA_PATH/$workload exists. Not generating data."
         unset generate_data
     else
         echo "Generating data for workload..."
-        scheduler "$CORES"
+        scheduler $NODES "$CORES"
         cmd="${SCHEDULER_CMD[@]} dlio_benchmark workload=$workload ++workload.workflow.generate_data=True ++workload.workflow.train=False ${override_args[@]}"
         echo "Running command: $cmd"
         $cmd
@@ -74,7 +90,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     export DFTRACER_INC_METADATA=1
     override_args=(++workload.dataset.data_folder="$DATA_PATH/$workload/data" ++workload.checkpoint.checkpoint_folder="$DATA_PATH/$workload/checkpoint" ++workload.output.folder="$output/train/" ++workload.train.epochs=1 hydra.run.dir="$output/train/")
     
-    scheduler "$GPUS"
+    scheduler $NODES "$GPUS"
     echo "Running training for workload..."
     cmd="${SCHEDULER_CMD[@]} $generate_data dlio_benchmark workload=$workload ++workload.workflow.generate_data=False ++workload.workflow.train=True ${override_args[@]}"
     echo "Running command: $cmd"
@@ -84,7 +100,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     export DFTRACER_ENABLE=0
 
     export WORKLOAD_JOB_IDS+=("$train_data")
-    scheduler "$CORES"
+    scheduler $NODES "$CORES"
     echo "Compressing $(ls "$output"/*.pfw | wc -l) DFTracer files"
     cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data dftracer_pgzip -d $output/train"
     echo "Running command: $cmd"
