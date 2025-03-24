@@ -36,7 +36,8 @@ variables:
     GPUS: 8
     NODES: 1
     WALLTIME: 60
-    QUEUE: pdebug
+    QUEUE: pbatch
+    MAX_NODES: 32
 
 .dlio_test_script:
   script:

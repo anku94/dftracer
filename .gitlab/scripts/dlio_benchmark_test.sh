@@ -69,8 +69,13 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     else
         NODES=$((num_gpus / GPUS))
     fi
-    mod=$(($num_gpus % 5))
 
+    if [[ $NODES -gt $MAX_NODES ]]; then
+        echo "$NODES"
+        export WORKLOAD_JOB_IDS+=("None")
+        export COMPRESS_JOB_IDS+=("None")
+    continue
+    fi
     
     
     if [ -d "$DATA_PATH/$workload/data" ]; then
@@ -119,27 +124,33 @@ echo "We have created $(flux jobs | wc -l) jobs"
 
 echo "Waiting for all training jobs..."
 for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
-    flux job status "$job_id" || true
+    if [[ "$job_id" != "None" ]]; then
+        flux job status "$job_id" || true
+    fi
 done
 
 echo "Waiting for all compression jobs..."
 for job_id in "${COMPRESS_JOB_IDS[@]}"; do
-    flux job status "$job_id" || true
+    if [[ "$job_id" != "None" ]]; then
+        flux job status "$job_id" || true
+    fi
 done
 
 echo "Checking for failed compression jobs..."
 index=0
 for job_id in "${COMPRESS_JOB_IDS[@]}"; do
-    workload="${DLIO_WORKLOADS[$index]}"
-    job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
-    if [[ "$job_exit_code" -ne "0" ]]; then
-       
-        echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
-        output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
-        echo "Compressing traces "
-        dftracer_pgzip -d $output
-    else
-        echo "Compression for workload $workload is successful"
+    if [[ "$job_id" != "None" ]]; then
+        workload="${DLIO_WORKLOADS[$index]}"
+        job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
+        if [[ "$job_exit_code" -ne "0" ]]; then
+        
+            echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
+            output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
+            echo "Compressing traces "
+            dftracer_pgzip -d $output
+        else
+            echo "Compression for workload $workload is successful"
+        fi
     fi
     index=$((index+1))
 done
@@ -147,15 +158,17 @@ done
 echo "Deleting failed jobs..."
 index=0
 for job_id in "${WORKLOAD_JOB_IDS[@]}"; do
-    workload="${DLIO_WORKLOADS[$index]}"
-    job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
-    if [[ "$job_exit_code" -ne "0" ]]; then       
-        echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
-        output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
-        echo "Removing trace files from $output as workload has failed"
-        rm -rf $output/*.pfw*
-    else
-        echo "Workload $workload is successful"
+    if [[ "$job_id" != "None" ]]; then
+        workload="${DLIO_WORKLOADS[$index]}"
+        job_exit_code=$(flux job info $job_id guest.exec.eventlog | grep exitcode | jq -c '.context.exitcode')
+        if [[ "$job_exit_code" -ne "0" ]]; then       
+            echo "Workload $workload failed and exits with code $job_exit_code check $CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN for info"
+            output=$CUSTOM_CI_OUTPUR_DIR/$workload/$CI_RUNNER_SHORT_TOKEN/train
+            echo "Removing trace files from $output as workload has failed"
+            rm -rf $output/*.pfw*
+        else
+            echo "Workload $workload is successful"
+        fi
     fi
     index=$((index+1))
 done
