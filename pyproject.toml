@@ -10,7 +10,7 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[dftracer]
+[tool]
 files = "setup.py"
 python_version = "3.7"
 strict = true
@@ -19,26 +19,26 @@ show_error_codes = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 warn_unreachable = true
 
-[[tool.mypy.overrides]]
+[[tool.overrides]]
 module = ["ninja"]
 ignore_missing_imports = true
 
 
-[dftracer.pytest.ini_options]
+[tool.pytest.ini_options]
 minversion = "6.0"
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = ["error"]
 testpaths = ["tests"]
 
-[dftracer.cibuildwheel]
+[tool.cibuildwheel]
 test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = "rm -rf {project}/build"
 
-[dftracer.ruff]
+[tool.ruff]
 extend-select = [
   "B",    # flake8-bugbear
   "B904",
@@ -53,3 +53,6 @@ extend-ignore = [
 target-version = "py38"
 
 [tool.setuptools_scm]
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"
+write_to = "dftracer/_version.py"
