@@ -53,6 +53,5 @@ extend-ignore = [
 target-version = "py38"
 
 [tool.setuptools_scm]
-version_scheme = "no-guess-dev"
 local_scheme = "no-local-version"
 write_to = "dftracer/_version.py"
