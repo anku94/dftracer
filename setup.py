@@ -7,6 +7,7 @@ from pathlib import Path
 
 from setuptools import Extension, find_namespace_packages, setup
 from setuptools.command.build_ext import build_ext
+from setuptools_scm import ScmVersion
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -15,6 +16,14 @@ PLAT_TO_CMAKE = {
     "win-arm32": "ARM",
     "win-arm64": "ARM64",
 }
+
+
+
+
+def myversion_func(version: ScmVersion) -> str:
+    from setuptools_scm.version import only_version
+
+    return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
 
 
 # A CMakeExtension needs a sourcedir instead of a file list.
@@ -169,7 +178,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
     name="pydftracer",
-    version="1.0.8",
+    setup_requires=["setuptools>=64",  "setuptools-scm>=8"],
     description="I/O profiler for deep learning python apps. Specifically for dlio_benchmark.",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -195,8 +204,8 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3 :: Only",
     ],
-    install_requires=["pybind11", "zindex_py==0.0.4"],
-    requires=["pybind11", "setuptools"],
+    use_scm_version={"version_scheme": myversion_func},
+    install_requires=["pybind11", "zindex_py==0.0.4" , "setuptools>=64", "setuptools-scm>=8"],
     keywords="profiler, deep learning, I/O, benchmark, NPZ, pytorch benchmark, tensorflow benchmark",
     project_urls={  # Optional
         "Bug Reports": "https://github.com/LLNL/dftracer/issues",

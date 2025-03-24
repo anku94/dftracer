@@ -78,6 +78,7 @@ examples/dfanalyzer/test-trace.pfw.gz.zindex
 pydftracer.egg-info
 /dist/
 /output/
+.eggs/
 
 # Python checkpoints
 /examples/.ipynb_checkpoints/
