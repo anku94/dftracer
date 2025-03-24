@@ -55,9 +55,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Installing DFTracer" | tee -a "$LOG_FILE"
-echo "Command: pip install --no-cache-dir --force-reinstall ." | tee -a "$LOG_FILE"
+echo "Command: pip install --no-cache-dir --force-reinstall git+${DFTRACER_REPO}@${CI_COMMIT_REF_NAME}" | tee -a "$LOG_FILE"
 set -x
-pip install --no-cache-dir --force-reinstall . >>"$LOG_FILE" 2>&1
+pip install --no-cache-dir --force-reinstall git+${DFTRACER_REPO}@${CI_COMMIT_REF_NAME} >>"$LOG_FILE" 2>&1
 set +x
 if [ $? -ne 0 ]; then
     echo "Failed to install DFTracer. Check the log file: $LOG_FILE" | tee -a "$LOG_FILE"
