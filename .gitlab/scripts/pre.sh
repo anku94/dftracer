@@ -48,5 +48,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "Cleaning output folder"
+mkdir -p $CUSTOM_CI_OUTPUR_DIR
+rm -rf $CUSTOM_CI_OUTPUR_DIR/*
+
 # Disable debugging
 set +x
