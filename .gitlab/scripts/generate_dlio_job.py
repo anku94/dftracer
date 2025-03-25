@@ -118,7 +118,18 @@ def generate_gitlab_ci_yaml(config_files):
             "WALLTIME": os.getenv("WALLTIME", ""),
             "QUEUE": os.getenv("QUEUE", ""),
             "MAX_NODES": os.getenv("MAX_NODES", ""),
-            "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "default_system"),
+            "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "corona"),
+        },
+        ".lc": {
+            "id_tokens": {
+                "SITE_ID_TOKEN": {
+                    "aud": "https://lc.llnl.gov/gitlab",
+                },
+            },
+        },
+        f".{os.getenv("SYSTEM_NAME")}": {
+            "extends": ".lc",
+            "tags": ["shell", os.getenv("SYSTEM_NAME")],
         },
     }
     logging.info("Initialized CI configuration with default stages and variables.")
@@ -212,6 +223,7 @@ def generate_gitlab_ci_yaml(config_files):
             if stage == "generate_data":
                 ci_config[f"{base_job_name}_generate_data"] = {
                     "stage": "generate_data",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -221,12 +233,12 @@ def generate_gitlab_ci_yaml(config_files):
                         "echo 'Waiting for job ID: $last_job_id to finish...'",
                         "flux job wait $last_job_id",
                     ],
-                    "tags": ["dlio-runner"],
                 }
 
             elif stage == "train":
                 ci_config[f"{base_job_name}_train"] = {
                     "stage": "train",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -236,7 +248,6 @@ def generate_gitlab_ci_yaml(config_files):
                         "flux job wait $last_job_id",
                         f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                     ],
-                    "tags": ["dlio-runner"],
                     "needs": [f"{base_job_name}_generate_data"],
                     "variables": {
                         "DFTRACER_ENABLE": "1",
@@ -247,6 +258,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "compress_output":
                 ci_config[f"{base_job_name}_compress_output"] = {
                     "stage": "compress_output",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -257,40 +269,41 @@ def generate_gitlab_ci_yaml(config_files):
                         f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
                         f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                     ],
-                    "tags": ["dlio-runner"],
                     "needs": [f"{base_job_name}_train"],
                 }
 
             elif stage == "move":
                 ci_config[f"{base_job_name}_move"] = {
                     "stage": "move",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
                         f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                         f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                         f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                        f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                     ],
-                    "tags": ["dlio-runner"],
                     "needs": [f"{base_job_name}_compress_output"],
                 }
 
             elif stage == "compact":
                 ci_config[f"{base_job_name}_compact"] = {
                     "stage": "compact",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
                         f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                         f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                     ],
-                    "tags": ["dlio-runner"],
                     "needs": [f"{base_job_name}_move"],
                 }
 
             elif stage == "compress_final":
                 ci_config[f"{base_job_name}_compress_final"] = {
                     "stage": "compress_final",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -298,13 +311,13 @@ def generate_gitlab_ci_yaml(config_files):
                         f"tar -czf RAW.tar.gz RAW",
                         f"tar -czf COMPACT.tar.gz COMPACT",
                     ],
-                    "tags": ["dlio-runner"],
                     "needs": [f"{base_job_name}_compact"],
                 }
 
             elif stage == "cleanup":
                 ci_config[f"{base_job_name}_cleanup"] = {
                     "stage": "cleanup",
+                    "extends": f".{os.getenv("SYSTEM_NAME")}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -314,9 +327,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "echo 'Waiting for job ID: $last_job_id to finish...'",
                         "flux job wait $last_job_id",
                     ],
-                    "tags": ["dlio-runner"],
-                    "needs": [],
-                    "when": "always",
+                    "needs": [ f"{base_job_name}_compress_final"],
                 }
 
     return ci_config
