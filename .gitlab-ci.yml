@@ -19,7 +19,7 @@ variables:
 
 stages:
 - build
-- generate
+# - generate
 - test
 
 .lc:
@@ -55,24 +55,25 @@ dlio_corona_build:
     - source .gitlab/scripts/pre.sh
     # - source .gitlab/scripts/build.sh
 
-dlio_corona_generate:
-  extends: .corona
-  stage: generate
-  script: 
-    - source .gitlab/scripts/variables.sh
-    - source .gitlab/scripts/pre.sh
-    - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
-    - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
-  artifacts:
-    paths:
-      - .gitlab/scripts/run_dlio_workload_test_ci.yaml
+# dlio_corona_generate:
+#   extends: .corona
+#   stage: generate
+#   script: 
+#     - source .gitlab/scripts/variables.sh
+#     - source .gitlab/scripts/pre.sh
+#     - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
+#     - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
+#   artifacts:
+#     paths:
+#       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
 dlio_corona_test:
   stage: test
   trigger:
     include:
-      - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-        job: dlio_corona_generate
+      # - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+      #   job: dlio_corona_generate
+      - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
     strategy: depend
     forward:
       pipeline_variables: true
