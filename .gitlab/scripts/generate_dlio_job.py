@@ -88,6 +88,7 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
 
 def generate_gitlab_ci_yaml(config_files):
     """Generate a GitLab CI YAML configuration with updated stages per workload."""
+    system_name = os.getenv("SYSTEM_NAME")
     ci_config = {
         "stages": [
             "generate_data",
@@ -118,7 +119,7 @@ def generate_gitlab_ci_yaml(config_files):
             "WALLTIME": os.getenv("WALLTIME", ""),
             "QUEUE": os.getenv("QUEUE", ""),
             "MAX_NODES": os.getenv("MAX_NODES", ""),
-            "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "corona"),
+            "SYSTEM_NAME": system_name,
         },
         ".lc": {
             "id_tokens": {
@@ -127,9 +128,9 @@ def generate_gitlab_ci_yaml(config_files):
                 },
             },
         },
-        f".{os.getenv("SYSTEM_NAME")}": {
+        f".{system_name}": {
             "extends": ".lc",
-            "tags": ["shell", os.getenv("SYSTEM_NAME")],
+            "tags": ["shell", system_name],
         },
     }
     logging.info("Initialized CI configuration with default stages and variables.")
@@ -223,7 +224,7 @@ def generate_gitlab_ci_yaml(config_files):
             if stage == "generate_data":
                 ci_config[f"{base_job_name}_generate_data"] = {
                     "stage": "generate_data",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -238,7 +239,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "train":
                 ci_config[f"{base_job_name}_train"] = {
                     "stage": "train",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -258,7 +259,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "compress_output":
                 ci_config[f"{base_job_name}_compress_output"] = {
                     "stage": "compress_output",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -275,7 +276,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "move":
                 ci_config[f"{base_job_name}_move"] = {
                     "stage": "move",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -290,7 +291,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "compact":
                 ci_config[f"{base_job_name}_compact"] = {
                     "stage": "compact",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -303,7 +304,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "compress_final":
                 ci_config[f"{base_job_name}_compress_final"] = {
                     "stage": "compress_final",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -317,7 +318,7 @@ def generate_gitlab_ci_yaml(config_files):
             elif stage == "cleanup":
                 ci_config[f"{base_job_name}_cleanup"] = {
                     "stage": "cleanup",
-                    "extends": f".{os.getenv("SYSTEM_NAME")}",
+                    "extends": f".{system_name}",
                     "script": [
                         "./variables.sh",
                         "./pre.sh",
@@ -327,7 +328,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "echo 'Waiting for job ID: $last_job_id to finish...'",
                         "flux job wait $last_job_id",
                     ],
-                    "needs": [ f"{base_job_name}_compress_final"],
+                    "needs": [f"{base_job_name}_compress_final"],
                 }
 
     return ci_config
