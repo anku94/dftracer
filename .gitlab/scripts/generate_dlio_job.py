@@ -104,28 +104,7 @@ def generate_gitlab_ci_yaml(config_files):
     """Generate a GitLab CI YAML configuration with updated stages per workload."""
     system_name = os.getenv("SYSTEM_NAME")
     ci_config = {
-        "variables": {
-            "GIT_SUBMODULE_STRATEGY": os.getenv("GIT_SUBMODULE_STRATEGY", "recursive"),
-            "CUSTOM_CI_BUILDS_DIR": os.getenv("CUSTOM_CI_BUILDS_DIR", ""),
-            "CUSTOM_CI_ENV_DIR": os.getenv("CUSTOM_CI_ENV_DIR", ""),
-            "CUSTOM_CI_OUTPUT_DIR": os.getenv("CUSTOM_CI_OUTPUT_DIR", ""),
-            "DLIO_BENCHMARK_REPO": os.getenv("DLIO_BENCHMARK_REPO", ""),
-            "DLIO_BENCHMARK_TAG": os.getenv("DLIO_BENCHMARK_TAG", ""),
-            "DFTRACER_REPO": os.getenv("DFTRACER_REPO", ""),
-            "ENV_NAME": os.getenv("ENV_NAME", ""),
-            "PYTHON_MODULE": os.getenv("PYTHON_MODULE", ""),
-            "MPI_MODULE": os.getenv("MPI_MODULE", ""),
-            "GCC_MODULE": os.getenv("GCC_MODULE", ""),
-            "DATA_PATH": os.getenv("DATA_PATH", ""),
-            "LOG_STORE_DIR": os.getenv("LOG_STORE_DIR", ""),
-            "CORES": os.getenv("CORES", ""),
-            "GPUS": os.getenv("GPUS", ""),
-            "NODES": os.getenv("NODES", ""),
-            "WALLTIME": os.getenv("WALLTIME", ""),
-            "QUEUE": os.getenv("QUEUE", ""),
-            "MAX_NODES": os.getenv("MAX_NODES", ""),
-            "SYSTEM_NAME": system_name,
-        },
+        "variables": {},
         "stages": [
             "generate_data",
             "train",
@@ -135,17 +114,10 @@ def generate_gitlab_ci_yaml(config_files):
             "compress_final",
             "cleanup",
         ],
-        ".lc": {
-            "id_tokens": {
-                "SITE_ID_TOKEN": {
-                    "aud": "https://lc.llnl.gov/gitlab",
-                },
-            },
-        },
-        f".{system_name}": {
-            "extends": ".lc",
-            "tags": ["shell", system_name],
-        },
+        "include": [
+            {"project": "lc-templates/id_tokens", "file": "id_tokens.yml"},
+            {"local": "common-ci.yml"},
+        ],
     }
     logging.info("Initialized CI configuration with default stages and variables.")
 

@@ -6,63 +6,47 @@ workflow:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  CUSTOM_CI_BUILDS_DIR: "/usr/workspace/$$USER/gitlab-runner-builds"
-  CUSTOM_CI_ENV_DIR: "/usr/workspace/$$USER/gitlab-runner-envs"
+  CUSTOM_CI_BUILDS_DIR: "/usr/workspace/iopp/gitlab-runner-builds"
+  CUSTOM_CI_ENV_DIR: "/usr/workspace/iopp/gitlab-runner-envs"
   CUSTOM_CI_OUTPUT_DIR: "/usr/workspace/$$USER/gitlab-runner-outputs"
   # Repository information
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
+  # test variable
   ENV_NAME: dlio_env_2
 
+stages:
+- build
+- generate
+- test
 
-.lc:
-  id_tokens:
-    SITE_ID_TOKEN:
-      aud: https://lc.llnl.gov/gitlab
+dlio_corona_build:
+  extends: .corona
+  stage: build
+  script:
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - source .gitlab/scripts/build.sh
 
-.corona:
-  extends: .lc
-  variables:
-    PYTHON_MODULE: python/3.9.12
-    MPI_MODULE: openmpi/4.1.2 # OpenMPI is a popular open-source MPI implementation
-    GCC_MODULE: gcc/10.3.1
-    DATA_PATH: "/p/lustre3/$$USER/gitlab-runner-data/"
-    LOG_STORE_DIR: "/p/lustre3/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
-    CORES: 48
-    GPUS: 8
-    NODES: 1
-    WALLTIME: 60 # Walltime specifies the maximum runtime in minutes
-    QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
-    MAX_NODES: 8
-    SYSTEM_NAME: corona
-
-
-# dlio_corona_build:
-#   extends: .corona
-#   stage: build
-#   script:
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-    # - source .gitlab/scripts/build.sh
-
-# dlio_corona_generate:
-#   extends: .corona
-#   stage: generate
-#   script: 
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-#     - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#     - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#   artifacts:
-#     paths:
-#       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
+dlio_corona_generate:
+  extends: .corona
+  stage: generate
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
+    - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
+  artifacts:
+    paths:
+      - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
 dlio_corona_test:
-  extends: .corona
+  stage: test
   trigger:
     include:
-      - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+      - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+        job: dlio_corona_generate
     strategy: depend
     forward:
       pipeline_variables: true
@@ -70,29 +54,4 @@ dlio_corona_test:
 include:
   - project: 'lc-templates/id_tokens'
     file: 'id_tokens.yml'
-#   # [Optional] checks preliminary to running the actual CI test
-#   #- project: 'radiuss/radiuss-shared-ci'
-#   #  ref: 'v2024.12.0'
-#   #  file: 'utilities/preliminary-ignore-draft-pr.yml'
-#   # pipelines subscribed by the project
-#   - local: '.gitlab/scripts/run_dlio_workload_test_ci.yaml'
-      # - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-      #   job: dlio_corona_generate
-
-# trigger_job:
-#   trigger:
-#     include:
-#       - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#     strategy: depend
-#     forward:
-#       pipeline_variables: true
-
-
-# .dlio_test_script:
-#   script:
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-#     - source .gitlab/scripts/build.sh
-#     - source .gitlab/scripts/dlio_benchmark_test.sh
-#     - source .gitlab/scripts/post.sh
-
+  - local: '.gitlab/scripts/common-ci.yml'
