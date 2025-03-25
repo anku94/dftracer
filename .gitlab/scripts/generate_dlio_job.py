@@ -14,6 +14,20 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+
+def str_presenter(dumper, data):
+    """configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
+    if len(data.splitlines()) > 1:  # check for multiline string
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(
+    str, str_presenter
+)  # to use with safe_dum
 # Dynamically determine the path to the dlio_benchmark configurations
 CONFIGS_DIR = Path(dlio_benchmark.__file__).resolve().parent / "configs" / "workload"
 
@@ -174,7 +188,7 @@ def generate_gitlab_ci_yaml(config_files):
     unique_run_id = str(uuid.uuid4().int)[:8]
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm(config_files, desc="Processing workloads"), start=1
+        tqdm(config_files[:1], desc="Processing workloads"), start=1
     ):
         output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
         base_job_name = f"workload_{idx}"
@@ -225,15 +239,17 @@ def generate_gitlab_ci_yaml(config_files):
                 ci_config[f"{base_job_name}_generate_data"] = {
                     "stage": "generate_data",
                     "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
-                        f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
-                    ],
+                    "script": "\n".join(
+                        [
+                            "./variables.sh",
+                            "./pre.sh",
+                            f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                            f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                            "last_job_id=$(flux job last | awk '{print $1}')",
+                            "echo 'Waiting for job ID: $last_job_id to finish...'",
+                            "flux job wait $last_job_id",
+                        ]
+                    ),
                 }
 
             elif stage == "train":
@@ -385,7 +401,7 @@ def main():
     # Write the generated YAML to a file
     try:
         with open(output_ci_file, "w") as f:
-            yaml.dump(ci_yaml, f, default_flow_style=False)
+            yaml.dump(ci_yaml, f, indent=2, sort_keys=False)
         logging.info(f"GitLab CI YAML written successfully to {output_ci_file}")
     except Exception as e:
         logging.error(f"Failed to write GitLab CI YAML to file: {e}")
