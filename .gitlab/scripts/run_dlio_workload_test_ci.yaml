@@ -1,16 +1,13 @@
 stages:
-- generate_data
-.lc:
+  - generate_data
+workload_1_generate_data:
+  tags:
+    - shell
+    - corona
   id_tokens:
     SITE_ID_TOKEN:
       aud: https://lc.llnl.gov/gitlab
-.corona:
-  extends: .lc
-  tags:
-  - shell
-  - corona
-workload_1_generate_data:
   stage: generate_data
   extends: .corona
   script:
-  - ls
+    - ls
