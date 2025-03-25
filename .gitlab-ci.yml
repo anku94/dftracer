@@ -29,9 +29,6 @@ variables:
 
 .corona:
   extends: .lc
-  tags:
-    - shell
-    - corona
   variables:
     PYTHON_MODULE: python/3.9.12
     MPI_MODULE: openmpi/4.1.2 # OpenMPI is a popular open-source MPI implementation
