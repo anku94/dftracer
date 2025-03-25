@@ -237,18 +237,18 @@ while IFS='|' read -r index file_name size start end; do
   fi
   size_per_line=$(bc -l <<< "scale=8; $size / ($end - $start + 1)")
 
-  while [ "$(bc -l <<< "scale=8; $size > 0")" -eq 1 ]; do
-    if [ "$(bc -l <<< "scale=8; $size + $accumulated_size > $chunk_size")" -eq 1 ]; then
+  while [[ "$(bc -l <<< "scale=8; $size > 0")" -eq 1 ]]; do
+    if [[ "$(bc -l <<< "scale=8; $size + $accumulated_size > $chunk_size")" -eq 1 ]]; then
 
       diff=$(bc -l <<< "scale=8; $chunk_size - $accumulated_size")
       lines=$(bc -l <<< "scale=0; ($diff / $size_per_line) / 1")
       size_chunk=$(bc -l <<< "scale=8; $lines * $size_per_line")
 
-      if [ $start -gt $end ]; then
+      if [[ $start -gt $end ]]; then
         break
       fi
 
-      if [ $(bc -l <<< "scale=0; $lines > 0") -eq 1 ]; then
+      if [[ $(bc -l <<< "scale=0; $lines > 0") -eq 1 ]]; then
         echo "$file_name|$size_chunk|$start|$((start + lines))" >> ${chunk_index_file}
 
         start=$((start + lines + 1))
@@ -288,13 +288,13 @@ date_echo "Start processing chunks"
 start=$((scheduled_chunks + 1))
 total_size=0
 for i in $(seq $start $total_chunks); do
-  if [ "$verbose" == "1" ]; then
+  if [[ "$verbose" == "1" ]]; then
     date_echo "Processing chunk $i"
   fi
   running_jobs=$(jobs -rp | wc -l)
-  if [ $running_jobs -ge $JOBS_LIMIT ]; then
+  if [[ $running_jobs -ge $JOBS_LIMIT ]]; then
     # date_echo "waiting for Running $running_jobs jobs to be less than $JOBS_LIMIT"
-    while [ $running_jobs -ge $JOBS_LIMIT ]
+    while [[ $running_jobs -ge $JOBS_LIMIT ]]
     do
         sleep 1
         running_jobs=$(jobs -rp | wc -l)
@@ -335,7 +335,7 @@ SPLIT_LINES_COUNT=$(
 wait
 rm -f $LOG_DIR/.chunk* $LOG_DIR/counting.bak
 
-if [ $LINES_COUNT -ne $SPLIT_LINES_COUNT ]; then
+if [[ $LINES_COUNT -ne $SPLIT_LINES_COUNT ]]; then
   date_echo "Error: Original lines count $LINES_COUNT does not match split lines count $SPLIT_LINES_COUNT"
   exit 1
 else
