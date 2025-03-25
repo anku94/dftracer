@@ -6,7 +6,6 @@ stages:
 - compact
 - compress_final
 - cleanup
-
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CUSTOM_CI_BUILDS_DIR: ''
@@ -40,14 +39,12 @@ variables:
 workload_1_generate_data:
   stage: generate_data
   extends: .corona
-  script: |-
-    ./variables.sh
-    ./pre.sh
-    if [ -d /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ ]; then echo 'Directory /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ already exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dlio_benchmark workload=bert_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//data ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//checkpoint ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
-    if [ -d /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ ] && grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi
-    last_job_id=$(flux job last | awk '{print $1}')
-    echo 'Waiting for job ID: $last_job_id to finish...'
-    flux job wait $last_job_id
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - last_job_id=$(flux job last)
+  - 'echo Waiting for job ID: $last_job_id to finish...'
+  - flux job wait $last_job_id
 workload_1_train:
   stage: train
   extends: .corona
@@ -57,13 +54,13 @@ workload_1_train:
   - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
     workload=bert_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//data
     ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//checkpoint
-    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train
-    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train
     ++workload.workflow.generate_data=False ++workload.workflow.train=True
   - last_job_id=$(flux job last | awk '{print $1}')
   - 'echo ''Waiting for job ID: $last_job_id to finish...'''
   - flux job wait $last_job_id
-  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train/dlio.log;
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train/dlio.log;
     then echo 'Error found in dlio.log'; exit 1; fi
   needs:
   - workload_1_generate_data
@@ -77,14 +74,14 @@ workload_1_compress_output:
   - ./variables.sh
   - ./pre.sh
   - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
-    -d /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train
+    -d /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train
   - last_job_id=$(flux job last | awk '{print $1}')
   - 'echo ''Waiting for job ID: $last_job_id to finish...'''
   - flux job wait $last_job_id
-  - if find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train
     -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
     exit 1; fi
-  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train
     -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
     exit 1; fi
   needs:
@@ -95,13 +92,13 @@ workload_1_move:
   script:
   - ./variables.sh
   - ./pre.sh
-  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546/RAW/
-  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train/*.pfw.gz
-    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546/RAW/
-  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train/.hydra
-    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546/
-  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546/train/dlio.log
-    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546/
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719/train/dlio.log
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719/
   needs:
   - workload_1_compress_output
 workload_1_compact:
@@ -110,7 +107,7 @@ workload_1_compact:
   script:
   - ./variables.sh
   - ./pre.sh
-  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719
   - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n bert_v100
   needs:
   - workload_1_move
@@ -120,7 +117,7 @@ workload_1_compress_final:
   script:
   - ./variables.sh
   - ./pre.sh
-  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev22/corona/bert_v100/nodes-1/33869546
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev23/corona/bert_v100/nodes-1/40909719
   - tar -czf RAW.tar.gz RAW
   - tar -czf COMPACT.tar.gz COMPACT
   needs:
@@ -132,7 +129,7 @@ workload_1_cleanup:
   - ./variables.sh
   - ./pre.sh
   - module load mpifileutils
-  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/33869546
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/40909719
   - last_job_id=$(flux job last | awk '{print $1}')
   - 'echo ''Waiting for job ID: $last_job_id to finish...'''
   - flux job wait $last_job_id
