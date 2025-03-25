@@ -53,7 +53,7 @@ dlio_corona_build:
   script:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
-    - source .gitlab/scripts/build.sh
+    # - source .gitlab/scripts/build.sh
 
 dlio_corona_generate:
   extends: .corona
@@ -62,6 +62,7 @@ dlio_corona_generate:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
     - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
+    - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
   artifacts:
     paths:
       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
