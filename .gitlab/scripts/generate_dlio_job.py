@@ -401,7 +401,7 @@ def main():
     # Write the generated YAML to a file
     try:
         with open(output_ci_file, "w") as f:
-            yaml.dump(ci_yaml, f, indent=2, sort_keys=False)
+            yaml.dump(ci_yaml, f, sort_keys=False)
         logging.info(f"GitLab CI YAML written successfully to {output_ci_file}")
     except Exception as e:
         logging.error(f"Failed to write GitLab CI YAML to file: {e}")
