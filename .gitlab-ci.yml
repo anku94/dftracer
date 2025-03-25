@@ -19,8 +19,8 @@ variables:
 
 stages:
 - build
-# - generate
-# - test
+- generate
+- test
 
 .lc:
   id_tokens:
@@ -54,22 +54,22 @@ stages:
     - source .gitlab/scripts/pre.sh
     - source .gitlab/scripts/build.sh
 
-# .dlio_generate:
-#   stage: generate
-#   script: 
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-#     - python generate_dlio_job.py 
-#   artifacts:
-#     paths:
-#       - run_dlio_workload_test_ci.yaml
+.dlio_generate:
+  stage: generate
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
+  artifacts:
+    paths:
+      - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
-# .dlio_test:
-#   stage: test
-#   trigger:
-#     include:
-#       - artifact: run_dlio_workload_test_ci.yaml
-#         job: run_dlio_workload_test_ci
+.dlio_test:
+  stage: test
+  trigger:
+    include:
+      - artifact: run_dlio_workload_test_ci.yaml
+        job: run_dlio_workload_test_ci
 
 
 corona_build_dlio:
@@ -77,15 +77,15 @@ corona_build_dlio:
     - .corona
     - .dlio_build
 
-# corona_generate_dlio:
-#   extends:
-#     - .corona
-#     - .dlio_generate
+corona_generate_dlio:
+  extends:
+    - .corona
+    - .dlio_generate
 
-# corona_test_dlio:
-#   extends:
-#     - .corona
-#     - .dlio_test
+corona_test_dlio:
+  extends:
+    - .corona
+    - .dlio_test
 
 # .dlio_test_script:
 #   script:
