@@ -25,12 +25,12 @@
 
 date_echo() {
     dt=$(date '+%d/%m/%Y %H:%M:%S')
-    echo "$dt  $@"
+    echo "$dt" "$@"
 }
 
 progress_date_echo() {
     dt=$(date '+%d/%m/%Y %H:%M:%S')
-    echo -ne "$dt  $@                              "\\r
+    echo -ne "$dt" "$@" "                              "\\r
 }
 
 LOG_DIR=$PWD
@@ -41,7 +41,7 @@ verbose=0
 app_name="app"
 
 function usage {
-    echo "usage: $(basename $0) [-fv] [-n app_name] [-d input_directory] [-o output_directory] [-s chunk_size]"
+    echo "usage: $(basename "$0") [-fv] [-n app_name] [-d input_directory] [-o output_directory] [-s chunk_size]"
     echo "  -n app_name             specify app name"
     echo "  -f                      override generated files"
     echo "  -s size                 chunk size (in MB)"
@@ -88,7 +88,7 @@ while getopts ':fvn:d:o:s:h' opt; do
       ;;
   esac
 done
-shift "$(($OPTIND -1))"
+shift $((OPTIND - 1))
 
 pfw_total=0
 pfw_gz_total=0
@@ -99,14 +99,14 @@ for file in *.zindex; do zindex_total=1; break; done
 
 printf "============================================\n"
 printf "Arguments:\n"
-printf "  App name: %s\n" $app_name
+printf "  App name: %s\n" "$app_name"
 printf "  Override: %s\n" $override
-printf "  Data dir: %s\n" $LOG_DIR
-printf "  Output dir: %s\n" $dest
-printf "  Chunk size: %s\n" $chunk_size
+printf "  Data dir: %s\n" "$LOG_DIR"
+printf "  Output dir: %s\n" "$dest"
+printf "  Chunk size: %s\n" "$chunk_size"
 printf "============================================\n"
 
-mkdir -p $dest
+mkdir -p "$dest"
 
 if [ $pfw_total == 0 ] || [ $pfw_gz_total == 0 ]; then
   date_echo "The folder does not contain any pfw or pfw.gz files."
@@ -114,7 +114,7 @@ if [ $pfw_total == 0 ] || [ $pfw_gz_total == 0 ]; then
 fi
 
 python -c "import zindex_py;"
-if [[ $? != 0 ]]; then
+if ! python -c "import zindex_py;" &>/dev/null; then
     date_echo "failure: $?: zindex not found. Please install zindex with: pip install zindex_py"
     exit 1
 fi
@@ -150,15 +150,15 @@ else
 fi
 
 JOBS_LIMIT=1024
-pushd $LOG_DIR > /dev/null
+pushd "$LOG_DIR" > /dev/null || exit
 
 files=("$LOG_DIR"/*.zindex)
 total=${#files[@]}
 declare -A count
 counting_file="$LOG_DIR/counting.bak"
 if [ ! -f $counting_file ] || [ $override == 1 ]; then
-  rm ${counting_file}
-  touch ${counting_file}
+  rm "${counting_file}"
+  touch "${counting_file}"
   for file_index in "${!files[@]}"; do
     running_jobs=$(jobs -rp | wc -l)
     if [ $running_jobs -ge $JOBS_LIMIT ]; then
@@ -171,7 +171,7 @@ if [ ! -f $counting_file ] || [ $override == 1 ]; then
       date_echo "Running $running_jobs jobs are now less than $JOBS_LIMIT"
     fi
     file_name=${files[$file_index]}
-    filename_without_ext=$(basename $file_name .pfw.gz.zindex)
+    filename_without_ext=$(basename "$file_name" .pfw.gz.zindex)
     (
       IFS='|' read -r size start end <<< $(sqlite3 $file_name "select sum(length), min(line), max(line) as a from LineOffsets where length > 8;")
       size_mb=$(bc -l <<< "scale=8; $size / (1024 * 1024)")
@@ -184,7 +184,7 @@ else
 fi
 wait
 
-counts=$(wc -l ${counting_file} | awk {'print $1'})
+counts=$(wc -l "${counting_file}" | awk '{print $1}')
 
 # for count_index in "${!count[@]}"; do
 #   echo "$count_index ${count[$count_index]}"
@@ -320,9 +320,9 @@ date_echo "All chunks processed"
 
 date_echo Reindexing split files
 pushd $dest > /dev/null
-rm -f *.pfw.gz
+rm -f ./*.pfw.gz
 $SCRIPT_DIR/dftracer_create_index -c -d $dest -f
-rm -f *.pfw
+rm -f ./*.pfw
 
 LINES_COUNT=$(
   {
@@ -333,7 +333,7 @@ SPLIT_LINES_COUNT=$(
     $SCRIPT_DIR/dftracer_event_count -d $dest
   } &)
 wait
-rm -f $LOG_DIR/.chunk* $LOG_DIR/counting.bak
+rm -f "$LOG_DIR"/.chunk* "$LOG_DIR"/counting.bak
 
 if [[ $LINES_COUNT -ne $SPLIT_LINES_COUNT ]]; then
   date_echo "Error: Original lines count $LINES_COUNT does not match split lines count $SPLIT_LINES_COUNT"
