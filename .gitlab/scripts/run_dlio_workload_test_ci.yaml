@@ -1,13 +1,7 @@
 # template
-.lc:
+job1:
   id_tokens:
     SITE_ID_TOKEN:
       aud: https://lc.llnl.gov/gitlab
-
-.corona:
-  extends: .lc
   tags: [shell, corona]
-
-job1:
-  extends: .corona
   script: sleep 60
