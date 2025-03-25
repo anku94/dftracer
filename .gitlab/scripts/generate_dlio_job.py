@@ -116,7 +116,7 @@ def generate_gitlab_ci_yaml(config_files):
         ],
         "include": [
             {"project": "lc-templates/id_tokens", "file": "id_tokens.yml"},
-            {"local": "common-ci.yml"},
+            {"local": "common.yml"},
         ],
     }
     logging.info("Initialized CI configuration with default stages and variables.")

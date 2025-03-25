@@ -54,4 +54,4 @@ dlio_corona_test:
 include:
   - project: 'lc-templates/id_tokens'
     file: 'id_tokens.yml'
-  - local: '.gitlab/scripts/common-ci.yml'
+  - local: '.gitlab/scripts/common.yml'
