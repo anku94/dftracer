@@ -8,6 +8,5 @@ workload_1_generate_data:
     SITE_ID_TOKEN:
       aud: https://lc.llnl.gov/gitlab
   stage: generate_data
-  extends: .corona
   script:
     - ls
