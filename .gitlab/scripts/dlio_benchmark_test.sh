@@ -39,7 +39,7 @@ echo "Workloads array: ${DLIO_WORKLOADS[@]}"
 
 export WORKLOAD_JOB_IDS=()
 COMPRESS_JOB_IDS=()
-
+export WORKLOAD_NODES=()
 echo "Starting workload loop..."
 for workload in "${DLIO_WORKLOADS[@]}"; do
     echo "Processing workload: $workload"
@@ -69,6 +69,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     else
         NODES=$((num_gpus / GPUS))
     fi
+    export WORKLOAD_NODES+=("$NODES")
 
     if [[ $NODES -gt $MAX_NODES ]]; then
         echo "$NODES are too large for $(hostname) cluster."
@@ -105,7 +106,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     export DFTRACER_ENABLE=0
 
     export WORKLOAD_JOB_IDS+=("$train_data")
-    scheduler $NODES "$CORES"
+    scheduler 1 "$CORES"
     echo "Compressing $(ls "$output"/*.pfw | wc -l) DFTracer files"
     cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data --job-name comp_${workload} dftracer_pgzip -d $output/train"
     echo "Running command: $cmd"
