@@ -17,10 +17,10 @@ variables:
   ENV_NAME: dlio_env_2
 
 
-# stages:
-# - build
-# - generate
-# - test
+stages:
+- build
+- generate
+- test
 
 .lc:
   id_tokens:
@@ -47,40 +47,43 @@ variables:
     SYSTEM_NAME: corona
 
 
-# dlio_corona_build:
-#   extends: .corona
-#   stage: build
-#   script:
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-#     # - source .gitlab/scripts/build.sh
+dlio_corona_build:
+  extends: .corona
+  stage: build
+  script:
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    # - source .gitlab/scripts/build.sh
 
-# dlio_corona_generate:
-#   extends: .corona
-#   stage: generate
-#   script: 
-#     - source .gitlab/scripts/variables.sh
-#     - source .gitlab/scripts/pre.sh
-#     - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#     - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#   artifacts:
-#     paths:
-#       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
+dlio_corona_generate:
+  extends: .corona
+  stage: generate
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - python .gitlab/scripts/generate_dlio_job.py --output .gitlab/scripts/run_dlio_workload_test_ci.yaml
+    - cat .gitlab/scripts/run_dlio_workload_test_ci.yaml
+  artifacts:
+    paths:
+      - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
-# dlio_corona_test:
-#   stage: test
-#   trigger:
-#     include:
-#       - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-#         job: dlio_corona_generate
-
-trigger_job:
+dlio_corona_test:
+  stage: test
   trigger:
     include:
-      - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+      - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+        job: dlio_corona_generate
     strategy: depend
     forward:
       pipeline_variables: true
+
+# trigger_job:
+#   trigger:
+#     include:
+#       - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+#     strategy: depend
+#     forward:
+#       pipeline_variables: true
 
 
 # .dlio_test_script:
