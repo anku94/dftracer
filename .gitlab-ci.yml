@@ -72,11 +72,8 @@ dlio_corona_test:
   trigger:
     include:
       - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-        job: run_dlio_workload_test_ci
+        job: dlio_corona_generate
 
-include:
-  - project: 'lc-templates/id_tokens'
-    file: 'id_tokens.yml'
 
 # .dlio_test_script:
 #   script:
