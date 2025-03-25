@@ -19,8 +19,8 @@ variables:
 
 stages:
 - build
-# - generate
 - test
+# - generate
 
 .lc:
   id_tokens:
@@ -71,12 +71,12 @@ dlio_corona_test:
   stage: test
   trigger:
     include:
-      # - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
-      #   job: dlio_corona_generate
       - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
     strategy: depend
     forward:
       pipeline_variables: true
+      # - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+      #   job: dlio_corona_generate
 
 # trigger_job:
 #   trigger:

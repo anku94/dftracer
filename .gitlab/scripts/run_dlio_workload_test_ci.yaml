@@ -1,3 +1,4 @@
+# template
 .lc:
   id_tokens:
     SITE_ID_TOKEN:
@@ -5,9 +6,8 @@
 
 .corona:
   extends: .lc
-  tags:
-    - shell
-    - corona
+  tags: [shell, corona]
+
 job1:
   extends: .corona
   script: sleep 60
