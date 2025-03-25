@@ -5,26 +5,7 @@ set -x  # Print each command before executing it
 
 trap 'echo "Error occurred at line $LINENO"; exit 1' ERR
 
-echo "Checking if $DATA_PATH is empty..."
-if [ -z "$DATA_PATH" ]; then
-    echo "Empty $DATA_PATH"
-    exit 1
-fi
 
-echo "Defining scheduler function..."
-scheduler() {
-    hostname=$(hostname)
-    case $hostname in
-        *"corona"*)
-            echo "Setting SCHEDULER_CMD for hostname containing 'corona'..."
-            SCHEDULER_CMD=(flux submit -N $1 --tasks-per-node=$2 -q $QUEUE -t $WALLTIME --exclusive)
-            ;;
-        *)
-            echo "Unknown hostname: $hostname"
-            exit 1
-            ;;
-    esac
-}
 
 echo "Cloning DLIO benchmark repository..."
 git clone -b "${DLIO_BENCHMARK_TAG}" "${DLIO_BENCHMARK_REPO}"

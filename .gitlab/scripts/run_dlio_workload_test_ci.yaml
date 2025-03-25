@@ -1,0 +1,2174 @@
+stages:
+- generate_data
+- train
+- compress_output
+- move
+- compact
+- compress_final
+- cleanup
+variables:
+  PYTHONPATH: $PYTHONPATH:site-packages
+workload_10_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_10_compact:
+  needs:
+  - workload_10_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b_zero3/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n llama_70b_zero3
+  stage: compact
+  tags:
+  - dlio-runner
+workload_10_compress_final:
+  needs:
+  - workload_10_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b_zero3/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_10_compress_output:
+  needs:
+  - workload_10_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_10_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10/ ]; then
+    echo 'Directory /p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10/
+    already exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=llama_70b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_10_move:
+  needs:
+  - workload_10_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b_zero3/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_10_train:
+  needs:
+  - workload_10_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=llama_70b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b_zero3-10//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_70b_zero3/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_11_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_11_compact:
+  needs:
+  - workload_11_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n llama_7b
+  stage: compact
+  tags:
+  - dlio-runner
+workload_11_compress_final:
+  needs:
+  - workload_11_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_11_compress_output:
+  needs:
+  - workload_11_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train -type
+    f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit
+    1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_11_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_7b-11/ ]; then echo 'Directory
+    /p/lustre3/770529USER/gitlab-runner-data//llama_7b-11/ already exists. Skipping
+    data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive
+    dlio_benchmark workload=llama_7b ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b-11//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b-11//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_7b-11/ ] && grep -i 'error'
+    /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_11_move:
+  needs:
+  - workload_11_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_11_train:
+  needs:
+  - workload_11_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=llama_7b ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b-11//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b-11//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_7b/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_12_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_12_compact:
+  needs:
+  - workload_12_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b_zero3/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n llama_7b_zero3
+  stage: compact
+  tags:
+  - dlio-runner
+workload_12_compress_final:
+  needs:
+  - workload_12_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b_zero3/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_12_compress_output:
+  needs:
+  - workload_12_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_12_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=llama_7b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_12_move:
+  needs:
+  - workload_12_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_7b_zero3/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_12_train:
+  needs:
+  - workload_12_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=llama_7b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_7b_zero3-12//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_7b_zero3/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_13_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_13_compact:
+  needs:
+  - workload_13_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_8b_zero3/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n llama_8b_zero3
+  stage: compact
+  tags:
+  - dlio-runner
+workload_13_compress_final:
+  needs:
+  - workload_13_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_8b_zero3/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_13_compress_output:
+  needs:
+  - workload_13_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_13_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=llama_8b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_13_move:
+  needs:
+  - workload_13_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_8b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_8b_zero3/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_8b_zero3/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_13_train:
+  needs:
+  - workload_13_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=llama_8b_zero3 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_8b_zero3-13//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_8b_zero3/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_14_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 4 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_14_compact:
+  needs:
+  - workload_14_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/megatron_deepspeed_LLNL/nodes-4/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n megatron_deepspeed_LLNL
+  stage: compact
+  tags:
+  - dlio-runner
+workload_14_compress_final:
+  needs:
+  - workload_14_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/megatron_deepspeed_LLNL/nodes-4/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_14_compress_output:
+  needs:
+  - workload_14_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 4 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_14_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14/
+    ]; then echo 'Directory /p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14/
+    already exists. Skipping data generation.'; else flux submit -N 4 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=megatron_deepspeed_LLNL ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14/
+    ] && grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_14_move:
+  needs:
+  - workload_14_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/megatron_deepspeed_LLNL/nodes-4/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/megatron_deepspeed_LLNL/nodes-4/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/megatron_deepspeed_LLNL/nodes-4/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_14_train:
+  needs:
+  - workload_14_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 4 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=megatron_deepspeed_LLNL ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//megatron_deepspeed_LLNL-14//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/megatron_deepspeed_LLNL/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_15_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_15_compact:
+  needs:
+  - workload_15_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_a100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n resnet50_a100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_15_compress_final:
+  needs:
+  - workload_15_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_a100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_15_compress_output:
+  needs:
+  - workload_15_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_15_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=resnet50_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_15_move:
+  needs:
+  - workload_15_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_a100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_15_train:
+  needs:
+  - workload_15_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=resnet50_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_a100-15//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_a100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_16_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_16_compact:
+  needs:
+  - workload_16_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_h100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n resnet50_h100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_16_compress_final:
+  needs:
+  - workload_16_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_h100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_16_compress_output:
+  needs:
+  - workload_16_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_16_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=resnet50_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_16_move:
+  needs:
+  - workload_16_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_h100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_16_train:
+  needs:
+  - workload_16_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=resnet50_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_h100-16//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_h100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_17_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_17_compact:
+  needs:
+  - workload_17_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_tf/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n resnet50_tf
+  stage: compact
+  tags:
+  - dlio-runner
+workload_17_compress_final:
+  needs:
+  - workload_17_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_tf/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_17_compress_output:
+  needs:
+  - workload_17_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_17_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17/ already exists.
+    Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug
+    -t 60 --exclusive dlio_benchmark workload=resnet50_tf ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17/ ] && grep -i
+    'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_17_move:
+  needs:
+  - workload_17_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_tf/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_tf/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_tf/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_17_train:
+  needs:
+  - workload_17_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=resnet50_tf ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_tf-17//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_tf/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_18_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_18_compact:
+  needs:
+  - workload_18_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_v100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n resnet50_v100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_18_compress_final:
+  needs:
+  - workload_18_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_v100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_18_compress_output:
+  needs:
+  - workload_18_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_18_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=resnet50_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_18_move:
+  needs:
+  - workload_18_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/resnet50_v100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_18_train:
+  needs:
+  - workload_18_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=resnet50_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//resnet50_v100-18//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/resnet50_v100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_19_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_19_compact:
+  needs:
+  - workload_19_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_a100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n unet3d_a100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_19_compress_final:
+  needs:
+  - workload_19_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_a100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_19_compress_output:
+  needs:
+  - workload_19_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_19_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19/ already exists.
+    Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug
+    -t 60 --exclusive dlio_benchmark workload=unet3d_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19/ ] && grep -i
+    'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_19_move:
+  needs:
+  - workload_19_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_a100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_19_train:
+  needs:
+  - workload_19_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=unet3d_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_a100-19//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_a100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_1_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_1_compact:
+  needs:
+  - workload_1_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/bert_v100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n bert_v100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_1_compress_final:
+  needs:
+  - workload_1_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/bert_v100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_1_compress_output:
+  needs:
+  - workload_1_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_1_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ ]; then echo 'Directory
+    /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ already exists. Skipping
+    data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive
+    dlio_benchmark workload=bert_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//bert_v100-1/ ] && grep -i 'error'
+    /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_1_move:
+  needs:
+  - workload_1_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/bert_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/bert_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/bert_v100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_1_train:
+  needs:
+  - workload_1_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=bert_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//bert_v100-1//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/bert_v100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_20_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_20_compact:
+  needs:
+  - workload_20_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_h100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n unet3d_h100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_20_compress_final:
+  needs:
+  - workload_20_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_h100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_20_compress_output:
+  needs:
+  - workload_20_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_20_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20/ already exists.
+    Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug
+    -t 60 --exclusive dlio_benchmark workload=unet3d_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20/ ] && grep -i
+    'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_20_move:
+  needs:
+  - workload_20_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_h100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_20_train:
+  needs:
+  - workload_20_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=unet3d_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_h100-20//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_h100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_21_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_21_compact:
+  needs:
+  - workload_21_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_v100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n unet3d_v100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_21_compress_final:
+  needs:
+  - workload_21_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_v100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_21_compress_output:
+  needs:
+  - workload_21_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_21_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21/ already exists.
+    Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug
+    -t 60 --exclusive dlio_benchmark workload=unet3d_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21/ ] && grep -i
+    'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_21_move:
+  needs:
+  - workload_21_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/unet3d_v100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_21_train:
+  needs:
+  - workload_21_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=unet3d_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-21//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_2_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_2_compact:
+  needs:
+  - workload_2_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_a100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n cosmoflow_a100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_2_compress_final:
+  needs:
+  - workload_2_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_a100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_2_compress_output:
+  needs:
+  - workload_2_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_2_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=cosmoflow_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_2_move:
+  needs:
+  - workload_2_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_a100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_a100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_2_train:
+  needs:
+  - workload_2_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=cosmoflow_a100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_a100-2//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_a100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_3_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_3_compact:
+  needs:
+  - workload_3_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_h100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n cosmoflow_h100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_3_compress_final:
+  needs:
+  - workload_3_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_h100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_3_compress_output:
+  needs:
+  - workload_3_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_3_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=cosmoflow_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_3_move:
+  needs:
+  - workload_3_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_h100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_h100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_3_train:
+  needs:
+  - workload_3_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=cosmoflow_h100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_h100-3//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_h100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_4_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_4_compact:
+  needs:
+  - workload_4_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_v100/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n cosmoflow_v100
+  stage: compact
+  tags:
+  - dlio-runner
+workload_4_compress_final:
+  needs:
+  - workload_4_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_v100/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_4_compress_output:
+  needs:
+  - workload_4_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_4_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4/ already
+    exists. Skipping data generation.'; else flux submit -N 1 --tasks-per-node=48
+    -q pdebug -t 60 --exclusive dlio_benchmark workload=cosmoflow_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4/ ] && grep
+    -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_4_move:
+  needs:
+  - workload_4_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_v100/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/cosmoflow_v100/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_4_train:
+  needs:
+  - workload_4_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=cosmoflow_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//cosmoflow_v100-4//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/cosmoflow_v100/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_5_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/default/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_5_compact:
+  needs:
+  - workload_5_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/default/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n default
+  stage: compact
+  tags:
+  - dlio-runner
+workload_5_compress_final:
+  needs:
+  - workload_5_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/default/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_5_compress_output:
+  needs:
+  - workload_5_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train -type
+    f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit
+    1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_5_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//default-5/ ]; then echo 'Directory
+    /p/lustre3/770529USER/gitlab-runner-data//default-5/ already exists. Skipping
+    data generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive
+    dlio_benchmark workload=default ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//default-5//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//default-5//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/default/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//default-5/ ] && grep -i 'error'
+    /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_5_move:
+  needs:
+  - workload_5_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/default/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/default/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/default/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_5_train:
+  needs:
+  - workload_5_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=default ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//default-5//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//default-5//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/default/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_6_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_6_compact:
+  needs:
+  - workload_6_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/dlrm/nodes-1/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n dlrm
+  stage: compact
+  tags:
+  - dlio-runner
+workload_6_compress_final:
+  needs:
+  - workload_6_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/dlrm/nodes-1/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_6_compress_output:
+  needs:
+  - workload_6_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train -type
+    f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit
+    1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train -type
+    f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_6_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//dlrm-6/ ]; then echo 'Directory
+    /p/lustre3/770529USER/gitlab-runner-data//dlrm-6/ already exists. Skipping data
+    generation.'; else flux submit -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive
+    dlio_benchmark workload=dlrm ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//dlrm-6//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//dlrm-6//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//dlrm-6/ ] && grep -i 'error'
+    /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_6_move:
+  needs:
+  - workload_6_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/dlrm/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train/*.pfw.gz /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/dlrm/nodes-1/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train/.hydra /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/dlrm/nodes-1/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_6_train:
+  needs:
+  - workload_6_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=dlrm ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//dlrm-6//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//dlrm-6//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/dlrm/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+workload_9_cleanup:
+  needs: []
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - module load mpifileutils
+  - flux submit -N 4 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: cleanup
+  tags:
+  - dlio-runner
+  when: always
+workload_9_compact:
+  needs:
+  - workload_9_move
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b/nodes-4/18838630
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n llama_70b
+  stage: compact
+  tags:
+  - dlio-runner
+workload_9_compress_final:
+  needs:
+  - workload_9_compact
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b/nodes-4/18838630
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  stage: compress_final
+  tags:
+  - dlio-runner
+workload_9_compress_output:
+  needs:
+  - workload_9_train
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 4 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip
+    -d /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  stage: compress_output
+  tags:
+  - dlio-runner
+workload_9_generate_data:
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_70b-9/ ]; then echo 'Directory
+    /p/lustre3/770529USER/gitlab-runner-data//llama_70b-9/ already exists. Skipping
+    data generation.'; else flux submit -N 4 --tasks-per-node=48 -q pdebug -t 60 --exclusive
+    dlio_benchmark workload=llama_70b ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b-9//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b-9//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//llama_70b-9/ ] && grep -i 'error'
+    /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  stage: generate_data
+  tags:
+  - dlio-runner
+workload_9_move:
+  needs:
+  - workload_9_compress_output
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b/nodes-4/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b/nodes-4/18838630/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/1.0.10.dev10/corona/llama_70b/nodes-4/18838630/
+  stage: move
+  tags:
+  - dlio-runner
+workload_9_train:
+  needs:
+  - workload_9_generate_data
+  script:
+  - ./variables.sh
+  - ./pre.sh
+  - flux submit -N 4 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark
+    workload=llama_70b ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b-9//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//llama_70b-9//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - last_job_id=$(flux job last | awk '{print $1}')
+  - 'echo ''Waiting for job ID: $last_job_id to finish...'''
+  - flux job wait $last_job_id
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/llama_70b/18838630/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  stage: train
+  tags:
+  - dlio-runner
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'

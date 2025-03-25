@@ -1,0 +1,363 @@
+import os
+import yaml
+from pathlib import Path
+import dlio_benchmark
+import argparse
+import uuid
+import dftracer
+from tqdm import tqdm  # Import tqdm for progress tracking
+import logging  # Import logging for detailed logs
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+# Dynamically determine the path to the dlio_benchmark configurations
+CONFIGS_DIR = Path(dlio_benchmark.__file__).resolve().parent / "configs" / "workload"
+
+
+def find_workload_configs(config_dir):
+    """Find all workload configuration files in the given directory."""
+    logging.info(f"Searching for workload configuration files in {config_dir}")
+    config_files = [os.path.splitext(f.name)[0] for f in config_dir.glob("*.yaml")]
+    logging.info(f"Found {len(config_files)} configuration files.")
+    return config_files
+
+
+def execute_dlio_benchmark_query(workload, args, key, datatype=str):
+    """Execute the dlio_benchmark_query executable with the given workload, arguments, and query key.
+
+    Parameters:
+        workload (str): The workload name.
+        args (str): Additional arguments for the query.
+        key (str): The query key.
+        datatype (type): The expected datatype of the result. Defaults to str.
+
+    Returns:
+        The output of the query converted to the specified datatype.
+    """
+    query_command = f"dlio_benchmark_query workload={workload} {args} ++workload.workflow.query={key}"
+    logging.info(f"Executing command: {query_command}")
+    process = os.popen(query_command + " 2>/dev/null")
+    output = process.read()
+    exit_code = process.close()
+    if exit_code is not None:
+        logging.error(f"Command failed with exit code {exit_code}: {query_command}")
+        raise RuntimeError(
+            f"Failed to execute dlio_benchmark_query with command: {query_command}"
+        )
+
+    logging.info(f"Command executed successfully. Output: {output.strip()}")
+    try:
+        result = datatype(output)
+        logging.info(f"Converted output to {datatype.__name__}: {result}")
+        return result
+    except ValueError as e:
+        logging.error(f"Failed to convert output to {datatype.__name__}: {e}")
+        raise ValueError(f"Failed to convert output to {datatype}: {e}")
+
+
+def create_flux_execution_command(nodes=None, tasks_per_node=None):
+    """Create a Flux execution command based on environment variables or input arguments."""
+    if tasks_per_node is None:
+        logging.error(
+            "The 'tasks_per_node' argument is mandatory and must be provided."
+        )
+        raise ValueError(
+            "The 'tasks_per_node' argument is mandatory and must be provided."
+        )
+
+    nodes = nodes or os.getenv("NODES")
+    queue = os.getenv("QUEUE")
+    WALLTIME = os.getenv("WALLTIME")
+
+    if not all([nodes, queue, WALLTIME]):
+        logging.error(
+            "Environment variables 'NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
+        )
+        raise EnvironmentError(
+            "Environment variables 'NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
+        )
+
+    command = f"flux submit -N {nodes} --tasks-per-node={tasks_per_node} -q {queue} -t {WALLTIME} --exclusive"
+    logging.info(f"Generated Flux execution command: {command}")
+    return command
+
+
+def generate_gitlab_ci_yaml(config_files):
+    """Generate a GitLab CI YAML configuration with updated stages per workload."""
+    ci_config = {
+        "stages": [
+            "generate_data",
+            "train",
+            "compress_output",
+            "move",
+            "compact",
+            "compress_final",
+            "cleanup",
+        ],
+        "variables": {"PYTHONPATH": "$PYTHONPATH:site-packages"},
+    }
+    logging.info("Initialized CI configuration with default stages and variables.")
+
+    # Gather and validate required environment variables
+    env_vars = {
+        "DATA_PATH": os.getenv("DATA_PATH"),
+        "LOG_STORE_DIR": os.getenv("LOG_STORE_DIR"),
+        "CUSTOM_CI_OUTPUT_DIR": os.getenv("CUSTOM_CI_OUTPUT_DIR"),
+        "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "default_system"),
+    }
+
+    for var_name, var_value in env_vars.items():
+        if (
+            not var_value and var_name != "SYSTEM_NAME"
+        ):  # SYSTEM_NAME has a default value
+            logging.error(f"Environment variable '{var_name}' is not set.")
+            raise EnvironmentError(f"Environment variable '{var_name}' is not set.")
+        logging.info(f"Environment variable '{var_name}' is set to '{var_value}'.")
+
+    # Assign validated environment variables to local variables
+    data_path = env_vars["DATA_PATH"]
+    log_store_dir = env_vars["LOG_STORE_DIR"]
+    custom_ci_output_dir = env_vars["CUSTOM_CI_OUTPUT_DIR"]
+    system_name = env_vars["SYSTEM_NAME"]
+
+    logging.info(f"Using DATA_PATH: {data_path}")
+    logging.info(f"Using LOG_STORE_DIR: {log_store_dir}")
+    logging.info(f"Using CUSTOM_CI_OUTPUT_DIR: {custom_ci_output_dir}")
+    logging.info(f"Using SYSTEM_NAME: {system_name}")
+
+    # Get dftracer version
+    dftracer_version = dftracer.__version__
+    logging.info(f"Detected dftracer version: {dftracer_version}")
+
+    # Create log_dir variable
+    log_dir = f"{log_store_dir}/{dftracer_version}/{system_name}"
+    logging.info(f"Generated log directory path: {log_dir}")
+
+    # Generate a unique 8-digit UID for the run
+    unique_run_id = str(uuid.uuid4().int)[:8]
+    logging.info(f"Generated unique run ID: {unique_run_id}")
+    for idx, workload in enumerate(
+        tqdm(config_files, desc="Processing workloads"), start=1
+    ):
+        output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
+        base_job_name = f"workload_{idx}"
+        unique_dir = f"{data_path}/{workload}-{idx}/"
+        workload_args = f"++workload.dataset.data_folder={unique_dir}/data ++workload.checkpoint.checkpoint_folder={unique_dir}/checkpoint ++workload.train.epochs=1"
+
+        tp_size = execute_dlio_benchmark_query(
+            workload, workload_args, "model.parallelism.tensor", int
+        )
+        pp_size = execute_dlio_benchmark_query(
+            workload, workload_args, "model.parallelism.pipeline", int
+        )
+
+        nodes = int(os.getenv("NODES", 1))
+        gpus = int(os.getenv("GPUS", 1))
+        cores = int(os.getenv("CORES", 1))
+
+        ranks = nodes * gpus
+        tp_pp_product = tp_size * pp_size
+        if ranks % tp_pp_product != 0:
+            ranks = (ranks // tp_pp_product + 1) * tp_pp_product
+
+        max_nodes = int(os.getenv("MAX_NODES", 1))
+        nodes = max(1, ranks // gpus)
+        if nodes > max_nodes:
+            continue
+
+        flux_cores_args = create_flux_execution_command(nodes, cores)
+        flux_gpu_args = create_flux_execution_command(nodes, gpus)
+
+        for sub_step, stage in enumerate(
+            [
+                "generate_data",
+                "train",
+                "compress_output",
+                "move",
+                "compact",
+                "compress_final",
+                "cleanup",
+            ],
+            start=1,
+        ):
+            tqdm.write(
+                f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}'"
+            )
+
+            if stage == "generate_data":
+                ci_config[f"{base_job_name}_generate_data"] = {
+                    "stage": "generate_data",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                        f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                        "last_job_id=$(flux job last | awk '{print $1}')",
+                        "echo 'Waiting for job ID: $last_job_id to finish...'",
+                        "flux job wait $last_job_id",
+                    ],
+                    "tags": ["dlio-runner"],
+                }
+
+            elif stage == "train":
+                ci_config[f"{base_job_name}_train"] = {
+                    "stage": "train",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
+                        "last_job_id=$(flux job last | awk '{print $1}')",
+                        "echo 'Waiting for job ID: $last_job_id to finish...'",
+                        "flux job wait $last_job_id",
+                        f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [f"{base_job_name}_generate_data"],
+                    "variables": {
+                        "DFTRACER_ENABLE": "1",
+                        "DFTRACER_INC_METADATA": "1",
+                    },
+                }
+
+            elif stage == "compress_output":
+                ci_config[f"{base_job_name}_compress_output"] = {
+                    "stage": "compress_output",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"{flux_cores_args} dftracer_pgzip -d {output}/train",
+                        "last_job_id=$(flux job last | awk '{print $1}')",
+                        "echo 'Waiting for job ID: $last_job_id to finish...'",
+                        "flux job wait $last_job_id",
+                        f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
+                        f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [f"{base_job_name}_train"],
+                }
+
+            elif stage == "move":
+                ci_config[f"{base_job_name}_move"] = {
+                    "stage": "move",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+                        f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+                        f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [f"{base_job_name}_compress_output"],
+                }
+
+            elif stage == "compact":
+                ci_config[f"{base_job_name}_compact"] = {
+                    "stage": "compact",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                        f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [f"{base_job_name}_move"],
+                }
+
+            elif stage == "compress_final":
+                ci_config[f"{base_job_name}_compress_final"] = {
+                    "stage": "compress_final",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                        f"tar -czf RAW.tar.gz RAW",
+                        f"tar -czf COMPACT.tar.gz COMPACT",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [f"{base_job_name}_compact"],
+                }
+
+            elif stage == "cleanup":
+                ci_config[f"{base_job_name}_cleanup"] = {
+                    "stage": "cleanup",
+                    "script": [
+                        "./variables.sh",
+                        "./pre.sh",
+                        "module load mpifileutils",
+                        f"{flux_cores_args} drm {output}",
+                        "last_job_id=$(flux job last | awk '{print $1}')",
+                        "echo 'Waiting for job ID: $last_job_id to finish...'",
+                        "flux job wait $last_job_id",
+                    ],
+                    "tags": ["dlio-runner"],
+                    "needs": [],
+                    "when": "always",
+                }
+
+    return ci_config
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate GitLab CI YAML for DLIO workloads."
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="run_dlio_workload_test_ci.yaml",
+        help="Path to the output GitLab CI YAML file. Defaults to 'run_dlio_workload_test_ci.yaml' in the current directory.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level. Defaults to 'INFO'.",
+    )
+    args = parser.parse_args()
+    output_ci_file = Path(args.output).resolve()
+
+    # Set the logging level based on user input
+    logging.getLogger().setLevel(args.log_level.upper())
+
+    logging.info(f"Output CI file path resolved to: {output_ci_file}")
+
+    # Ensure the configs directory exists
+    if not CONFIGS_DIR.exists():
+        logging.error(f"Configurations directory '{CONFIGS_DIR}' does not exist.")
+        return
+
+    logging.info(f"Configurations directory '{CONFIGS_DIR}' exists.")
+
+    # Find all workload configuration files
+    config_files = find_workload_configs(CONFIGS_DIR)
+    if not config_files:
+        logging.warning("No workload configuration files found.")
+        return
+
+    logging.info(f"Found {len(config_files)} workload configuration files.")
+
+    # Generate the GitLab CI YAML content
+    try:
+        ci_yaml = generate_gitlab_ci_yaml(config_files)
+        logging.info("GitLab CI YAML content generated successfully.")
+    except Exception as e:
+        logging.error(f"Failed to generate GitLab CI YAML: {e}")
+        return
+
+    # Write the generated YAML to a file
+    try:
+        with open(output_ci_file, "w") as f:
+            yaml.dump(ci_yaml, f, default_flow_style=False)
+        logging.info(f"GitLab CI YAML written successfully to {output_ci_file}")
+    except Exception as e:
+        logging.error(f"Failed to write GitLab CI YAML to file: {e}")
+        return
+
+
+if __name__ == "__main__":
+    main()

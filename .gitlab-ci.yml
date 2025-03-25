@@ -38,16 +38,58 @@ variables:
     WALLTIME: 60
     QUEUE: pdebug
     MAX_NODES: 8
+    SYSTEM_NAME: corona
 
-.dlio_test_script:
+stages:
+- build
+- generate
+- test
+
+.dlio_build:
+  stage: build
   script:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
     - source .gitlab/scripts/build.sh
-    - source .gitlab/scripts/dlio_benchmark_test.sh
-    - source .gitlab/scripts/post.sh
 
-dlio_test_corona:
+.dlio_generate:
+  stage: generate
+  script: 
+    - source .gitlab/scripts/variables.sh
+    - source .gitlab/scripts/pre.sh
+    - python generate_dlio_job.py 
+  artifacts:
+    paths:
+      - run_dlio_workload_test_ci.yaml
+
+.dlio_test:
+  stage: test
+  trigger:
+    include:
+      - artifact: run_dlio_workload_test_ci.yaml
+        job: run_dlio_workload_test_ci
+
+
+corona_build_dlio:
   extends:
     - .corona
-    - .dlio_test_script
+    - .dlio_build
+
+corona_generate_dlio:
+  extends:
+    - .corona
+    - .dlio_generate
+
+corona_test_dlio:
+  extends:
+    - .corona
+    - .dlio_test
+
+# .dlio_test_script:
+#   script:
+#     - source .gitlab/scripts/variables.sh
+#     - source .gitlab/scripts/pre.sh
+#     - source .gitlab/scripts/build.sh
+#     - source .gitlab/scripts/dlio_benchmark_test.sh
+#     - source .gitlab/scripts/post.sh
+

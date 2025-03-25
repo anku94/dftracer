@@ -91,3 +91,7 @@ dfanalyzer/dask/run_dir
 dfanalyzer/dask/logs
 dfanalyzer/dask/scripts/STDIN.*
 *.zindex
+
+
+# gitlab
+.gitlab/scripts/hydra_log
