@@ -95,7 +95,7 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
             "Environment variables 'NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
         )
 
-    command = f"flux submit -N {nodes} --tasks-per-node={tasks_per_node} -q {queue} -t {WALLTIME} --exclusive"
+    command = f"flux run -N {nodes} --tasks-per-node={tasks_per_node} -q {queue} -t {WALLTIME} --exclusive"
     logging.info(f"Generated Flux execution command: {command}")
     return command
 
@@ -116,7 +116,7 @@ def generate_gitlab_ci_yaml(config_files):
         ],
         "include": [
             {"project": "lc-templates/id_tokens", "file": "id_tokens.yml"},
-            {"local": "common.yml"},
+            {"local": ".gitlab/scripts/common.yml"},
         ],
     }
     logging.info("Initialized CI configuration with default stages and variables.")
@@ -160,10 +160,10 @@ def generate_gitlab_ci_yaml(config_files):
     unique_run_id = str(uuid.uuid4().int)[:8]
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm(config_files[:1], desc="Processing workloads"), start=1
+        tqdm(config_files, desc="Processing workloads"), start=1
     ):
         output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
-        base_job_name = f"workload_{idx}"
+        base_job_name = f"{workload}_{idx}"
         unique_dir = f"{data_path}/{workload}-{idx}/"
         workload_args = f"++workload.dataset.data_folder={unique_dir}/data ++workload.checkpoint.checkpoint_folder={unique_dir}/checkpoint ++workload.train.epochs=1"
 
@@ -213,12 +213,11 @@ def generate_gitlab_ci_yaml(config_files):
                     "extends": f".{system_name}",
                     "script": [  # "\n".join(
                         "ls",
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
+                        "which python; which dlio_benchmark;",
                         f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
                         f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                        "last_job_id=$(flux job last)",
-                        "flux job wait $last_job_id",
                     ]
                     # )
                     ,
@@ -229,12 +228,10 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "train",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
+                        "which python; which dlio_benchmark;",
                         f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
                         f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                     ],
                     "needs": [f"{base_job_name}_generate_data"],
@@ -249,12 +246,10 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "compress_output",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
+                        "which python; which dftracer_pgzip;",
                         f"{flux_cores_args} dftracer_pgzip -d {output}/train",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
                         f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
                         f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                     ],
@@ -266,8 +261,8 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "move",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
                         f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                         f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                         f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
@@ -281,8 +276,9 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "compact",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
+                        "which python; which dftracer_split;",
                         f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                         f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                     ],
@@ -294,8 +290,8 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "compress_final",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
+                        "source .gitlab/scripts/variables.sh",
+                        "source .gitlab/scripts/pre.sh",
                         f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                         f"tar -czf RAW.tar.gz RAW",
                         f"tar -czf COMPACT.tar.gz COMPACT",
@@ -308,13 +304,8 @@ def generate_gitlab_ci_yaml(config_files):
                     "stage": "cleanup",
                     "extends": f".{system_name}",
                     "script": [
-                        "./variables.sh",
-                        "./pre.sh",
                         "module load mpifileutils",
                         f"{flux_cores_args} drm {output}",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
                     ],
                     "needs": [f"{base_job_name}_compress_final"],
                 }

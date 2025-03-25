@@ -8,11 +8,12 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/iopp/gitlab-runner-builds"
   CUSTOM_CI_ENV_DIR: "/usr/workspace/iopp/gitlab-runner-envs"
-  CUSTOM_CI_OUTPUT_DIR: "/usr/workspace/$$USER/gitlab-runner-outputs"
+  CUSTOM_CI_OUTPUT_DIR: "/usr/workspace/iopp/gitlab-runner-outputs"
   # Repository information
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
+  DFTRACER_TAG: bugfix/ci
   # test variable
   ENV_NAME: dlio_env_2
 
