@@ -6,6 +6,7 @@ stages:
 - compact
 - compress_final
 - cleanup
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CUSTOM_CI_BUILDS_DIR: ''
