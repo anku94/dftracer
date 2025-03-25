@@ -67,7 +67,6 @@ dlio_corona_generate:
       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
 dlio_corona_test:
-  extends: .corona
   stage: test
   trigger:
     include:
