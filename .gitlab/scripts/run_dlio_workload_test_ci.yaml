@@ -1,7 +1,3 @@
 job1:
+  tags: [shell, corona]
   script: sleep 60
-
-job2:
-  script:
-    - sleep 30
-    - exit 1

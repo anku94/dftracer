@@ -75,11 +75,12 @@ variables:
 #         job: dlio_corona_generate
 
 trigger_job:
-  variables:
-    ENVIRONMENT: staging
   trigger:
     include:
       - local: .gitlab/scripts/run_dlio_workload_test_ci.yaml
+    strategy: depend
+    forward:
+      pipeline_variables: true
 
 
 # .dlio_test_script:
