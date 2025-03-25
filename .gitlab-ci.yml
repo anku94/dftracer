@@ -9,12 +9,18 @@ variables:
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/$$USER/gitlab-runner-builds"
   CUSTOM_CI_ENV_DIR: "/usr/workspace/$$USER/gitlab-runner-envs"
   CUSTOM_CI_OUTPUR_DIR: "/usr/workspace/$$USER/gitlab-runner-outputs"
-  # Reposiroty information
+  # Repository information
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
   # test variable
   ENV_NAME: dlio_env_2
+
+
+stages:
+- build
+- generate
+- test
 
 .lc:
   id_tokens:
@@ -40,10 +46,6 @@ variables:
     MAX_NODES: 8
     SYSTEM_NAME: corona
 
-stages:
-- build
-- generate
-- test
 
 .dlio_build:
   stage: build
