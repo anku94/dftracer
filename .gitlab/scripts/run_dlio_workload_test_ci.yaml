@@ -1,12 +1,7 @@
-stages:
-  - generate_data
-workload_1_generate_data:
-  tags:
-    - shell
-    - corona
-  id_tokens:
-    SITE_ID_TOKEN:
-      aud: https://lc.llnl.gov/gitlab
-  stage: generate_data
+job1:
+  script: sleep 60
+
+job2:
   script:
-    - ls
+    - sleep 30
+    - exit 1
