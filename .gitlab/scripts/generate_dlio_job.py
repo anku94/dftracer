@@ -245,7 +245,6 @@ def generate_gitlab_ci_yaml(config_files):
                         #    f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
                         #    f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                         "last_job_id=$(flux job last)",
-                        "echo Waiting for job ID: $last_job_id to finish...",
                         "flux job wait $last_job_id",
                     ]
                     # )
