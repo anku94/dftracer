@@ -77,7 +77,7 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
         export COMPRESS_JOB_IDS+=("None")
     continue
     fi
-    NODES=4
+    # NODES=4
     
     if [ -d "$DATA_PATH/$workload/data" ]; then
         echo "$DATA_PATH/$workload exists. Not generating data."
@@ -119,8 +119,6 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     cmd="${SCHEDULER_CMD[@]} --dependency=afterany:$train_data --job-name clean_${workload} rm -rf $DATA_PATH/$workload/checkpoint"
     echo "Running command: $cmd"
     $cmd
-
-    break;
 done
 
 echo "We have created $(flux jobs | wc -l) jobs"

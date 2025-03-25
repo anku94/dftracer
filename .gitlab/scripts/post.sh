@@ -56,18 +56,18 @@ for workload in "${DLIO_WORKLOADS[@]}"; do
     
 
     index=$((index + 1))
-    echo "Compacting $(ls *.pfw.gz 2>/dev/null | wc -l) dftracer files"
-    cmd="dftracer_split -d $PWD/RAW -o $PWD/COMPACT/ -s 1024 -n $workload"
-    echo "Generated command: $cmd"
-    $cmd || { echo "Failed to compact dftracer files"; exit 1; }
+    # echo "Compacting $(ls *.pfw.gz 2>/dev/null | wc -l) dftracer files"
+    # cmd="dftracer_split -d $PWD/RAW -o $PWD/COMPACT/ -s 1024 -n $workload"
+    # echo "Generated command: $cmd"
+    # $cmd || { echo "Failed to compact dftracer files"; exit 1; }
 
-    cmd="tar -cvf RAW.tar.gz RAW"
-    echo "Generated command: $cmd"
-    $cmd || { echo "Failed to create RAW.tar.gz"; exit 1; }
+    # cmd="tar -cvf RAW.tar.gz RAW"
+    # echo "Generated command: $cmd"
+    # $cmd || { echo "Failed to create RAW.tar.gz"; exit 1; }
     
-    cmd="tar -cvf COMPACT.tar.gz COMPACT"
-    echo "Generated command: $cmd"
-    $cmd || { echo "Failed to create COMPACT.tar.gz"; exit 1; }
+    # cmd="tar -cvf COMPACT.tar.gz COMPACT"
+    # echo "Generated command: $cmd"
+    # $cmd || { echo "Failed to create COMPACT.tar.gz"; exit 1; }
 
     cd - || { echo "Failed to return to previous directory";continue; }
 done
