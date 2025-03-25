@@ -13,16 +13,16 @@ variables:
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
-  # test variable
   ENV_NAME: dlio_env_2
 
 
-# stages:
-# - build
-# - test
-# - generate
+.lc:
+  id_tokens:
+    SITE_ID_TOKEN:
+      aud: https://lc.llnl.gov/gitlab
 
 .corona:
+  extends: .lc
   variables:
     PYTHON_MODULE: python/3.9.12
     MPI_MODULE: openmpi/4.1.2 # OpenMPI is a popular open-source MPI implementation
