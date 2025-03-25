@@ -104,15 +104,6 @@ def generate_gitlab_ci_yaml(config_files):
     """Generate a GitLab CI YAML configuration with updated stages per workload."""
     system_name = os.getenv("SYSTEM_NAME")
     ci_config = {
-        "stages": [
-            "generate_data",
-            "train",
-            "compress_output",
-            "move",
-            "compact",
-            "compress_final",
-            "cleanup",
-        ],
         "variables": {
             "GIT_SUBMODULE_STRATEGY": os.getenv("GIT_SUBMODULE_STRATEGY", "recursive"),
             "CUSTOM_CI_BUILDS_DIR": os.getenv("CUSTOM_CI_BUILDS_DIR", ""),
@@ -135,6 +126,15 @@ def generate_gitlab_ci_yaml(config_files):
             "MAX_NODES": os.getenv("MAX_NODES", ""),
             "SYSTEM_NAME": system_name,
         },
+        "stages": [
+            "generate_data",
+            # "train",
+            # "compress_output",
+            # "move",
+            # "compact",
+            # "compress_final",
+            # "cleanup",
+        ],
         ".lc": {
             "id_tokens": {
                 "SITE_ID_TOKEN": {
@@ -252,100 +252,100 @@ def generate_gitlab_ci_yaml(config_files):
                     ,
                 }
 
-            elif stage == "train":
-                ci_config[f"{base_job_name}_train"] = {
-                    "stage": "train",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
-                        f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                    ],
-                    "needs": [f"{base_job_name}_generate_data"],
-                    "variables": {
-                        "DFTRACER_ENABLE": "1",
-                        "DFTRACER_INC_METADATA": "1",
-                    },
-                }
+            # elif stage == "train":
+            #     ci_config[f"{base_job_name}_train"] = {
+            #         "stage": "train",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
+            #             "last_job_id=$(flux job last | awk '{print $1}')",
+            #             "echo 'Waiting for job ID: $last_job_id to finish...'",
+            #             "flux job wait $last_job_id",
+            #             f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+            #         ],
+            #         "needs": [f"{base_job_name}_generate_data"],
+            #         "variables": {
+            #             "DFTRACER_ENABLE": "1",
+            #             "DFTRACER_INC_METADATA": "1",
+            #         },
+            #     }
 
-            elif stage == "compress_output":
-                ci_config[f"{base_job_name}_compress_output"] = {
-                    "stage": "compress_output",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"{flux_cores_args} dftracer_pgzip -d {output}/train",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
-                        f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
-                        f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
-                    ],
-                    "needs": [f"{base_job_name}_train"],
-                }
+            # elif stage == "compress_output":
+            #     ci_config[f"{base_job_name}_compress_output"] = {
+            #         "stage": "compress_output",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             f"{flux_cores_args} dftracer_pgzip -d {output}/train",
+            #             "last_job_id=$(flux job last | awk '{print $1}')",
+            #             "echo 'Waiting for job ID: $last_job_id to finish...'",
+            #             "flux job wait $last_job_id",
+            #             f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
+            #             f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
+            #         ],
+            #         "needs": [f"{base_job_name}_train"],
+            #     }
 
-            elif stage == "move":
-                ci_config[f"{base_job_name}_move"] = {
-                    "stage": "move",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
-                        f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
-                        f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
-                        f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
-                    ],
-                    "needs": [f"{base_job_name}_compress_output"],
-                }
+            # elif stage == "move":
+            #     ci_config[f"{base_job_name}_move"] = {
+            #         "stage": "move",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+            #             f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+            #             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+            #             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+            #         ],
+            #         "needs": [f"{base_job_name}_compress_output"],
+            #     }
 
-            elif stage == "compact":
-                ci_config[f"{base_job_name}_compact"] = {
-                    "stage": "compact",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                        f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                    ],
-                    "needs": [f"{base_job_name}_move"],
-                }
+            # elif stage == "compact":
+            #     ci_config[f"{base_job_name}_compact"] = {
+            #         "stage": "compact",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+            #             f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+            #         ],
+            #         "needs": [f"{base_job_name}_move"],
+            #     }
 
-            elif stage == "compress_final":
-                ci_config[f"{base_job_name}_compress_final"] = {
-                    "stage": "compress_final",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                        f"tar -czf RAW.tar.gz RAW",
-                        f"tar -czf COMPACT.tar.gz COMPACT",
-                    ],
-                    "needs": [f"{base_job_name}_compact"],
-                }
+            # elif stage == "compress_final":
+            #     ci_config[f"{base_job_name}_compress_final"] = {
+            #         "stage": "compress_final",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+            #             f"tar -czf RAW.tar.gz RAW",
+            #             f"tar -czf COMPACT.tar.gz COMPACT",
+            #         ],
+            #         "needs": [f"{base_job_name}_compact"],
+            #     }
 
-            elif stage == "cleanup":
-                ci_config[f"{base_job_name}_cleanup"] = {
-                    "stage": "cleanup",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "./variables.sh",
-                        "./pre.sh",
-                        "module load mpifileutils",
-                        f"{flux_cores_args} drm {output}",
-                        "last_job_id=$(flux job last | awk '{print $1}')",
-                        "echo 'Waiting for job ID: $last_job_id to finish...'",
-                        "flux job wait $last_job_id",
-                    ],
-                    "needs": [f"{base_job_name}_compress_final"],
-                }
+            # elif stage == "cleanup":
+            #     ci_config[f"{base_job_name}_cleanup"] = {
+            #         "stage": "cleanup",
+            #         "extends": f".{system_name}",
+            #         "script": [
+            #             "./variables.sh",
+            #             "./pre.sh",
+            #             "module load mpifileutils",
+            #             f"{flux_cores_args} drm {output}",
+            #             "last_job_id=$(flux job last | awk '{print $1}')",
+            #             "echo 'Waiting for job ID: $last_job_id to finish...'",
+            #             "flux job wait $last_job_id",
+            #         ],
+            #         "needs": [f"{base_job_name}_compress_final"],
+            #     }
 
     return ci_config
 
