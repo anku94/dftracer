@@ -68,7 +68,7 @@ stages:
   stage: test
   trigger:
     include:
-      - artifact: run_dlio_workload_test_ci.yaml
+      - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
         job: run_dlio_workload_test_ci
 
 
