@@ -47,14 +47,16 @@ stages:
     SYSTEM_NAME: corona
 
 
-.dlio_build:
+dlio_corona_build:
+  extends: .corona
   stage: build
   script:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
     - source .gitlab/scripts/build.sh
 
-.dlio_generate:
+dlio_corona_generate:
+  extends: .corona
   stage: generate
   script: 
     - source .gitlab/scripts/variables.sh
@@ -64,28 +66,14 @@ stages:
     paths:
       - .gitlab/scripts/run_dlio_workload_test_ci.yaml
 
-.dlio_test:
+dlio_corona_test:
+  extends: .corona
   stage: test
   trigger:
     include:
       - artifact: .gitlab/scripts/run_dlio_workload_test_ci.yaml
         job: run_dlio_workload_test_ci
 
-
-corona_build_dlio:
-  extends:
-    - .corona
-    - .dlio_build
-
-corona_generate_dlio:
-  extends:
-    - .corona
-    - .dlio_generate
-
-corona_test_dlio:
-  extends:
-    - .corona
-    - .dlio_test
 
 # .dlio_test_script:
 #   script:
