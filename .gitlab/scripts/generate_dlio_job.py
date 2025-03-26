@@ -206,8 +206,8 @@ def generate_gitlab_ci_yaml(config_files):
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
-        base_job_name = f"{workload}_{idx}"
-        ci_config[f"{base_job_name}_generate_data"] = {
+        generate_job_name = f"{workload}_{idx}_generate_data"
+        ci_config[f"{generate_job_name}"] = {
             "stage": "generate_data",
             "extends": f".{system_name}",
             "script": [
@@ -254,7 +254,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
                             f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                         ],
-                        "needs": [f"{base_job_name}_generate_data"],
+                        "needs": [f"{generate_job_name}"],
                         "variables": {
                             "DFTRACER_ENABLE": "1",
                             "DFTRACER_INC_METADATA": "1",
