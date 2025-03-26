@@ -241,7 +241,7 @@ def generate_gitlab_ci_yaml(config_files):
                 start=1,
             ):
                 tqdm.write(
-                    f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}'"
+                    f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}' with nodes {nodes}"
                 )
                 if stage == "train":
                     ci_config[f"{base_job_name}_train"] = {
