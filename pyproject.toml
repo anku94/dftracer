@@ -12,7 +12,83 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydftracer"
+description = "I/O profiler for deep learning python apps. Specifically for dlio_benchmark."
+readme = "README.md"
+requires-python = '>=3.7'
+
+authors = [
+  { name = "Hariharan Devarajan (Hari)", email = "hariharandev1@llnl.gov" }
+]
+keywords = [
+  "profiler", 
+  "deep learning", 
+  "I/O", 
+  "benchmark", 
+  "NPZ", 
+  "pytorch benchmark", 
+  "tensorflow benchmark",
+]
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  "Development Status :: 3 - Alpha",
+  # Indicate who your project is intended for
+  "Intended Audience :: Science/Research",
+  "Topic :: Software Development :: Build Tools",
+  # Pick your license as you wish
+  "License :: OSI Approved :: MIT License",
+  # Specify the Python versions you support here. In particular, ensure
+  # that you indicate you support Python 3. These classifiers are *not*
+  # checked by 'pip install'. See instead 'python_requires' below.
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3 :: Only",
+]
 dynamic = ["version"]
+dependencies = [
+  "pybind11", 
+  "zindex_py==0.0.4", 
+  "setuptools>=64", 
+  "setuptools-scm>=8"
+]
+
+[project.urls]
+Homepage = "https://github.com/LLNL/dftracer"
+Repository = "https://github.com/LLNL/dftracer"
+"Bug Tracker" = "https://github.com/LLNL/dftracer/issues"
+Documentation = "https://dftracer.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+test = ['pytest>=6.0']
+dfanalyzer = [
+    'seaborn>=0.13.2', 
+    'bokeh>=2.4.2', 
+    'pybind11', 
+    'pandas>=2.0.3', 
+    'dask>=2023.5.0', 
+    'distributed', 
+    'numpy>=1.24.3', 
+    'pyarrow>=12.0.1', 
+    'rich>=13.6.0', 
+    'python-intervals>=1.10.0.post1', 
+    'matplotlib>=3.7.3'
+]
+
+# [project.scripts]
+# dftracer_compact = "script/dftracer_compact"
+# dftracer_compact_by_pid = "script/dftracer_compact_by_pid"
+# dftracer_merge = "script/dftracer_merge"
+# dftracer_sanitize = "script/dftracer_sanitize"
+# dftracer_anonymize = "script/dftracer_anonymize"
+# dftracer_split = "script/dftracer_split"
+# dftracer_create_index = "script/dftracer_create_index"
+# dftracer_event_count = "script/dftracer_event_count"
+# dftracer_validate = "script/dftracer_validate"
+# dftracer_pgzip = "script/dftracer_pgzip"
 
 [tool]
 files = "setup.py"
@@ -54,6 +130,20 @@ extend-ignore = [
   "E501",   # Line too long
 ]
 target-version = "py38"
+
+[tool.setuptools]
+script-files = [
+  "script/dftracer_compact",
+  "script/dftracer_compact_by_pid",
+  "script/dftracer_merge",
+  "script/dftracer_sanitize",
+  "script/dftracer_anonymize",
+  "script/dftracer_split",
+  "script/dftracer_create_index",
+  "script/dftracer_event_count",
+  "script/dftracer_validate",
+  "script/dftracer_pgzip",
+]
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
