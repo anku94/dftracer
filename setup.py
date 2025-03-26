@@ -22,7 +22,6 @@ PLAT_TO_CMAKE = {
 
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
-
     return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
 
 
@@ -180,13 +179,12 @@ setup(
     name="pydftracer",
     use_scm_version={"version_scheme": myversion_func},
     packages=(
-        find_namespace_packages(include=["dftracer", "dftracer_dbg", "dfanalyzer"])
+        find_namespace_packages(include=["dftracer", "dfanalyzer"])
     ),
-    package_dir={
-        "dftracer": "dftracer",
-        "dftracer_dbg": "dftracer_dbg",
-        "dfanalyzer": "dfanalyzer",
-    },
+    # package_dir={
+    #     "dftracer": "dftracer",
+    #     "dfanalyzer": "dfanalyzer",
+    # },
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),

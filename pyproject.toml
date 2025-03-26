@@ -145,6 +145,11 @@ script-files = [
   "script/dftracer_pgzip",
 ]
 
+[tool.setuptools.package-dir]
+dftracer = "dftracer"
+dfanalyzer = "dfanalyzer"
+
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
 write_to = "dftracer/_version.py"
+
