@@ -163,20 +163,29 @@ def generate_gitlab_ci_yaml(config_files):
     for idx, workload in enumerate(
         tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
-        output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
-        unique_dir = f"{data_path}/{workload}-{idx}/"
-        workload_args = f"++workload.dataset.data_folder={unique_dir}/data ++workload.checkpoint.checkpoint_folder={unique_dir}/checkpoint ++workload.train.epochs=1"
-
         tp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.tensor", int
         )
         pp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.pipeline", int
         )
-
+        samples_per_file = execute_dlio_benchmark_query(
+            workload, workload_args, "dataset.num_samples_per_file", int
+        )
+        num_files = execute_dlio_benchmark_query(
+            workload, workload_args, "dataset.num_files_train", int
+        )
+        batch_size = execute_dlio_benchmark_query(
+            workload, workload_args, "reader.batch_size", int
+        )
         nodes = int(os.getenv("NODES", 1))
         gpus = int(os.getenv("GPUS", 1))
         cores = int(os.getenv("CORES", 1))
+
+        min_steps = 10
+        cal_max_nodes = max(
+            1, samples_per_file * num_files / batch_size / gpus / min_steps
+        )
 
         ranks = nodes * gpus
         tp_pp_product = tp_size * pp_size
@@ -188,7 +197,30 @@ def generate_gitlab_ci_yaml(config_files):
         if nodes > max_nodes:
             continue
 
+        if max_nodes > cal_max_nodes:
+            max_nodes = cal_max_nodes
+
+        flux_cores_args = create_flux_execution_command(nodes, cores)
+        flux_gpu_args = create_flux_execution_command(nodes, gpus)
+        output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
+        dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
+        if stage == "generate_data":
+            ci_config[f"{base_job_name}_generate_data"] = {
+                "stage": "generate_data",
+                "extends": f".{system_name}",
+                "script": [
+                    "ls",
+                    "source .gitlab/scripts/variables.sh",
+                    "source .gitlab/scripts/pre.sh",
+                    "which python; which dlio_benchmark;",
+                    f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                    f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                ],
+            }
         while nodes <= max_nodes:
+            output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
+            dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
+            workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
             base_job_name = f"{workload}_{idx}_{nodes}"
             flux_cores_args = create_flux_execution_command(nodes, cores)
             flux_gpu_args = create_flux_execution_command(nodes, gpus)
@@ -208,24 +240,7 @@ def generate_gitlab_ci_yaml(config_files):
                 tqdm.write(
                     f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}'"
                 )
-
-                if stage == "generate_data":
-                    ci_config[f"{base_job_name}_generate_data"] = {
-                        "stage": "generate_data",
-                        "extends": f".{system_name}",
-                        "script": [  # "\n".join(
-                            "ls",
-                            "source .gitlab/scripts/variables.sh",
-                            "source .gitlab/scripts/pre.sh",
-                            "which python; which dlio_benchmark;",
-                            f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
-                            f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                        ]
-                        # )
-                        ,
-                    }
-
-                elif stage == "train":
+                if stage == "train":
                     ci_config[f"{base_job_name}_train"] = {
                         "stage": "train",
                         "extends": f".{system_name}",
