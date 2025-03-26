@@ -1,4 +1,115 @@
-# template
-job1:
-  tags: [shell, corona]
-  script: sleep 60
+variables: {}
+stages:
+- generate_data
+- train
+- compress_output
+- move
+- compact
+- compress_final
+- cleanup
+include:
+- project: lc-templates/id_tokens
+  file: id_tokens.yml
+- local: .gitlab/scripts/common.yml
+unet3d_v100_1_generate_data:
+  stage: generate_data
+  extends: .corona
+  script:
+  - ls
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - which python; which dlio_benchmark;
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1/ ]; then echo
+    'Directory /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1/ already
+    exists. Skipping data generation.'; else flux run -N 1 --tasks-per-node=48 -q
+    pdebug -t 60 --exclusive dlio_benchmark workload=unet3d_v100 ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1//data
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/generate
+    ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi
+  - if [ -d /p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1/ ] && grep -i
+    'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/generate/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+unet3d_v100_1_1_train:
+  stage: train
+  extends: .corona
+  script:
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - which python; which dlio_benchmark;
+  - flux run -N 1 --tasks-per-node=8 -q pdebug -t 60 --exclusive dlio_benchmark workload=unet3d_v100
+    ++workload.dataset.data_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1//data
+    ++workload.checkpoint.checkpoint_folder=/p/lustre3/770529USER/gitlab-runner-data//unet3d_v100-1-1//checkpoint
+    ++workload.train.epochs=1 ++workload.output.folder=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train
+    hydra.run.dir=/usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train
+    ++workload.workflow.generate_data=False ++workload.workflow.train=True
+  - if grep -i 'error' /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train/dlio.log;
+    then echo 'Error found in dlio.log'; exit 1; fi
+  needs:
+  - unet3d_v100_1_1_generate_data
+  variables:
+    DFTRACER_ENABLE: '1'
+    DFTRACER_INC_METADATA: '1'
+unet3d_v100_1_1_compress_output:
+  stage: compress_output
+  extends: .corona
+  script:
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - which python; which dftracer_pgzip;
+  - flux run -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive dftracer_pgzip -d
+    /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train
+  - if find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train
+    -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!';
+    exit 1; fi
+  - if ! find /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train
+    -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!';
+    exit 1; fi
+  needs:
+  - unet3d_v100_1_1_train
+unet3d_v100_1_1_move:
+  stage: move
+  extends: .corona
+  script:
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - mkdir -p /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train/*.pfw.gz
+    /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913/RAW/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train/.hydra
+    /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913/
+  - mv /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913/train/dlio.log
+    /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913/
+  needs:
+  - unet3d_v100_1_1_compress_output
+unet3d_v100_1_1_compact:
+  stage: compact
+  extends: .corona
+  script:
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - source .gitlab/scripts/build.sh
+  - which python; which dftracer_split;
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913
+  - dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n unet3d_v100
+  - if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted
+    .pfw.gz files found!'; exit 1; fi
+  needs:
+  - unet3d_v100_1_1_move
+unet3d_v100_1_1_compress_final:
+  stage: compress_final
+  extends: .corona
+  script:
+  - source .gitlab/scripts/variables.sh
+  - source .gitlab/scripts/pre.sh
+  - cd /p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev63/corona/unet3d_v100/nodes-1/20250325225913
+  - tar -czf RAW.tar.gz RAW
+  - tar -czf COMPACT.tar.gz COMPACT
+  needs:
+  - unet3d_v100_1_1_compact
+unet3d_v100_1_1_cleanup:
+  stage: cleanup
+  extends: .corona
+  script:
+  - module load mpifileutils
+  - flux run -N 1 --tasks-per-node=48 -q pdebug -t 60 --exclusive drm /usr/workspace/haridev/gitlab-runner-outputs/unet3d_v100/1/20250325225913
+  needs:
+  - unet3d_v100_1_1_compress_final

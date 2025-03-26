@@ -206,19 +206,20 @@ def generate_gitlab_ci_yaml(config_files):
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
-        if stage == "generate_data":
-            ci_config[f"{base_job_name}_generate_data"] = {
-                "stage": "generate_data",
-                "extends": f".{system_name}",
-                "script": [
-                    "ls",
-                    "source .gitlab/scripts/variables.sh",
-                    "source .gitlab/scripts/pre.sh",
-                    "which python; which dlio_benchmark;",
-                    f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
-                    f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                ],
-            }
+        base_job_name = f"{workload}_{idx}"
+        ci_config[f"{base_job_name}_generate_data"] = {
+            "stage": "generate_data",
+            "extends": f".{system_name}",
+            "script": [
+                "ls",
+                "source .gitlab/scripts/variables.sh",
+                "source .gitlab/scripts/pre.sh",
+                "which python; which dlio_benchmark;",
+                f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+            ],
+        }
+
         while nodes <= max_nodes:
             output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
             dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
