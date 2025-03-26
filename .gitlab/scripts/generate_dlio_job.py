@@ -185,12 +185,16 @@ def generate_gitlab_ci_yaml(config_files):
         batch_size = execute_dlio_benchmark_query(
             workload, workload_args, "reader.batch_size", int
         )
+        record_len = execute_dlio_benchmark_query(
+            workload, workload_args, "dataset.record_length_bytes", int
+        )
         d = {
             "tp_size": tp_size,
             "pp_size": pp_size,
             "samples_per_file": samples_per_file,
             "num_files": num_files,
             "batch_size": batch_size,
+            "record_len": record_len,
         }
         return index, workload, d
 
@@ -203,10 +207,14 @@ def generate_gitlab_ci_yaml(config_files):
         for future in concurrent.futures.as_completed(futures):
             idx, workload, d = future.result()
             config_values[idx] = d
-
+    
+    create_stages = set()
+    
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
     ):
+        workload_parts = workload.split("_")
+        workload_name = workload_parts[0]
         if workload == "default":
             continue
         tp_size = config_values[idx - 1]["tp_size"]
@@ -214,6 +222,7 @@ def generate_gitlab_ci_yaml(config_files):
         samples_per_file = config_values[idx - 1]["samples_per_file"]
         num_files = config_values[idx - 1]["num_files"]
         batch_size = config_values[idx - 1]["batch_size"]
+        record_len = config_values[idx - 1]["record_len"]
 
         nodes = int(os.getenv("MIN_NODES", 1))
         gpus = int(os.getenv("GPUS", 1))
@@ -223,6 +232,19 @@ def generate_gitlab_ci_yaml(config_files):
         cal_max_nodes = max(
             1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
         )
+        
+        total_dataset_size = 1024*1024*1024*1024
+        max_files = total_dataset_size / record_len / samples_per_file
+        if max_files < num_files:
+            num_files = max_files
+        
+        current_size = samples_per_file * num_files * record_len
+        if current_size > total_dataset_size:
+            max_samples_per_file = total_dataset_size / num_files / record_len
+            if max_samples_per_file < samples_per_file:
+                samples_per_file = max_samples_per_file
+        
+        override_data_size_args = f"++dataset.num_samples_per_file={samples_per_file} ++dataset.num_files_train={num_files}"
 
         ranks = nodes * gpus
         tp_pp_product = tp_size * pp_size
@@ -249,26 +271,28 @@ def generate_gitlab_ci_yaml(config_files):
 
         flux_cores_args = create_flux_execution_command(nodes, cores)
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
-        dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
-        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
+        dlio_data_dir = f"{data_path}/{workload_name}-{nodes}/"
+        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1 {override_data_size_args}"
         generate_job_name = f"{workload}_{idx}_generate_data"
-        ci_config[f"{generate_job_name}"] = {
-            "stage": "generate_data",
-            "extends": f".{system_name}",
-            "script": [
-                "ls",
-                "source .gitlab/scripts/variables.sh",
-                "source .gitlab/scripts/pre.sh",
-                "which python; which dlio_benchmark;",
-                f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
-                f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-            ],
-        }
+        if generate_job_name not in create_stages:
+            ci_config[generate_job_name] = {
+                "stage": "generate_data",
+                "extends": f".{system_name}",
+                "script": [
+                    "ls",
+                    "source .gitlab/scripts/variables.sh",
+                    "source .gitlab/scripts/pre.sh",
+                    "which python; which dlio_benchmark;",
+                    f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                    f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                ],
+            }
+            create_stages.add(generate_job_name)
 
         while nodes <= max_nodes:
             output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
             dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
-            workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
+            workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1 {override_data_size_args}"
             base_job_name = f"{workload}_{idx}_{nodes}"
             flux_cores_args = create_flux_execution_command(nodes, cores)
             flux_gpu_args = create_flux_execution_command(nodes, gpus)
@@ -299,7 +323,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
                             f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                         ],
-                        "needs": [f"{generate_job_name}"],
+                        "needs": [generate_job_name],
                         "variables": {
                             "DFTRACER_ENABLE": "1",
                             "DFTRACER_INC_METADATA": "1",
@@ -412,7 +436,7 @@ def main():
     parser.add_argument(
         "--log-level",
         type=str,
-        default="INFO",
+        default="WARNING",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level. Defaults to 'INFO'.",
     )
