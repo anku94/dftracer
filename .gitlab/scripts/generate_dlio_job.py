@@ -110,6 +110,7 @@ def generate_gitlab_ci_yaml(config_files):
             "generate_data",
             "train",
             "compress_output",
+            "create_directory",
             "move",
             "compact",
             "compress_final",
@@ -161,7 +162,7 @@ def generate_gitlab_ci_yaml(config_files):
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm(config_files, desc="Processing workloads"), start=1
+        tqdm(config_files[:2], desc="Processing workloads"), start=1
     ):
         workload_args = f"++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
@@ -332,7 +333,17 @@ def generate_gitlab_ci_yaml(config_files):
                         "needs": [f"{base_job_name}_compress_final"],
                     }
             nodes *= 2
-
+    ci_config[f"create_directory_common"] = {
+        "stage": "create_directory",
+        "extends": f".{system_name}",
+        "script": [
+            "ls",
+            "source .gitlab/scripts/variables.sh",
+            "source .gitlab/scripts/pre.sh",
+            "./.gitlab/scripts/create_directory.sh",
+        ],
+        "needs": [],
+    }
     return ci_config
 
 
