@@ -334,7 +334,10 @@ def generate_gitlab_ci_yaml(config_files):
                             "module load mpifileutils",
                             f"{flux_cores_args} drm {output}",
                         ],
-                        "needs": [f"{base_job_name}_compress_final"],
+                        "needs": {
+                            "job": f"{base_job_name}_compress_final",
+                            "optional": True,
+                        },
                     }
             nodes *= 2
     ci_config[f"create_directory_common"] = {
