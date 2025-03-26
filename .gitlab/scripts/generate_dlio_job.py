@@ -281,6 +281,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "which python; which dftracer_split;",
                         f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                         f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                        f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
                     ],
                     "needs": [f"{base_job_name}_move"],
                 }
