@@ -109,10 +109,10 @@ def generate_gitlab_ci_yaml(config_files):
     ci_config = {
         "variables": {},
         "stages": [
+            "create_directory",
             "generate_data",
             "train",
             "compress_output",
-            "create_directory",
             "move",
             "compact",
             "compress_final",
