@@ -245,7 +245,7 @@ def generate_gitlab_ci_yaml(config_files):
             if max_samples_per_file < samples_per_file:
                 samples_per_file = max_samples_per_file
         
-        override_data_size_args = f"++dataset.num_samples_per_file={samples_per_file} ++dataset.num_files_train={num_files}"
+        override_data_size_args = f"++workload.dataset.num_samples_per_file={samples_per_file} ++workload.dataset.num_files_train={num_files}"
 
         ranks = nodes * gpus
         tp_pp_product = tp_size * pp_size
