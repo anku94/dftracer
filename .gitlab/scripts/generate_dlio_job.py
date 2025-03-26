@@ -86,8 +86,8 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
         )
 
     nodes = nodes or int(os.getenv("MIN_NODES"))
-    queue = os.getenv("LARGE_QUEUE") if nodes <= int(os.getenv("MIN_NODES")) else os.getenv("SMALL_QUEUE")
-    WALLTIME = os.getenv("LARGE_QUEUE_WALLTIME") if nodes <= int(os.getenv("MIN_NODES")) else os.getenv("SMALL_QUEUE_WALLTIME")
+    queue = os.getenv("LARGE_QUEUE") if nodes > int(os.getenv("MIN_NODES")) else os.getenv("SMALL_QUEUE")
+    WALLTIME = os.getenv("LARGE_QUEUE_WALLTIME") if nodes > int(os.getenv("MIN_NODES")) else os.getenv("SMALL_QUEUE_WALLTIME")
 
     if not all([nodes, queue, WALLTIME]):
         logging.error(
