@@ -161,7 +161,7 @@ def generate_gitlab_ci_yaml(config_files):
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm([config_files[-1]], desc="Processing workloads"), start=1
+        tqdm([config_files[:2]], desc="Processing workloads"), start=1
     ):
         workload_args = f"++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
