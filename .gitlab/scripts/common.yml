@@ -17,7 +17,8 @@
     CORES: 48
     GPUS: 8
     WALLTIME: 240 # Walltime specifies the maximum runtime in minutes
-    QUEUE: pbatch # 'pdebug' is a queue name for debugging jobs
+    LARGE_QUEUE: pbatch # 'pdebug' is a queue name for debugging jobs
+    SMALL_QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
     MIN_NODES: 8
     MAX_NODES: 32
     SYSTEM_NAME: corona

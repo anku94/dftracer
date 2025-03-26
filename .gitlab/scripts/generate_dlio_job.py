@@ -85,16 +85,16 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
             "The 'tasks_per_node' argument is mandatory and must be provided."
         )
 
-    nodes = nodes or os.getenv("NODES")
-    queue = os.getenv("QUEUE")
+    nodes = nodes or os.getenv("MIN_NODES")
+    queue = os.getenv("LARGE_QUEUE") if nodes != os.getenv("MIN_NODES") else os.getenv("SMALL_QUEUE")
     WALLTIME = os.getenv("WALLTIME")
 
     if not all([nodes, queue, WALLTIME]):
         logging.error(
-            "Environment variables 'NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
+            "Environment variables 'MIN_NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
         )
         raise EnvironmentError(
-            "Environment variables 'NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
+            "Environment variables 'MIN_NODES', 'QUEUE', and 'WALLTIME' must be set, unless overridden by input arguments."
         )
 
     command = f"flux run -N {nodes} --tasks-per-node={tasks_per_node} -q {queue} -t {WALLTIME} --exclusive"
@@ -247,9 +247,9 @@ def generate_gitlab_ci_yaml(config_files):
             else max_nodes
         )
 
-        flux_cores_args = create_flux_execution_command(max_nodes, cores)
-        output = f"{custom_ci_output_dir}/{workload}/{max_nodes}/{unique_run_id}"
-        dlio_data_dir = f"{data_path}/{workload}-{idx}-{max_nodes}/"
+        flux_cores_args = create_flux_execution_command(nodes, cores)
+        output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
+        dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
         generate_job_name = f"{workload}_{idx}_generate_data"
         ci_config[f"{generate_job_name}"] = {
