@@ -235,13 +235,13 @@ def generate_gitlab_ci_yaml(config_files):
         )
         
         total_dataset_size = 1024*1024*1024*1024
-        max_files = int(math.floor(total_dataset_size / record_len / samples_per_file))
+        max_files = max(1, int(math.floor(total_dataset_size / record_len / samples_per_file)))
         if max_files < num_files:
             num_files = max_files
         
         current_size = samples_per_file * num_files * record_len
         if current_size > total_dataset_size:
-            max_samples_per_file = int(math.floor(total_dataset_size / num_files / record_len))
+            max_samples_per_file = max(1, int(math.floor(total_dataset_size / num_files / record_len)))
             if max_samples_per_file < samples_per_file:
                 samples_per_file = max_samples_per_file
         
@@ -269,10 +269,24 @@ def generate_gitlab_ci_yaml(config_files):
             if max_nodes & (max_nodes - 1) != 0
             else max_nodes
         )
-
-        flux_cores_args = create_flux_execution_command(nodes, cores)
-        output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
-        dlio_data_dir = f"{data_path}/{workload_name}-{nodes}/"
+        
+        data_generation_nodes = nodes
+        if nodes * gpus > num_files:
+            io_per_rank = 16 * 1024 * 1024 * 1024
+            data_generation_nodes = max(nodes, int(math.floor(num_files * samples_per_file * record_len / io_per_rank / cores)))
+        
+        # Ensure max_nodes is a power of 2
+        data_generation_nodes = (
+            2 ** (data_generation_nodes - 1).bit_length()
+            if data_generation_nodes & (data_generation_nodes - 1) != 0
+            else data_generation_nodes
+        )
+        data_generation_nodes = min(max_nodes, data_generation_nodes)
+        
+        
+        flux_cores_args = create_flux_execution_command(data_generation_nodes, cores)
+        output = f"{custom_ci_output_dir}/{workload}/{data_generation_nodes}/{unique_run_id}"
+        dlio_data_dir = f"{data_path}/{workload_name}-{data_generation_nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1 {override_data_size_args}"
         generate_job_name = f"{workload_name}_generate_data"
         if generate_job_name not in create_stages:
