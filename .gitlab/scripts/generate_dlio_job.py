@@ -163,8 +163,7 @@ def generate_gitlab_ci_yaml(config_files):
     for idx, workload in enumerate(
         tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
-        dlio_data_dir = f"{data_path}/{workload}-{idx}/"
-        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
+        workload_args = f"++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.tensor", int
         )
@@ -206,8 +205,7 @@ def generate_gitlab_ci_yaml(config_files):
         flux_gpu_args = create_flux_execution_command(nodes, gpus)
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
-        dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
-        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
+        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
         if stage == "generate_data":
             ci_config[f"{base_job_name}_generate_data"] = {
                 "stage": "generate_data",
