@@ -135,8 +135,8 @@ else
   date_echo "sqlite3 does not exist, will use python for querying"
 fi
 
-# SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-dftracer_create_index -c -d "$LOG_DIR" -f
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+"$SCRIPT_DIR"/dftracer_create_index -c -d "$LOG_DIR" -f
 
 JOBS_LIMIT=1024
 pushd "$LOG_DIR" > /dev/null || exit
