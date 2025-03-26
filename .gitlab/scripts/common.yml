@@ -16,7 +16,8 @@
     LOG_STORE_DIR: "/p/lustre3/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
     CORES: 48
     GPUS: 8
-    WALLTIME: 240 # Walltime specifies the maximum runtime in minutes
+    LARGE_QUEUE_WALLTIME: 240 # Walltime specifies the maximum runtime in minutes
+    SMALL_QUEUE_WALLTIME: 60
     LARGE_QUEUE: pbatch # 'pdebug' is a queue name for debugging jobs
     SMALL_QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
     MIN_NODES: 8
