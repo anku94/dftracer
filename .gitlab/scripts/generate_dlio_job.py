@@ -160,7 +160,7 @@ def generate_gitlab_ci_yaml(config_files):
     unique_run_id = str(uuid.uuid4().int)[:8]
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm(config_files, desc="Processing workloads"), start=1
+        tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
         output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
         base_job_name = f"{workload}_{idx}"
@@ -278,6 +278,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "script": [
                         "source .gitlab/scripts/variables.sh",
                         "source .gitlab/scripts/pre.sh",
+                        "source .gitlab/scripts/build.sh",
                         "which python; which dftracer_split;",
                         f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                         f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
