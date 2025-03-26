@@ -158,6 +158,7 @@ def generate_gitlab_ci_yaml(config_files):
     log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
+    compress_stages = []
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
@@ -276,6 +277,9 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"{base_job_name}_train"],
                     }
+                    compress_stages.append(
+                        {"needs": f"{base_job_name}_compress_output", "optional": True}
+                    )
 
                 elif stage == "move":
                     ci_config[f"{base_job_name}_move"] = {
@@ -340,9 +344,9 @@ def generate_gitlab_ci_yaml(config_files):
             "ls",
             "source .gitlab/scripts/variables.sh",
             "source .gitlab/scripts/pre.sh",
-            "./.gitlab/scripts/create_directory.sh",
+            "./.gitlab/scripts/create_log_dir.sh",
         ],
-        "needs": [],
+        "needs": compress_stages,
     }
     return ci_config
 
