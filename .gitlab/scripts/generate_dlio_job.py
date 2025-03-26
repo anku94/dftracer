@@ -5,6 +5,7 @@ import dlio_benchmark
 import argparse
 import uuid
 import dftracer
+from datetime import datetime
 from tqdm import tqdm  # Import tqdm for progress tracking
 import logging  # Import logging for detailed logs
 
@@ -157,13 +158,12 @@ def generate_gitlab_ci_yaml(config_files):
     logging.info(f"Generated log directory path: {log_dir}")
 
     # Generate a unique 8-digit UID for the run
-    unique_run_id = str(uuid.uuid4().int)[:8]
+    unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm([config_files], desc="Processing workloads"), start=1
+        tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
         output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
-        base_job_name = f"{workload}_{idx}"
         unique_dir = f"{data_path}/{workload}-{idx}/"
         workload_args = f"++workload.dataset.data_folder={unique_dir}/data ++workload.checkpoint.checkpoint_folder={unique_dir}/checkpoint ++workload.train.epochs=1"
 
@@ -188,129 +188,132 @@ def generate_gitlab_ci_yaml(config_files):
         if nodes > max_nodes:
             continue
 
-        flux_cores_args = create_flux_execution_command(nodes, cores)
-        flux_gpu_args = create_flux_execution_command(nodes, gpus)
+        while nodes <= max_nodes:
+            base_job_name = f"{workload}_{idx}_{nodes}"
+            flux_cores_args = create_flux_execution_command(nodes, cores)
+            flux_gpu_args = create_flux_execution_command(nodes, gpus)
 
-        for sub_step, stage in enumerate(
-            [
-                "generate_data",
-                "train",
-                "compress_output",
-                "move",
-                "compact",
-                "compress_final",
-                "cleanup",
-            ],
-            start=1,
-        ):
-            tqdm.write(
-                f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}'"
-            )
+            for sub_step, stage in enumerate(
+                [
+                    "generate_data",
+                    "train",
+                    "compress_output",
+                    "move",
+                    "compact",
+                    "compress_final",
+                    "cleanup",
+                ],
+                start=1,
+            ):
+                tqdm.write(
+                    f"Sub-step {sub_step}: Adding {stage} stage for workload '{workload}'"
+                )
 
-            if stage == "generate_data":
-                ci_config[f"{base_job_name}_generate_data"] = {
-                    "stage": "generate_data",
-                    "extends": f".{system_name}",
-                    "script": [  # "\n".join(
-                        "ls",
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        "which python; which dlio_benchmark;",
-                        f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
-                        f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                    ]
-                    # )
-                    ,
-                }
+                if stage == "generate_data":
+                    ci_config[f"{base_job_name}_generate_data"] = {
+                        "stage": "generate_data",
+                        "extends": f".{system_name}",
+                        "script": [  # "\n".join(
+                            "ls",
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            "which python; which dlio_benchmark;",
+                            f"if [ -d {unique_dir} ]; then echo 'Directory {unique_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                            f"if [ -d {unique_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                        ]
+                        # )
+                        ,
+                    }
 
-            elif stage == "train":
-                ci_config[f"{base_job_name}_train"] = {
-                    "stage": "train",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        "which python; which dlio_benchmark;",
-                        f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
-                        f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
-                    ],
-                    "needs": [f"{base_job_name}_generate_data"],
-                    "variables": {
-                        "DFTRACER_ENABLE": "1",
-                        "DFTRACER_INC_METADATA": "1",
-                    },
-                }
+                elif stage == "train":
+                    ci_config[f"{base_job_name}_train"] = {
+                        "stage": "train",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            "which python; which dlio_benchmark;",
+                            f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
+                            f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                        ],
+                        "needs": [f"{base_job_name}_generate_data"],
+                        "variables": {
+                            "DFTRACER_ENABLE": "1",
+                            "DFTRACER_INC_METADATA": "1",
+                        },
+                    }
 
-            elif stage == "compress_output":
-                ci_config[f"{base_job_name}_compress_output"] = {
-                    "stage": "compress_output",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        "which python; which dftracer_pgzip;",
-                        f"{flux_cores_args} dftracer_pgzip -d {output}/train",
-                        f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
-                        f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
-                    ],
-                    "needs": [f"{base_job_name}_train"],
-                }
+                elif stage == "compress_output":
+                    ci_config[f"{base_job_name}_compress_output"] = {
+                        "stage": "compress_output",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            "which python; which dftracer_pgzip;",
+                            f"{flux_cores_args} dftracer_pgzip -d {output}/train",
+                            f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
+                            f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
+                        ],
+                        "needs": [f"{base_job_name}_train"],
+                    }
 
-            elif stage == "move":
-                ci_config[f"{base_job_name}_move"] = {
-                    "stage": "move",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
-                        f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
-                        f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
-                        f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
-                    ],
-                    "needs": [f"{base_job_name}_compress_output"],
-                }
+                elif stage == "move":
+                    ci_config[f"{base_job_name}_move"] = {
+                        "stage": "move",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+                            f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
+                            f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                            f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                        ],
+                        "needs": [f"{base_job_name}_compress_output"],
+                    }
 
-            elif stage == "compact":
-                ci_config[f"{base_job_name}_compact"] = {
-                    "stage": "compact",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        "source .gitlab/scripts/build.sh",
-                        "which python; which dftracer_split;",
-                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                        f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                        f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
-                    ],
-                    "needs": [f"{base_job_name}_move"],
-                }
+                elif stage == "compact":
+                    ci_config[f"{base_job_name}_compact"] = {
+                        "stage": "compact",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            "source .gitlab/scripts/build.sh",
+                            "which python; which dftracer_split;",
+                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                            f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
+                        ],
+                        "needs": [f"{base_job_name}_move"],
+                    }
 
-            elif stage == "compress_final":
-                ci_config[f"{base_job_name}_compress_final"] = {
-                    "stage": "compress_final",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "source .gitlab/scripts/variables.sh",
-                        "source .gitlab/scripts/pre.sh",
-                        f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                        f"tar -czf RAW.tar.gz RAW",
-                        f"tar -czf COMPACT.tar.gz COMPACT",
-                    ],
-                    "needs": [f"{base_job_name}_compact"],
-                }
+                elif stage == "compress_final":
+                    ci_config[f"{base_job_name}_compress_final"] = {
+                        "stage": "compress_final",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                            f"tar -czf RAW.tar.gz RAW",
+                            f"tar -czf COMPACT.tar.gz COMPACT",
+                        ],
+                        "needs": [f"{base_job_name}_compact"],
+                    }
 
-            elif stage == "cleanup":
-                ci_config[f"{base_job_name}_cleanup"] = {
-                    "stage": "cleanup",
-                    "extends": f".{system_name}",
-                    "script": [
-                        "module load mpifileutils",
-                        f"{flux_cores_args} drm {output}",
-                    ],
-                    "needs": [f"{base_job_name}_compress_final"],
-                }
+                elif stage == "cleanup":
+                    ci_config[f"{base_job_name}_cleanup"] = {
+                        "stage": "cleanup",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "module load mpifileutils",
+                            f"{flux_cores_args} drm {output}",
+                        ],
+                        "needs": [f"{base_job_name}_compress_final"],
+                    }
+            nodes *= 2
 
     return ci_config
 

@@ -16,8 +16,8 @@
     LOG_STORE_DIR: "/p/lustre3/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
     CORES: 48
     GPUS: 8
-    NODES: 1
     WALLTIME: 60 # Walltime specifies the maximum runtime in minutes
     QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
+    MIN_NODES: 4
     MAX_NODES: 8
     SYSTEM_NAME: corona
