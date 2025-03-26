@@ -204,6 +204,8 @@ def generate_gitlab_ci_yaml(config_files):
         flux_gpu_args = create_flux_execution_command(nodes, gpus)
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
+        dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
+        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
         if stage == "generate_data":
             ci_config[f"{base_job_name}_generate_data"] = {
                 "stage": "generate_data",
