@@ -185,7 +185,7 @@ def generate_gitlab_ci_yaml(config_files):
 
         min_steps = 10
         cal_max_nodes = max(
-            1, samples_per_file * num_files / batch_size / gpus / min_steps
+            1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
         )
 
         ranks = nodes * gpus
