@@ -299,6 +299,8 @@ def generate_gitlab_ci_yaml(config_files):
                     "source .gitlab/scripts/pre.sh",
                     "which python; which dlio_benchmark;",
                     "export DLIO_LOG_LEVEL=info",
+                    "module load mpifileutils",
+                    f"if [ -d {dlio_data_dir} ] && [ ! -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} exist but is not complete.'; {flux_cores_one_node_args} drm {dlio_data_dir};  fi",
                     f"if [ -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
                     f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                     f"touch {dlio_data_dir}/success"
@@ -416,7 +418,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "extends": f".{system_name}",
                         "script": [
                             "module load mpifileutils",
-                            f"{flux_cores_args} drm {output}",
+                            f"{flux_cores_one_node_args} drm {output}",
                         ],
                         "needs": {
                             "job": f"{base_job_name}_compress_final",
