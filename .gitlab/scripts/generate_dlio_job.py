@@ -283,7 +283,7 @@ def generate_gitlab_ci_yaml(config_files):
         )
         data_generation_nodes = min(max_nodes, data_generation_nodes)
         
-        
+        flux_cores_one_node_args = create_flux_execution_command(1, cores)
         flux_cores_args = create_flux_execution_command(data_generation_nodes, cores)
         output = f"{custom_ci_output_dir}/{workload}/{data_generation_nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload_name}-{data_generation_nodes}/"
@@ -299,8 +299,9 @@ def generate_gitlab_ci_yaml(config_files):
                     "source .gitlab/scripts/pre.sh",
                     "which python; which dlio_benchmark;",
                     "export DLIO_LOG_LEVEL=info",
-                    f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
+                    f"if [ -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
                     f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
+                    f"touch {dlio_data_dir}/success"
                 ],
             }
             create_stages.add(generate_job_name)
@@ -354,7 +355,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
                             "which python; which dftracer_pgzip;",
-                            f"{flux_cores_args} dftracer_pgzip -d {output}/train",
+                            f"{flux_cores_one_node_args} dftracer_pgzip -d {output}/train",
                             f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
                             f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                         ],
@@ -376,7 +377,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                         ],
-                        "needs": [f"create_directory_common", ],
+                        "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
 
                 elif stage == "compact":
@@ -389,7 +390,7 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                            f"{flux_cores_one_node_args} dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
                         ],
                         "needs": [f"{base_job_name}_move"],
