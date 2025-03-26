@@ -123,6 +123,7 @@ def generate_gitlab_ci_yaml(config_files):
             {"local": ".gitlab/scripts/common.yml"},
         ],
     }
+    
     logging.info("Initialized CI configuration with default stages and variables.")
 
     # Gather and validate required environment variables
@@ -208,6 +209,19 @@ def generate_gitlab_ci_yaml(config_files):
         for future in concurrent.futures.as_completed(futures):
             idx, workload, d = future.result()
             config_values[idx] = d
+    
+    
+    ci_config[f"create_directory_common"] = {
+        "stage": "create_directory",
+        "extends": f".{system_name}",
+        "script": [
+            "ls",
+            "source .gitlab/scripts/variables.sh",
+            "source .gitlab/scripts/pre.sh",
+            "./.gitlab/scripts/create_log_dir.sh",
+        ],
+        "needs": [],
+    }
     
     create_stages = set()
     
@@ -305,6 +319,7 @@ def generate_gitlab_ci_yaml(config_files):
                     f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                     f"touch {dlio_data_dir}/success"
                 ],
+                "needs": ["create_directory_common"],
             }
             create_stages.add(generate_job_name)
 
@@ -426,17 +441,6 @@ def generate_gitlab_ci_yaml(config_files):
                         },
                     }
             nodes *= 2
-    ci_config[f"create_directory_common"] = {
-        "stage": "create_directory",
-        "extends": f".{system_name}",
-        "script": [
-            "ls",
-            "source .gitlab/scripts/variables.sh",
-            "source .gitlab/scripts/pre.sh",
-            "./.gitlab/scripts/create_log_dir.sh",
-        ],
-        "needs": compress_stages,
-    }
     return ci_config
 
 
