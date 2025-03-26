@@ -298,7 +298,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "script": [
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
-                            "source .gitlab/scripts/build.sh",
+                            # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
