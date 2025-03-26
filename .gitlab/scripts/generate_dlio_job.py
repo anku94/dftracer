@@ -85,8 +85,8 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
             "The 'tasks_per_node' argument is mandatory and must be provided."
         )
 
-    nodes = nodes or os.getenv("MIN_NODES")
-    queue = os.getenv("LARGE_QUEUE") if nodes != os.getenv("MIN_NODES") else os.getenv("SMALL_QUEUE")
+    nodes = nodes or int(os.getenv("MIN_NODES"))
+    queue = os.getenv("LARGE_QUEUE") if nodes != int(os.getenv("MIN_NODES")) else os.getenv("SMALL_QUEUE")
     WALLTIME = os.getenv("WALLTIME")
 
     if not all([nodes, queue, WALLTIME]):
