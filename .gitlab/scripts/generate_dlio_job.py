@@ -209,7 +209,7 @@ def generate_gitlab_ci_yaml(config_files):
             idx, workload, d = future.result()
             config_values[idx] = d
     
-    create_stages = set()
+    create_stages = {}
     
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
@@ -286,7 +286,7 @@ def generate_gitlab_ci_yaml(config_files):
         flux_cores_one_node_args = create_flux_execution_command(1, cores)
         flux_cores_args = create_flux_execution_command(data_generation_nodes, cores)
         output = f"{custom_ci_output_dir}/{workload}/{data_generation_nodes}/{unique_run_id}"
-        dlio_data_dir = f"{data_path}/{workload_name}-{data_generation_nodes}/"
+        dlio_data_dir = f"{data_path}/{workload_name}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1 {override_data_size_args}"
         generate_job_name = f"{workload_name}_generate_data"
         if generate_job_name not in create_stages:
