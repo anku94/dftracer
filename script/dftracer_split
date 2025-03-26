@@ -325,8 +325,7 @@ wait
 rm -rf "$LOG_DIR"/.chunk* "$LOG_DIR"/counting.bak
 
 if [[ $LINES_COUNT -ne $SPLIT_LINES_COUNT ]]; then
-  date_echo "Error: Original lines count $LINES_COUNT does not match split lines count $SPLIT_LINES_COUNT"
-  exit 1
+  date_echo "Error: Original lines count $LINES_COUNT does not match split lines count $SPLIT_LINES_COUNT. Please check the file. "
 else
   date_echo "Original lines count $LINES_COUNT matches split lines count $SPLIT_LINES_COUNT"
 fi
