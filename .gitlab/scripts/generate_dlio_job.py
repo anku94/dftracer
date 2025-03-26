@@ -274,7 +274,7 @@ def generate_gitlab_ci_yaml(config_files):
         output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload_name}-{nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1 {override_data_size_args}"
-        generate_job_name = f"{workload}_{idx}_generate_data"
+        generate_job_name = f"{workload_name}_generate_data"
         if generate_job_name not in create_stages:
             ci_config[generate_job_name] = {
                 "stage": "generate_data",
