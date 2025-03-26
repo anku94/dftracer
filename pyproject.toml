@@ -10,11 +10,13 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+dynamic = ["version"]
+
 [tool]
 files = "setup.py"
 python_version = "3.7"
 strict = true
-dynamic = ["version"]
 show_error_codes = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
 warn_unreachable = true
