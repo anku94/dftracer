@@ -209,7 +209,7 @@ def generate_gitlab_ci_yaml(config_files):
             idx, workload, d = future.result()
             config_values[idx] = d
     
-    create_stages = {}
+    create_stages = set()
     
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
