@@ -171,8 +171,6 @@ class CMakeBuild(build_ext):
         subprocess.run(["cmake", "--install", "."], cwd=build_temp, check=True)
 
 
-# here = pathlib.Path(__file__).parent.resolve()
-# long_description = (here / "README.md").read_text(encoding="utf-8")
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
@@ -181,10 +179,6 @@ setup(
     packages=(
         find_namespace_packages(include=["dftracer", "dfanalyzer"])
     ),
-    # package_dir={
-    #     "dftracer": "dftracer",
-    #     "dfanalyzer": "dfanalyzer",
-    # },
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),

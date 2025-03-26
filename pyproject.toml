@@ -78,18 +78,6 @@ dfanalyzer = [
     'matplotlib>=3.7.3'
 ]
 
-# [project.scripts]
-# dftracer_compact = "script/dftracer_compact"
-# dftracer_compact_by_pid = "script/dftracer_compact_by_pid"
-# dftracer_merge = "script/dftracer_merge"
-# dftracer_sanitize = "script/dftracer_sanitize"
-# dftracer_anonymize = "script/dftracer_anonymize"
-# dftracer_split = "script/dftracer_split"
-# dftracer_create_index = "script/dftracer_create_index"
-# dftracer_event_count = "script/dftracer_event_count"
-# dftracer_validate = "script/dftracer_validate"
-# dftracer_pgzip = "script/dftracer_pgzip"
-
 [tool]
 files = "setup.py"
 python_version = "3.7"
