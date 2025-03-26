@@ -162,11 +162,12 @@ def generate_gitlab_ci_yaml(config_files):
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
-    for idx, workload in enumerate(
-        tqdm(config_files, desc="Processing workloads"), start=1
-    ):
-        if workload == "default":
-            continue
+
+    import concurrent.futures
+
+    logging.info(f"Querying workload characteristics.")
+
+    def process_workload(index, workload):
         workload_args = f"++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.tensor", int
@@ -183,6 +184,36 @@ def generate_gitlab_ci_yaml(config_files):
         batch_size = execute_dlio_benchmark_query(
             workload, workload_args, "reader.batch_size", int
         )
+        d = {
+            "tp_size": tp_size,
+            "pp_size": pp_size,
+            "samples_per_file": samples_per_file,
+            "num_files": num_files,
+            "batch_size": batch_size,
+        }
+        return index, workload, d
+
+    config_values = [{}] * len(config_files)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+        futures = {
+            executor.submit(process_workload, idx, workload): idx
+            for idx, workload in enumerate(config_files, start=0)
+        }
+        for future in concurrent.futures.as_completed(futures):
+            idx, workload, d = future.result()
+            config_values[idx] = d
+
+    for idx, workload in enumerate(
+        tqdm(config_files, desc="Processing workloads"), start=1
+    ):
+        if workload == "default":
+            continue
+        tp_size = config_values[idx - 1]["tp_size"]
+        pp_size = config_values[idx - 1]["pp_size"]
+        samples_per_file = config_values[idx - 1]["samples_per_file"]
+        num_files = config_values[idx - 1]["num_files"]
+        batch_size = config_values[idx - 1]["batch_size"]
+
         nodes = int(os.getenv("MIN_NODES", 1))
         gpus = int(os.getenv("GPUS", 1))
         cores = int(os.getenv("CORES", 1))
@@ -208,10 +239,16 @@ def generate_gitlab_ci_yaml(config_files):
         if max_nodes < nodes:
             nodes = max_nodes
 
-        flux_cores_args = create_flux_execution_command(nodes, cores)
-        flux_gpu_args = create_flux_execution_command(nodes, gpus)
-        output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
-        dlio_data_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
+        # Ensure max_nodes is a power of 2
+        max_nodes = (
+            2 ** (max_nodes - 1).bit_length()
+            if max_nodes & (max_nodes - 1) != 0
+            else max_nodes
+        )
+
+        flux_cores_args = create_flux_execution_command(max_nodes, cores)
+        output = f"{custom_ci_output_dir}/{workload}/{max_nodes}/{unique_run_id}"
+        dlio_data_dir = f"{data_path}/{workload}-{idx}-{max_nodes}/"
         workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.train.epochs=1"
         generate_job_name = f"{workload}_{idx}_generate_data"
         ci_config[f"{generate_job_name}"] = {
@@ -372,7 +409,7 @@ def main():
     parser.add_argument(
         "--log-level",
         type=str,
-        default="WARNING",
+        default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level. Defaults to 'INFO'.",
     )
