@@ -278,7 +278,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "needs": [f"{base_job_name}_train"],
                     }
                     compress_stages.append(
-                        {"needs": f"{base_job_name}_compress_output", "optional": True}
+                        {"job": f"{base_job_name}_compress_output", "optional": True}
                     )
 
                 elif stage == "move":
