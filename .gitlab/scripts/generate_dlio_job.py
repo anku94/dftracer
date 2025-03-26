@@ -85,9 +85,9 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
             "The 'tasks_per_node' argument is mandatory and must be provided."
         )
 
-    nodes = nodes or int(os.getenv("MIN_NODES"))
-    queue = os.getenv("LARGE_QUEUE") if nodes > int(os.getenv("MAX_NODES_SMALL_QUEUE")) else os.getenv("SMALL_QUEUE")
-    WALLTIME = os.getenv("LARGE_QUEUE_WALLTIME") if nodes > int(os.getenv("MAX_NODES_SMALL_QUEUE")) else os.getenv("SMALL_QUEUE_WALLTIME")
+    nodes = nodes or int(os.getenv("MIN_NODES", 1))
+    queue = os.getenv("LARGE_QUEUE", "lqueue") if nodes > int(os.getenv("MAX_NODES_SMALL_QUEUE", 1)) else os.getenv("SMALL_QUEUE", "squeue")
+    WALLTIME = os.getenv("LARGE_QUEUE_WALLTIME", 1) if nodes > int(os.getenv("MAX_NODES_SMALL_QUEUE", 1)) else os.getenv("SMALL_QUEUE_WALLTIME", 1)
 
     if not all([nodes, queue, WALLTIME]):
         logging.error(
@@ -104,7 +104,7 @@ def create_flux_execution_command(nodes=None, tasks_per_node=None):
 
 def generate_gitlab_ci_yaml(config_files):
     """Generate a GitLab CI YAML configuration with updated stages per workload."""
-    system_name = os.getenv("SYSTEM_NAME")
+    system_name = os.getenv("SYSTEM_NAME", "system")
     ci_config = {
         "variables": {},
         "stages": [
@@ -126,10 +126,10 @@ def generate_gitlab_ci_yaml(config_files):
 
     # Gather and validate required environment variables
     env_vars = {
-        "DATA_PATH": os.getenv("DATA_PATH"),
-        "LOG_STORE_DIR": os.getenv("LOG_STORE_DIR"),
-        "CUSTOM_CI_OUTPUT_DIR": os.getenv("CUSTOM_CI_OUTPUT_DIR"),
-        "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "default_system"),
+        "DATA_PATH": os.getenv("DATA_PATH", "/tmp"),
+        "LOG_STORE_DIR": os.getenv("LOG_STORE_DIR", "/tmp"),
+        "CUSTOM_CI_OUTPUT_DIR": os.getenv("CUSTOM_CI_OUTPUT_DIR","/tmp"),
+        "SYSTEM_NAME": os.getenv("SYSTEM_NAME", "system"),
     }
 
     for var_name, var_value in env_vars.items():
@@ -186,7 +186,7 @@ def generate_gitlab_ci_yaml(config_files):
             workload, workload_args, "reader.batch_size", int
         )
         record_len = execute_dlio_benchmark_query(
-            workload, workload_args, "dataset.record_length_bytes", int
+            workload, workload_args, "dataset.record_length_bytes", float
         )
         d = {
             "tp_size": tp_size,
