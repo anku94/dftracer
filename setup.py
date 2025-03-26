@@ -22,7 +22,6 @@ PLAT_TO_CMAKE = {
 
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
-
     return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
 
 
@@ -172,86 +171,18 @@ class CMakeBuild(build_ext):
         subprocess.run(["cmake", "--install", "."], cwd=build_temp, check=True)
 
 
-here = pathlib.Path(__file__).parent.resolve()
-long_description = (here / "README.md").read_text(encoding="utf-8")
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
     name="pydftracer",
-    setup_requires=["setuptools>=64",  "setuptools-scm>=8"],
-    description="I/O profiler for deep learning python apps. Specifically for dlio_benchmark.",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/LLNL/dftracer",
-    author="Hariharan Devarajan (Hari)",
-    classifiers=[  # Optional
-        # How mature is this project? Common values are
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        "Development Status :: 3 - Alpha",
-        # Indicate who your project is intended for
-        "Intended Audience :: Science/Research",
-        "Topic :: Software Development :: Build Tools",
-        # Pick your license as you wish
-        "License :: OSI Approved :: MIT License",
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate you support Python 3. These classifiers are *not*
-        # checked by 'pip install'. See instead 'python_requires' below.
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3 :: Only",
-    ],
     use_scm_version={"version_scheme": myversion_func},
-    install_requires=["pybind11", "zindex_py==0.0.4" , "setuptools>=64", "setuptools-scm>=8"],
-    keywords="profiler, deep learning, I/O, benchmark, NPZ, pytorch benchmark, tensorflow benchmark",
-    project_urls={  # Optional
-        "Bug Reports": "https://github.com/LLNL/dftracer/issues",
-        "Source": "https://github.com/LLNL/dftracer",
-    },
     packages=(
-        find_namespace_packages(include=["dftracer", "dftracer_dbg", "dfanalyzer"])
+        find_namespace_packages(include=["dftracer", "dfanalyzer"])
     ),
-    scripts=[
-        "script/dftracer_compact",
-        "script/dftracer_compact_by_pid",
-        "script/dftracer_merge",
-        "script/dftracer_sanitize",
-        "script/dftracer_anonymize",
-        "script/dftracer_split",
-        "script/dftracer_create_index",
-        "script/dftracer_event_count",
-        "script/dftracer_validate",
-        "script/dftracer_pgzip",
-    ],
-    package_dir={
-        "dftracer": "dftracer",
-        "dftracer_dbg": "dftracer_dbg",
-        "dfanalyzer": "dfanalyzer",
-    },
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),
     ],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
-    extras_require={
-        "test": ["pytest>=6.0"],
-        "dfanalyzer": [
-            "seaborn>=0.13.2",
-            "bokeh>=2.4.2",
-            "pybind11",
-            "pandas>=2.0.3",
-            "dask>=2023.5.0",
-            "distributed",
-            "numpy>=1.24.3",
-            "pyarrow>=12.0.1",
-            "rich>=13.6.0",
-            "python-intervals>=1.10.0.post1",
-            "matplotlib>=3.7.3",
-        ],
-    },
-    python_requires=">=3.7",
 )
