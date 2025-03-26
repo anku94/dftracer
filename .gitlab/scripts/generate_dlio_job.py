@@ -9,6 +9,7 @@ from datetime import datetime
 import time
 from tqdm import tqdm  # Import tqdm for progress tracking
 import logging  # Import logging for detailed logs
+import math
 
 # Configure logging
 logging.basicConfig(
@@ -234,13 +235,13 @@ def generate_gitlab_ci_yaml(config_files):
         )
         
         total_dataset_size = 1024*1024*1024*1024
-        max_files = total_dataset_size / record_len / samples_per_file
+        max_files = int(math.floor(total_dataset_size / record_len / samples_per_file))
         if max_files < num_files:
             num_files = max_files
         
         current_size = samples_per_file * num_files * record_len
         if current_size > total_dataset_size:
-            max_samples_per_file = total_dataset_size / num_files / record_len
+            max_samples_per_file = int(math.floor(total_dataset_size / num_files / record_len))
             if max_samples_per_file < samples_per_file:
                 samples_per_file = max_samples_per_file
         
@@ -482,7 +483,7 @@ def main():
 
     end_time = time.time()
     total_time = end_time - start_time
-    logging.info(f"Total execution time: {total_time:.2f} seconds")
+    logging.error(f"Total execution time: {total_time:.2f} seconds")
 
 
 if __name__ == "__main__":
