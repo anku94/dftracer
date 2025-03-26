@@ -153,14 +153,14 @@ def generate_gitlab_ci_yaml(config_files):
     logging.info(f"Detected dftracer version: {dftracer_version}")
 
     # Create log_dir variable
-    log_dir = f"{log_store_dir}/{dftracer_version}/{system_name}"
+    log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
     # Generate a unique 8-digit UID for the run
     unique_run_id = str(uuid.uuid4().int)[:8]
     logging.info(f"Generated unique run ID: {unique_run_id}")
     for idx, workload in enumerate(
-        tqdm([config_files[-1]], desc="Processing workloads"), start=1
+        tqdm([config_files], desc="Processing workloads"), start=1
     ):
         output = f"{custom_ci_output_dir}/{workload}/{unique_run_id}"
         base_job_name = f"{workload}_{idx}"
