@@ -335,7 +335,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                         ],
-                        "needs": [f"{base_job_name}_compress_output"],
+                        "needs": [f"create_directory_common"],
                     }
 
                 elif stage == "compact":
