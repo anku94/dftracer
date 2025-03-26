@@ -22,4 +22,5 @@
     SMALL_QUEUE: pdebug # 'pdebug' is a queue name for debugging jobs
     MIN_NODES: 8
     MAX_NODES: 32
+    MAX_NODES_SMALL_QUEUE: 8
     SYSTEM_NAME: corona
