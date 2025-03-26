@@ -165,6 +165,8 @@ def generate_gitlab_ci_yaml(config_files):
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
     ):
+        if workload == "default":
+            continue
         workload_args = f"++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.tensor", int
@@ -181,7 +183,7 @@ def generate_gitlab_ci_yaml(config_files):
         batch_size = execute_dlio_benchmark_query(
             workload, workload_args, "reader.batch_size", int
         )
-        nodes = int(os.getenv("NODES", 1))
+        nodes = int(os.getenv("MIN_NODES", 1))
         gpus = int(os.getenv("GPUS", 1))
         cores = int(os.getenv("CORES", 1))
 
@@ -202,6 +204,9 @@ def generate_gitlab_ci_yaml(config_files):
 
         if max_nodes > cal_max_nodes:
             max_nodes = cal_max_nodes
+
+        if max_nodes < nodes:
+            nodes = max_nodes
 
         flux_cores_args = create_flux_execution_command(nodes, cores)
         flux_gpu_args = create_flux_execution_command(nodes, gpus)
