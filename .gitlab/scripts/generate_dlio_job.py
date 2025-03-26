@@ -163,6 +163,7 @@ def generate_gitlab_ci_yaml(config_files):
     for idx, workload in enumerate(
         tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
+        workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1"
         tp_size = execute_dlio_benchmark_query(
             workload, workload_args, "model.parallelism.tensor", int
         )
