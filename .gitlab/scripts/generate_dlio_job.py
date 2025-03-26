@@ -6,6 +6,7 @@ import argparse
 import uuid
 import dftracer
 from datetime import datetime
+import time
 from tqdm import tqdm  # Import tqdm for progress tracking
 import logging  # Import logging for detailed logs
 
@@ -397,6 +398,8 @@ def generate_gitlab_ci_yaml(config_files):
 
 
 def main():
+    start_time = time.time()
+
     parser = argparse.ArgumentParser(
         description="Generate GitLab CI YAML for DLIO workloads."
     )
@@ -452,6 +455,10 @@ def main():
     except Exception as e:
         logging.error(f"Failed to write GitLab CI YAML to file: {e}")
         return
+
+    end_time = time.time()
+    total_time = end_time - start_time
+    logging.info(f"Total execution time: {total_time:.2f} seconds")
 
 
 if __name__ == "__main__":
