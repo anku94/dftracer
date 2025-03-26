@@ -298,6 +298,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "source .gitlab/scripts/variables.sh",
                     "source .gitlab/scripts/pre.sh",
                     "which python; which dlio_benchmark;",
+                    "export DLIO_LOG_LEVEL=info",
                     f"if [ -d {dlio_data_dir} ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False; fi",
                     f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                 ],
