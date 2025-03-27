@@ -306,6 +306,7 @@ def generate_gitlab_ci_yaml(config_files):
         data_generation_nodes = min(max_nodes, data_generation_nodes)
         
         flux_cores_one_node_args = create_flux_execution_command(1, cores)
+        flux_cores_one_node_one_ppn_args = create_flux_execution_command(1, 1)
         flux_cores_args = create_flux_execution_command(data_generation_nodes, cores)
         output = f"{custom_ci_output_dir}/{workload}/{data_generation_nodes}/{unique_run_id}"
         dlio_data_dir = f"{data_path}/{workload_name}/"
@@ -380,7 +381,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
                             "which python; which dftracer_pgzip;",
-                            f"{flux_cores_one_node_args} dftracer_pgzip -d {output}/train",
+                            f"{flux_cores_one_node_one_ppn_args} dftracer_pgzip -d {output}/train",
                             f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
                             f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                         ],
@@ -415,7 +416,7 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"{flux_cores_one_node_args} dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                            f"{flux_cores_one_node_one_ppn_args} dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
                         ],
                         "needs": [f"{base_job_name}_move"],
