@@ -261,9 +261,9 @@ def generate_gitlab_ci_yaml(config_files):
         if max_files < num_files:
             num_files = max_files
         
-        current_size = samples_per_file * num_files * record_len
+        current_size = samples_per_file * max_files * record_len
         if current_size > total_dataset_size:
-            max_samples_per_file = max(1, int(math.floor(total_dataset_size / num_files / record_len)))
+            max_samples_per_file = max(1, int(math.floor(total_dataset_size / max_files / record_len)))
             if max_samples_per_file < samples_per_file:
                 samples_per_file = max_samples_per_file
         
