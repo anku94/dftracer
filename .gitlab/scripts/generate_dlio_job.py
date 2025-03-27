@@ -164,7 +164,7 @@ def generate_gitlab_ci_yaml(config_files):
     log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
-    compress_stages = []
+    cleanup_stages = []
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
@@ -269,12 +269,12 @@ def generate_gitlab_ci_yaml(config_files):
         min_ranks = min_nodes * gpus
         tp_pp_product = tp_size * pp_size
         if min_ranks % tp_pp_product != 0:
-            min_ranks = (min_ranks // tp_pp_product + 1) * tp_pp_product
+            min_ranks += tp_pp_product - (min_ranks % tp_pp_product)
 
         max_nodes = int(os.getenv("MAX_NODES", 1))
         min_nodes = max(1, min_ranks // gpus)
         if min_nodes > max_nodes:
-            logging.warning(f"Cannot run workload:{workload} as minimum number of nodes needed are {min_nodes} but we have maximum {max_nodes}")
+            logging.warning(f"Cannot run workload:{workload} as minimum number of nodes needed are {min_nodes} but we have maximum {max_nodes} with tp_pp_product:{tp_pp_product} and min_ranks:{min_ranks}")
             continue
         
         logging.info(
@@ -287,9 +287,9 @@ def generate_gitlab_ci_yaml(config_files):
             f"with parameters: samples_per_file={samples_per_file}, num_files={num_files}, "
             f"batch_size={batch_size}, gpus={gpus}, min_steps={min_steps}"
         )
-        cal_max_nodes = max(
+        cal_max_nodes = min(max(
             1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
-        )
+        ), max_nodes)
         logging.info(
             f"Maximum of {cal_max_nodes} nodes for running at least {min_steps} steps"
         )
@@ -411,7 +411,9 @@ def generate_gitlab_ci_yaml(config_files):
                 "needs": ["create_directory_common"],
             }
             create_stages.add(generate_job_name)
-
+        logging.info(
+            f"Running workload:{workload} with {min_nodes} - {max_nodes} nodes"
+        )
         nodes = min_nodes
         while nodes <= max_nodes:
             output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
@@ -469,10 +471,6 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"{base_job_name}_train"],
                     }
-                    compress_stages.append(
-                        {"job": f"{base_job_name}_compress_output", "optional": True}
-                    )
-
                 elif stage == "move":
                     ci_config[f"{base_job_name}_move"] = {
                         "stage": "move",
@@ -543,7 +541,22 @@ def generate_gitlab_ci_yaml(config_files):
                         },
                         "when": "always",
                     }
+                    cleanup_stages.append(
+                        {"job": f"{base_job_name}_cleanup", "optional": True}
+                    )
             nodes *= 2
+    ci_config[f"create_summary"] = {
+        "stage": "create_summary",
+        "extends": f".{system_name}",
+        "script": [
+            "ls",
+            "source .gitlab/scripts/variables.sh",
+            "source .gitlab/scripts/pre.sh",
+            "./.gitlab/scripts/generate_summary.sh",
+        ],
+        "needs": cleanup_stages[:99],
+        "when": "always",
+    }
     return ci_config
 
 
