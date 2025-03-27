@@ -244,32 +244,6 @@ def generate_gitlab_ci_yaml(config_files):
         gpus = int(os.getenv("GPUS", 1))
         cores = int(os.getenv("CORES", 1))
 
-        min_steps = 10
-        cal_max_nodes = max(
-            1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
-        )
-        
-        current_steps = max(1, int(samples_per_file * num_files / batch_size / gpus / nodes))
-        
-        
-        total_dataset_size = 1024 * 1024 * 1024 * 1024
-        if not isinstance(num_files, int) or num_files < 1:
-            logging.error(f"Invalid value for num_files: {num_files}")
-            raise ValueError("num_files must be a positive integer.")
-        if num_files == 1:
-            total_dataset_size //= 2  # Use integer division for consistency
-        max_files = max(1, int(math.floor(total_dataset_size / record_len / samples_per_file)))
-        if max_files < num_files:
-            num_files = max_files
-        
-        current_size = samples_per_file * max_files * record_len
-        if current_size > total_dataset_size:
-            max_samples_per_file = max(1, int(math.floor(total_dataset_size / max_files / record_len)))
-            if max_samples_per_file < samples_per_file:
-                samples_per_file = max_samples_per_file
-        
-        override_data_size_args = f"++workload.dataset.num_samples_per_file={samples_per_file} ++workload.dataset.num_files_train={num_files}"
-
         ranks = nodes * gpus
         tp_pp_product = tp_size * pp_size
         if ranks % tp_pp_product != 0:
@@ -292,6 +266,33 @@ def generate_gitlab_ci_yaml(config_files):
             if max_nodes & (max_nodes - 1) != 0
             else max_nodes
         )
+        
+        min_steps = 100
+        cal_max_nodes = max(
+            1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
+        )
+        
+        current_steps = max(1, int(samples_per_file * num_files / batch_size / gpus / max_nodes))
+        
+        
+        total_dataset_size = 1024 * 1024 * 1024 * 1024
+        if not isinstance(num_files, int) or num_files < 1:
+            logging.error(f"Invalid value for num_files: {num_files}")
+            raise ValueError("num_files must be a positive integer.")
+        if num_files == 1:
+            total_dataset_size //= 2  # Use integer division for consistency
+        max_files = max(1, int(math.floor(total_dataset_size / record_len / samples_per_file)))
+        if max_files < num_files:
+            num_files = max_files
+        
+        current_size = samples_per_file * max_files * record_len
+        if current_size > total_dataset_size:
+            max_samples_per_file = max(1, int(math.floor(total_dataset_size / max_files / record_len)))
+            if max_samples_per_file < samples_per_file:
+                samples_per_file = max_samples_per_file
+        
+        override_data_size_args = f"++workload.dataset.num_samples_per_file={samples_per_file} ++workload.dataset.num_files_train={num_files}"
+
         
         data_generation_nodes = nodes
         if nodes * gpus > num_files:
