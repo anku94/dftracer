@@ -291,7 +291,7 @@ def generate_gitlab_ci_yaml(config_files):
             1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
         )
         logging.info(
-            f"Maximum of {cal_max_nodes} nodes for running at least {min_steps}"
+            f"Maximum of {cal_max_nodes} nodes for running at least {min_steps} steps"
         )
         if max_nodes > cal_max_nodes:
             max_nodes = cal_max_nodes
