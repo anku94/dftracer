@@ -448,6 +448,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "job": f"{base_job_name}_compress_final",
                             "optional": True,
                         },
+                        "when": "always",
                     }
             nodes *= 2
     return ci_config
