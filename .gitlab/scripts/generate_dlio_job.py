@@ -120,6 +120,7 @@ def generate_gitlab_ci_yaml(config_files):
             "cleanup_compact",
             "compress_final",
             "cleanup",
+            "create_summary",
         ],
         "include": [
             {"project": "lc-templates/id_tokens", "file": "id_tokens.yml"},
