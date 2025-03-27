@@ -115,6 +115,7 @@ def generate_gitlab_ci_yaml(config_files):
             "compress_output",
             "move",
             "compact",
+            "cleanup_compact",
             "compress_final",
             "cleanup",
         ],
@@ -347,6 +348,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "compress_output",
                     "move",
                     "compact",
+                    "cleanup_compact",
                     "compress_final",
                     "cleanup",
                 ],
@@ -421,7 +423,17 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
-
+                elif stage == "cleanup_compact":
+                    ci_config[f"{base_job_name}_cleanup_compact"] = {
+                        "stage": "cleanup_compact",
+                        "extends": f".{system_name}",
+                        "script": [
+                           "module load mpifileutils",
+                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
+                        ],
+                        "needs": [f"{base_job_name}_compact"],
+                        "when": "on_failure",
+                    }
                 elif stage == "compress_final":
                     ci_config[f"{base_job_name}_compress_final"] = {
                         "stage": "compress_final",
@@ -431,9 +443,10 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/pre.sh",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"tar -czf RAW.tar.gz RAW",
-                            f"tar -czf COMPACT.tar.gz COMPACT",
+                            f"if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi",
                         ],
-                        "needs": [f"{base_job_name}_compact"],
+                        "needs": [f"{base_job_name}_move"],
+                        "when": "on_success",
                     }
 
                 elif stage == "cleanup":
