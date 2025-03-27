@@ -248,7 +248,15 @@ def generate_gitlab_ci_yaml(config_files):
             1, int(samples_per_file * num_files / batch_size / gpus / min_steps)
         )
         
-        total_dataset_size = 1024*1024*1024*1024
+        current_steps = max(1, int(samples_per_file * num_files / batch_size / gpus / nodes))
+        
+        
+        total_dataset_size = 1024 * 1024 * 1024 * 1024
+        if not isinstance(num_files, int) or num_files < 1:
+            logging.error(f"Invalid value for num_files: {num_files}")
+            raise ValueError("num_files must be a positive integer.")
+        if num_files == 1:
+            total_dataset_size //= 2  # Use integer division for consistency
         max_files = max(1, int(math.floor(total_dataset_size / record_len / samples_per_file)))
         if max_files < num_files:
             num_files = max_files
