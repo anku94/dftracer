@@ -119,7 +119,6 @@ def generate_gitlab_ci_yaml(config_files):
             "create_summary",
             "compact",
             "cleanup_compact",
-            "compress_final",
             "cleanup",
         ],
         "include": [
@@ -326,15 +325,7 @@ def generate_gitlab_ci_yaml(config_files):
             f"Minimum of {min_nodes} nodes are needed to run {min_current_steps} steps in {min_wall_time_sec} seconds job time"
         )
         
-        
-        
-
-
-        
-
         override_data_size_args = ""
-
-        
         data_generation_nodes = min_nodes
         if min_nodes * gpus > num_files:
             io_per_rank = 16 * 1024 * 1024 * 1024
@@ -394,7 +385,6 @@ def generate_gitlab_ci_yaml(config_files):
                     "move",
                     "compact",
                     "cleanup_compact",
-                    "compress_final",
                     "cleanup",
                 ],
                 start=1,
@@ -441,12 +431,13 @@ def generate_gitlab_ci_yaml(config_files):
                         "script": [
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
+                            "module load mpifileutils",
                             f"mkdir -p {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                             f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
-                            f"rm -rf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
+                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
@@ -465,10 +456,10 @@ def generate_gitlab_ci_yaml(config_files):
                             "if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi"
                         ],
                         "needs": [f"{base_job_name}_move"],
-                        move_stages.append(
-                            {"job": f"{base_job_name}_compact", "optional": True}
-                        )
                     }
+                    move_stages.append(
+                        {"job": f"{base_job_name}_compact", "optional": True}
+                    )
                 elif stage == "cleanup_compact":
                     ci_config[f"{base_job_name}_cleanup_compact"] = {
                         "stage": "cleanup_compact",
