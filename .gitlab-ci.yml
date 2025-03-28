@@ -8,7 +8,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/iopp/gitlab-runner-builds"
   CUSTOM_CI_ENV_DIR: "/usr/workspace/iopp/gitlab-runner-envs"
-  CUSTOM_CI_OUTPUT_DIR: "/usr/workspace/iopp/gitlab-runner-outputs"
   # Repository information
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
@@ -30,7 +29,7 @@ dlio_corona_build:
   script:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
-    - source .gitlab/scripts/build.sh
+    #- source .gitlab/scripts/build.sh
 
 dlio_corona_generate:
   extends: .corona

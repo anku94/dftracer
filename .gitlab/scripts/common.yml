@@ -14,6 +14,7 @@
     GCC_MODULE: gcc/10.3.1
     DATA_PATH: "/p/lustre3/iopp/gitlab-runner-data/"
     LOG_STORE_DIR: "/p/lustre3/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
+    CUSTOM_CI_OUTPUT_DIR: "/p/lustre3/iopp/gitlab-runner-outputs"
     CORES: 48
     GPUS: 8
     LARGE_QUEUE_WALLTIME: 480 # Walltime specifies the maximum runtime in minutes
