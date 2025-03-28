@@ -9,6 +9,7 @@ echo "DFTRACER_VERSION: $DFTRACER_VERSION"
 LFS_DIR=v$DFTRACER_VERSION/$SYSTEM_NAME
 ROOT_PATH=$LOG_STORE_DIR/$LFS_DIR
 CSV_FILE=$1/trace_paths.csv
+COMPARE_CSV_FILE=$1/compare.csv
 
 echo "Setting up CSV file at $CSV_FILE..."
 # Create/overwrite CSV file with header
@@ -85,3 +86,8 @@ else
 fi
 
 echo "generate_summary.sh completed."
+
+BASELINE=/p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev6/corona/trace_paths.csv
+echo "Starting comparison of summary files..."
+python .gitlab/scripts/compare_summary.py ${BASELINE} "$CSV_FILE" --output_file "$COMPARE_CSV_FILE"
+echo "Comparison completed. Output written to $COMPARE_CSV_FILE"
