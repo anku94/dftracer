@@ -71,6 +71,15 @@ done
 num_lines=$(wc -l < "$CSV_FILE")
 echo "CSV file created at: $CSV_FILE with $num_lines lines"
 
+echo "Sorting CSV file by workload_name and num_nodes..."
+# Sort the CSV file by workload_name (alphabetically) and num_nodes (numerically)
+header=$(head -n 1 "$CSV_FILE")
+tail -n +2 "$CSV_FILE" | sort -t, -k1,1 -k2,2n > "${CSV_FILE}.sorted"
+echo "$header" > "$CSV_FILE"
+cat "${CSV_FILE}.sorted" >> "$CSV_FILE"
+rm "${CSV_FILE}.sorted"
+echo "CSV file sorted successfully."
+
 if [[ $num_lines -eq 1 ]]; then
     echo "No trace paths found. Cleaning up..."
     rm -rf $ROOT_PATH
