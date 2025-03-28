@@ -157,7 +157,7 @@ def generate_gitlab_ci_yaml(config_files):
     logging.info(f"Using SYSTEM_NAME: {system_name}")
 
     # Get dftracer version
-    dftracer_version = dftracer.__version__
+    os.environ("DFTRACER_VERSION", dftracer.__version__)
     logging.info(f"Detected dftracer version: {dftracer_version}")
 
     # Create log_dir variable

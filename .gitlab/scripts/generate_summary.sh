@@ -7,7 +7,9 @@ log() {
 log "Starting generate_summary.sh on $(hostname)"
 
 log "Exporting DFTRACER_VERSION..."
-export DFTRACER_VERSION=$(python -c "import dftracer; print(dftracer.__version__)") || { log "Failed to get DFTRACER_VERSION"; exit 1; }
+if [ "x$DFTRACER_VERSION" == "x" ]; then
+    export DFTRACER_VERSION=$(python -c "import dftracer; print(dftracer.__version__)") || { echo "Failed to get DFTRACER_VERSION"; exit 1; }
+fi
 log "DFTRACER_VERSION: $DFTRACER_VERSION"
 
 LFS_DIR=v$DFTRACER_VERSION/$SYSTEM_NAME
