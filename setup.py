@@ -156,6 +156,7 @@ class CMakeBuild(build_ext):
                 ["cmake", "--build", ".", *build_args], cwd=build_temp, check=True
             )
         cmake_args += ["-DDFTRACER_INSTALL_DEPENDENCIES=OFF"]
+        cmake_args += ["-DCMAKE_POLICY_VERSION_MINIMUM=3.5"]
         # link correct depedencies
         cmake_args += [
             f"-Dyaml-cpp_DIR={install_prefix}",
