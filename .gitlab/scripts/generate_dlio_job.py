@@ -519,7 +519,6 @@ def generate_gitlab_ci_yaml(config_files):
             "./.gitlab/scripts/generate_summary.sh",
         ],
         "needs": move_stages[:99],
-        "when": "always",
     }
     return ci_config
 
