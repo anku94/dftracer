@@ -116,8 +116,8 @@ def generate_gitlab_ci_yaml(config_files):
             "train",
             "compress_output",
             "move",
-            "create_summary",
             "compact",
+            "create_summary",
             "cleanup_compact",
             "cleanup",
         ],
@@ -164,7 +164,7 @@ def generate_gitlab_ci_yaml(config_files):
     log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
-    move_stages = []
+    compact_stages = []
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
@@ -436,8 +436,6 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
-                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
-                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
@@ -454,10 +452,12 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
                             "if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi"
+                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
+                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
-                    move_stages.append(
+                    compact_stages.append(
                         {"job": f"{base_job_name}_compact", "optional": True}
                     )
                 elif stage == "cleanup_compact":
@@ -496,7 +496,7 @@ def generate_gitlab_ci_yaml(config_files):
             "which python; which dftracer_event_count;",
             "./.gitlab/scripts/generate_summary.sh",
         ],
-        "needs": move_stages[:99],
+        "needs": compact_stages[:99],
     }
     return ci_config
 
