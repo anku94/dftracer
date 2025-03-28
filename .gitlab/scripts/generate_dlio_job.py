@@ -480,7 +480,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_cores_one_node_args} drm {output}",
                         ],
                         "needs": {
-                            "job": f"{base_job_name}_compress_final",
+                            "job": f"{base_job_name}_compact",
                             "optional": True,
                         },
                         "when": "always",
