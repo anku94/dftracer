@@ -13,8 +13,8 @@ if test -d "$LFS_DIR"; then
 else
     if [ "$DFTRACER_VERSION" == "PR" ]; then
         module load mpifileutils 
-        flux run -n48 drm $LFS_DIR
-        mkdir -p $LFS_DIR
+        flux run -n48 drm "$LFS_DIR"
+        mkdir -p "$LFS_DIR"
     else
         git clone "ssh://git@czgitlab.llnl.gov:7999/iopp/dftracer-traces.git" "$LFS_DIR" || { echo "Failed to clone repository"; exit 1; }
         cd "$LFS_DIR" || { echo "Failed to change directory to $LFS_DIR"; exit 1; }
