@@ -35,7 +35,14 @@ for workload_path in "$ROOT_PATH"/*; do
                 full_path="$node_path/$latest_timestamp/RAW"
                 if [ -d "$full_path" ]; then
                     echo "Found trace path: $full_path"
-                    
+                    shopt -s nullglob
+                    zindex_files=("$full_path"/*.zindex)
+                    if [ ${#zindex_files[@]} -eq 0 ]; then
+                        echo "No index found in: $full_path"
+                        dftracer_create_index -f -d "$full_path/"
+                    else 
+                        echo "Index found in: $full_path"
+                    fi
                     # Get size information
                     size_bytes=$(du -b "$full_path" | cut -f1)
                     size_formatted=$(du -sh "$full_path" | cut -f1)
@@ -43,9 +50,11 @@ for workload_path in "$ROOT_PATH"/*; do
                     
                     echo "Size: $size_formatted"
                     echo "----------------------------------------"
-                    
+                    # Calculate the relative path of full_path based on ROOT_PATH
+                    relative_path=$(realpath --relative-to="$ROOT_PATH" "$full_path")
+                    echo "Relative path: $relative_path"
                     # Write to CSV file with size information
-                    echo "$workload_name,$node_num,$latest_timestamp,$full_path,$size_bytes,$size_formatted,$event_counts" >> "$CSV_FILE"
+                    echo "$workload_name,$node_num,$latest_timestamp,$relative_path,$size_bytes,$size_formatted,$event_counts" >> "$CSV_FILE"
                 else
                     echo "No COMPACT directory found at $full_path"
                 fi
