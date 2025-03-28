@@ -18,6 +18,7 @@ else
     cp "$LOG_STORE_DIR/v1.0.5-develop/corona/.gitignore" . || { echo "Failed to copy .gitignore"; exit 1; }
     cp "$LOG_STORE_DIR/v1.0.5-develop/corona/prepare_traces.sh" . || { echo "Failed to copy prepare_traces.sh"; exit 1; }
     cp "$LOG_STORE_DIR/v1.0.5-develop/corona/README.md" . || { echo "Failed to copy README.md"; exit 1; }
+    cp "$LOG_STORE_DIR/v1.0.5-develop/corona/per-app.gitignore" .gitignore || { echo "Failed to copy .gitignore"; exit 1; }
     cd - || { echo "Failed to return to previous directory"; exit 1; }
 fi
 
