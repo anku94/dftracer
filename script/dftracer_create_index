@@ -10,7 +10,7 @@
 #   -h                      display help
 #   -d input_directory      specify input directories. should contain .pfw or .pfw.gz files.
 
-LOG_FILE="/var/log/dftracer_create_index.log"
+LOG_FILE="/tmp/dftracer_create_index.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 date_echo() {
