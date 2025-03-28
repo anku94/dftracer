@@ -116,11 +116,11 @@ def generate_gitlab_ci_yaml(config_files):
             "train",
             "compress_output",
             "move",
+            "create_summary",
             "compact",
             "cleanup_compact",
             "compress_final",
             "cleanup",
-            "create_summary",
         ],
         "include": [
             {"project": "lc-templates/id_tokens", "file": "id_tokens.yml"},
@@ -165,7 +165,7 @@ def generate_gitlab_ci_yaml(config_files):
     log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
-    cleanup_stages = []
+    move_stages = []
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
@@ -404,8 +404,8 @@ def generate_gitlab_ci_yaml(config_files):
                     "which python; which dlio_benchmark;",
                     "export DLIO_LOG_LEVEL=info",
                     "module load mpifileutils",
-                    f"if [ -d {dlio_data_dir} ] && [ ! -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} exist but is not complete.'; {flux_cores_one_node_args} drm {dlio_data_dir};  fi",
-                    f"if [ -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False ++workload.workflow.checkpoint=False; fi",
+                    f"if [ -d {dlio_data_dir} ] && [ ! -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} exist but is not complete.'; {flux_cores_one_node_args} --job-name ${workload}_drm drm {dlio_data_dir};  fi",
+                    f"if [ -f {dlio_data_dir}/success ]; then echo 'Directory {dlio_data_dir} already exists. Skipping data generation.'; else {flux_cores_args} --job-name ${workload}_gen dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/generate ++workload.workflow.generate_data=True ++workload.workflow.train=False ++workload.workflow.checkpoint=False; fi",
                     f"if [ -d {dlio_data_dir} ] && grep -i 'error' {output}/generate/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                     f"touch {dlio_data_dir}/success"
                 ],
@@ -448,7 +448,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
                             "which python; which dlio_benchmark;",
-                            f"{flux_gpu_args} dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
+                            f"{flux_gpu_args} --job-name ${workload}_train dlio_benchmark workload={workload} {workload_args} ++workload.output.folder={output}/train hydra.run.dir={output}/train ++workload.workflow.generate_data=False ++workload.workflow.train=True",
                             f"if grep -i 'error' {output}/train/dlio.log; then echo 'Error found in dlio.log'; exit 1; fi",
                         ],
                         "needs": [generate_job_name],
@@ -466,7 +466,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/variables.sh",
                             "source .gitlab/scripts/pre.sh",
                             "which python; which dftracer_pgzip;",
-                            f"{flux_cores_one_node_one_ppn_args} dftracer_pgzip -d {output}/train",
+                            f"{flux_cores_one_node_one_ppn_args} --job-name ${workload}_compress dftracer_pgzip -d {output}/train",
                             f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
                             f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                         ],
@@ -486,6 +486,9 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
+                    move_stages.append(
+                        {"job": f"{base_job_name}_move", "optional": True}
+                    )
 
                 elif stage == "compact":
                     ci_config[f"{base_job_name}_compact"] = {
@@ -497,7 +500,7 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"{flux_cores_one_node_one_ppn_args} dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
+                            f"{flux_cores_one_node_one_ppn_args} --job-name ${workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
                         ],
                         "needs": [f"{base_job_name}_move"],
@@ -508,7 +511,7 @@ def generate_gitlab_ci_yaml(config_files):
                         "extends": f".{system_name}",
                         "script": [
                            "module load mpifileutils",
-                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
+                            f"{flux_cores_one_node_args} --job-name ${workload}_clean drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
                         ],
                         "needs": [f"{base_job_name}_compact"],
                         "when": "on_failure",
@@ -542,9 +545,6 @@ def generate_gitlab_ci_yaml(config_files):
                         },
                         "when": "always",
                     }
-                    cleanup_stages.append(
-                        {"job": f"{base_job_name}_cleanup", "optional": True}
-                    )
             nodes *= 2
     ci_config[f"create_summary"] = {
         "stage": "create_summary",
@@ -553,9 +553,10 @@ def generate_gitlab_ci_yaml(config_files):
             "ls",
             "source .gitlab/scripts/variables.sh",
             "source .gitlab/scripts/pre.sh",
+            "which python; which dftracer_event_count;",
             "./.gitlab/scripts/generate_summary.sh",
         ],
-        "needs": cleanup_stages[:99],
+        "needs": move_stages[:99],
         "when": "always",
     }
     return ci_config

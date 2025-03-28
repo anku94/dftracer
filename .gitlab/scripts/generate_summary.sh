@@ -12,7 +12,7 @@ CSV_FILE=$1/trace_paths.csv
 
 echo "Setting up CSV file at $CSV_FILE..."
 # Create/overwrite CSV file with header
-echo "workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt" > "$CSV_FILE"
+echo "workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt,num_events" > "$CSV_FILE"
 
 echo "Starting traversal of workload directories in $ROOT_PATH..."
 # Traverse through workload directories
@@ -32,19 +32,20 @@ for workload_path in "$ROOT_PATH"/*; do
             
             if [ -n "$latest_timestamp" ]; then
                 echo "Latest timestamp found: $latest_timestamp"
-                full_path="$node_path/$latest_timestamp/COMPACT"
+                full_path="$node_path/$latest_timestamp/RAW"
                 if [ -d "$full_path" ]; then
                     echo "Found trace path: $full_path"
                     
                     # Get size information
                     size_bytes=$(du -b "$full_path" | cut -f1)
                     size_formatted=$(du -sh "$full_path" | cut -f1)
+                    event_counts=$(dftracer_event_count -d "$full_path")
                     
                     echo "Size: $size_formatted"
                     echo "----------------------------------------"
                     
                     # Write to CSV file with size information
-                    echo "$workload_name,$node_num,$latest_timestamp,$full_path,$size_bytes,$size_formatted" >> "$CSV_FILE"
+                    echo "$workload_name,$node_num,$latest_timestamp,$full_path,$size_bytes,$size_formatted,$event_counts" >> "$CSV_FILE"
                 else
                     echo "No COMPACT directory found at $full_path"
                 fi
