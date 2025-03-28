@@ -327,50 +327,12 @@ def generate_gitlab_ci_yaml(config_files):
         )
         
         
-        # if min_time_for_one_epoch_sec >= min_wall_time_sec
         
 
-        # if min_current_steps > 1000:
-        #     cal_min_nodes = max(
-        #         1, int(samples_per_file * num_files / batch_size / gpus / min_current_steps)
-        #     )
-        
-        
-        
-        # total_dataset_size = 1024 * 1024 * 1024 * 1024
-        # if not isinstance(num_files, int) or num_files < 1:
-        #     logging.error(f"Invalid value for num_files: {num_files}")
-        #     raise ValueError("num_files must be a positive integer.")
-        # if num_files == 1:
-        #     total_dataset_size //= 2  # Use integer division for consistency
-        # max_files = max(1, int(math.floor(total_dataset_size / record_len / samples_per_file)))
-        # if max_files < num_files:
-        #     num_files = max_files
-        
-        # current_size = samples_per_file * max_files * record_len
-        # if current_size > total_dataset_size:
-        #     max_samples_per_file = max(1, int(math.floor(total_dataset_size / max_files / record_len)))
-        #     if max_samples_per_file < samples_per_file:
-        #         samples_per_file = max_samples_per_file
-        
-        
-        
-        # if max_nodes > cal_max_nodes:
-        #     max_nodes = cal_max_nodes
 
         
 
-        # # Ensure max_nodes is a power of 2
-        # max_nodes = (
-        #     2 ** (max_nodes - 1).bit_length()
-        #     if max_nodes & (max_nodes - 1) != 0
-        #     else max_nodes
-        # )
-        
-        
-        
         override_data_size_args = ""
-        # override_data_size_args = f"++workload.dataset.num_samples_per_file={samples_per_file} ++workload.dataset.num_files_train={num_files}"
 
         
         data_generation_nodes = min_nodes
