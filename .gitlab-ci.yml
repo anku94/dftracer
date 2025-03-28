@@ -16,6 +16,9 @@ variables:
   DFTRACER_TAG: bugfix/ci
   # test variable
   ENV_NAME: dlio_env_2
+  # test variables
+  MIN_NODES: 1
+  MAX_NODES: 32
 
 stages:
 - build
