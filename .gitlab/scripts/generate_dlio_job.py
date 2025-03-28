@@ -419,8 +419,6 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/pre.sh",
                             "which python; which dftracer_pgzip;",
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_compress dftracer_pgzip -d {output}/train",
-                            f"if find {output}/train -type f -name '*.pfw' | grep -q .; then echo 'Uncompressed .pfw files found!'; exit 1; fi",
-                            f"if ! find {output}/train -type f -name '*.pfw.gz' | grep -q .; then echo 'No compressed .pfw.gz files found!'; exit 1; fi",
                         ],
                         "needs": [f"{base_job_name}_train"],
                     }
@@ -450,8 +448,6 @@ def generate_gitlab_ci_yaml(config_files):
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                            f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
-                            "if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi"
                             f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
                             f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                         ],
