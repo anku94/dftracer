@@ -68,7 +68,7 @@ if [[ $num_lines -eq 1 ]]; then
 else 
     echo "Preparing to commit and push files..."
     cd $ROOT_PATH
-    git add .gitattributes .gitignore prepare_traces.sh README.md trace_paths.csv
+    git add .gitattributes .gitignore prepare_traces.sh README.md trace_paths.csv 
     git commit -m "added initial files" || { echo "Failed to commit files"; exit 1; }
     git push origin "$LFS_DIR" || { echo "Failed to push branch $LFS_DIR"; exit 1; }
     echo "Files committed and pushed successfully."
