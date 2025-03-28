@@ -37,7 +37,11 @@ for workload_path in "$ROOT_PATH"/*; do
             
             if [ -n "$latest_timestamp" ]; then
                 echo "Latest timestamp found: $latest_timestamp"
+
                 full_path="$node_path/$latest_timestamp/RAW"
+                if [ ! -d "$full_path" ]; then
+                    full_path="$node_path/$latest_timestamp/COMPACT"
+                fi
                 if [ -d "$full_path" ]; then
                     echo "Found trace path: $full_path"
                     shopt -s nullglob

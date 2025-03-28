@@ -445,13 +445,11 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
+                            f"rm -rf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
-                    move_stages.append(
-                        {"job": f"{base_job_name}_move", "optional": True}
-                    )
-
                 elif stage == "compact":
                     ci_config[f"{base_job_name}_compact"] = {
                         "stage": "compact",
@@ -464,8 +462,12 @@ def generate_gitlab_ci_yaml(config_files):
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"if ! find $PWD/COMPACT -type f -name '*.pfw.gz' | grep -q .; then echo 'No compacted .pfw.gz files found!'; exit 1; fi",
+                            "if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi"
                         ],
                         "needs": [f"{base_job_name}_move"],
+                        move_stages.append(
+                            {"job": f"{base_job_name}_compact", "optional": True}
+                        )
                     }
                 elif stage == "cleanup_compact":
                     ci_config[f"{base_job_name}_cleanup_compact"] = {
@@ -478,21 +480,6 @@ def generate_gitlab_ci_yaml(config_files):
                         "needs": [f"{base_job_name}_compact"],
                         "when": "on_failure",
                     }
-                elif stage == "compress_final":
-                    ci_config[f"{base_job_name}_compress_final"] = {
-                        "stage": "compress_final",
-                        "extends": f".{system_name}",
-                        "script": [
-                            "source .gitlab/scripts/variables.sh",
-                            "source .gitlab/scripts/pre.sh",
-                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"tar -czf RAW.tar.gz RAW",
-                            f"if [ -d COMPACT ]; then tar -czf COMPACT.tar.gz COMPACT; fi",
-                        ],
-                        "needs": [f"{base_job_name}_move"],
-                        "when": "on_success",
-                    }
-
                 elif stage == "cleanup":
                     ci_config[f"{base_job_name}_cleanup"] = {
                         "stage": "cleanup",
