@@ -13,7 +13,6 @@ variables:
   DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
   DLIO_BENCHMARK_TAG: feature/optional-dftracer
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
-  DFTRACER_TAG: bugfix/ci
   # test variable
   ENV_NAME: dlio_env_2
   # test variables
