@@ -18,6 +18,10 @@ echo "workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt
 echo "Starting traversal of workload directories in $ROOT_PATH..."
 # Traverse through workload directories
 for workload_path in "$ROOT_PATH"/*; do
+    if [ ! -d "$workload_path" ]; then
+        echo "Skipping non-directory: $workload_path"
+        continue
+    fi
     workload_name=$(basename "$workload_path")
     echo "Processing workload: $workload_name"
     
