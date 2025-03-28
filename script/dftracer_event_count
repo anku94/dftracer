@@ -75,6 +75,8 @@ function get_lines_count {
   files=("$dir"/*.zindex)
   JOBS_LIMIT=$(nproc --all)
   declare -A lines_counts
+  total_files=${#files[@]}
+  date_echo "Total number of .zindex files: $total_files"
   date_echo "Found ${#files[@]} .zindex files to process"
   for file_index in "${!files[@]}"; do
   running_jobs=$(jobs -rp | wc -l)
@@ -94,7 +96,7 @@ function get_lines_count {
     lines_counts[$file_index]=$(
     {
     sqlite3 "$file_name" "select count(line) as a from LineOffsets where length > 8;"
-    progress_date_echo "Finished counting $file_index" >&2
+    progress_date_echo "Finished counting $file_index of $total_files" >&2
     } &)
   else
     lines_counts[$file_index]=$(
@@ -136,7 +138,7 @@ done
 if [ "$run_create_index" == "1" ]; then
   SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
   date_echo "Running index creation script"
-  "$SCRIPT_DIR"/dftracer_create_index -f -d $LOG_DIR -f >/dev/null
+  "$SCRIPT_DIR"/dftracer_create_index -f -d "$LOG_DIR" -f >/dev/null
   date_echo "Index creation completed"
 else
   date_echo "Index files already exist, skipping index creation"
