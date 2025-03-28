@@ -8,8 +8,8 @@ echo "DFTRACER_VERSION: $DFTRACER_VERSION"
 
 LFS_DIR=v$DFTRACER_VERSION/$SYSTEM_NAME
 ROOT_PATH=$LOG_STORE_DIR/$LFS_DIR
-CSV_FILE=$1/trace_paths.csv
-COMPARE_CSV_FILE=$1/compare.csv
+CSV_FILE=$ROOT_PATH/trace_paths.csv
+COMPARE_CSV_FILE=$ROOT_PATH/compare.csv
 
 echo "Setting up CSV file at $CSV_FILE..."
 # Create/overwrite CSV file with header
