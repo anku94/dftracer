@@ -56,8 +56,12 @@ if __name__ == "__main__":
     parser.add_argument("file1", type=str, help="Path to the first trace file (CSV format).")
     parser.add_argument("file2", type=str, help="Path to the second trace file (CSV format).")
     parser.add_argument("--output_file", type=str, default="output.csv", help="Path to the output file (default: output.csv in the current directory).")
+    parser.add_argument("--log_level", type=str, default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                        help="Set the logging level (default: INFO).")
     args = parser.parse_args()
 
+    # Set the logging level based on the argument
+    logging.getLogger().setLevel(args.log_level.upper())
     file1 = args.file1
     file2 = args.file2
 
@@ -76,11 +80,30 @@ if __name__ == "__main__":
         for _, row in comparison_result.iterrows():
             colored_row = color_code_output(row)
             print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20} {colored_row[3]:<20}")
-        
+            
         # Save the result to the specified file
         comparison_result.to_csv(args.output_file, index=False)
         logging.info(f"Comparison result saved to {args.output_file}")
+        
     except Exception as e:
         logging.error(f"An error occurred: {e}")
+    
+    # Check for rows with percentage differences greater than 10%
+    error_rows = comparison_result[
+        (comparison_result['num_events_diff_%'].abs() > 10) | 
+        (comparison_result['trace_size_bytes_diff_%'].abs() > 10)
+    ]
+
+    if not error_rows.empty:
+        logging.error("Percentage difference exceeds 10% for the following rows:")
+        print(f"{'Workload Name':<20} {'Num Nodes':<10} {'Num Events Diff %':<20} {'Trace Size Diff %':<20}")
+        print("-" * 70)
+        for _, row in error_rows.iterrows():
+            colored_row = color_code_output(row)
+            print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20} {colored_row[3]:<20}")
+        raise ValueError("Percentage difference exceeds 10% for one or more rows.")
+    else:
+        logging.info("No rows found with percentage difference exceeding 10%.")
+        print("No errors found. All percentage differences are within acceptable limits.")
     
     logging.info("Script finished.")
