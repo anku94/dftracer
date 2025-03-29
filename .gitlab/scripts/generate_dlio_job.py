@@ -467,7 +467,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"event_count=$(dftracer_event_count -d $PWD/RAW)",
                             f"size_bytes=$(du -b $PWD/RAW | cut -f1)",
                             f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> $PWD/summary.csv",
-                            f"python .gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv"
+                            f"python ${PROJECT_PATH}/.gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv"
                             f"{flux_cores_one_node_args} drm $PWD/RAW",
                         ],
                         "needs": [f"{base_job_name}_compact"],
