@@ -455,7 +455,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"event_count=$(dftracer_event_count -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT)",
                             f"size_bytes=$(du -b {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT | cut -f1)",
                             f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
-                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count" >> {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv",
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv",
                             f"python .gitlab/scripts/compare_summary.py {baseline_csv} {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv --output_file {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/compare.csv"
                         ],
                         "needs": [f"{base_job_name}_move"],
