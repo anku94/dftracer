@@ -116,9 +116,7 @@ def generate_gitlab_ci_yaml(config_files):
             "train",
             "compress_output",
             "move",
-            "compact",
             "create_summary",
-            "cleanup_compact",
             "cleanup",
         ],
         "include": [
@@ -164,7 +162,6 @@ def generate_gitlab_ci_yaml(config_files):
     log_dir = f"{log_store_dir}/v{dftracer_version}/{system_name}"
     logging.info(f"Generated log directory path: {log_dir}")
 
-    compact_stages = []
     # Generate a unique 8-digit UID for the run
     unique_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
     logging.info(f"Generated unique run ID: {unique_run_id}")
@@ -383,9 +380,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "train",
                     "compress_output",
                     "move",
-                    "compact",
                     "create_summary",
-                    "cleanup_compact",
                     "cleanup",
                 ],
                 start=1,
@@ -435,24 +430,10 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/*.pfw.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW/",
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
+                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                            f"tar -czf RAW.tar.gz RAW",
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
-                    }
-                elif stage == "compact":
-                    ci_config[f"{base_job_name}_compact"] = {
-                        "stage": "compact",
-                        "extends": f".{system_name}",
-                        "script": [
-                            "source .gitlab/scripts/variables.sh",
-                            "source .gitlab/scripts/pre.sh",
-                            "module load mpifileutils",
-                            "which python; which dftracer_split;",
-                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                            f"tar -czf RAW.tar.gz RAW",
-                            f"tar -czf COMPACT.tar.gz COMPACT",
-                        ],
-                        "needs": [f"{base_job_name}_move"],
                     }
                 elif stage == "create_summary":
                     ci_config[f"{base_job_name}_create_summary"] = {
@@ -468,20 +449,8 @@ def generate_gitlab_ci_yaml(config_files):
                             f"size_bytes=$(du -b $PWD/RAW | cut -f1)",
                             f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> $PWD/summary.csv",
                             f"python $PROJECT_PATH/.gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv"
-                            f"{flux_cores_one_node_args} drm $PWD/RAW",
                         ],
-                        "needs": [f"{base_job_name}_compact"],
-                    }
-                elif stage == "cleanup_compact":
-                    ci_config[f"{base_job_name}_cleanup_compact"] = {
-                        "stage": "cleanup_compact",
-                        "extends": f".{system_name}",
-                        "script": [
-                           "module load mpifileutils",
-                            f"{flux_cores_one_node_args} --job-name {workload}_clean drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
-                        ],
-                        "needs": [f"{base_job_name}_compact"],
-                        "when": "on_failure",
+                        "needs": [f"{base_job_name}_move"],
                     }
                 elif stage == "cleanup":
                     ci_config[f"{base_job_name}_cleanup"] = {
@@ -492,7 +461,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_cores_one_node_args} drm {output}",
                         ],
                         "needs": {
-                            "job": f"{base_job_name}_compact",
+                            "job": f"{base_job_name}_create_summary",
                             "optional": True,
                         },
                         "when": "always",
