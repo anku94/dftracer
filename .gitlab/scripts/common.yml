@@ -15,6 +15,7 @@
     DATA_PATH: "/p/lustre3/iopp/gitlab-runner-data/"
     LOG_STORE_DIR: "/p/lustre3/iopp/dftracer-traces-lfs" # 'iopp' refers to a specific directory structure
     CUSTOM_CI_OUTPUT_DIR: "/p/lustre3/iopp/gitlab-runner-outputs"
+    BASELINE_CSV: "/p/lustre3/iopp/dftracer-traces-lfs/v1.0.10.dev6/corona/trace_paths.csv"
     CORES: 48
     GPUS: 8
     LARGE_QUEUE_WALLTIME: 480 # Walltime specifies the maximum runtime in minutes

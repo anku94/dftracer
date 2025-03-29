@@ -237,7 +237,7 @@ def generate_gitlab_ci_yaml(config_files):
     }
     
     create_stages = set()
-    
+    baseline_csv=os.getenv("BASELINE_CSV", "temp.csv")
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
     ):
@@ -384,6 +384,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "compress_output",
                     "move",
                     "compact",
+                    "generate_summary",
                     "cleanup_compact",
                     "cleanup",
                 ],
@@ -448,14 +449,34 @@ def generate_gitlab_ci_yaml(config_files):
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW ",
+                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
                             f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
+                            f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfci dftracer_create_index -f -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
+                            f"event_count=$(dftracer_event_count -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT)",
+                            f"size_bytes=$(du -b {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT | cut -f1)",
+                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count" >> {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv",
+                            f"python .gitlab/scripts/compare_summary.py {baseline_csv} {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv --output_file {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/compare.csv"
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
-                    compact_stages.append(
-                        {"job": f"{base_job_name}_compact", "optional": True}
-                    )
+                elif stage == "generate_summary":
+                    ci_config[f"{base_job_name}_generate_summary"] = {
+                        "stage": "generate_summary",
+                        "extends": f".{system_name}",
+                        "script": [
+                            "source .gitlab/scripts/variables.sh",
+                            "source .gitlab/scripts/pre.sh",
+                            # "source .gitlab/scripts/build.sh",
+                            "which python; which dftracer_event_count;",
+                            f"event_count=$(dftracer_event_count -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT)",
+                            f"size_bytes=$(du -b {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT | cut -f1)",
+                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count" >> {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv",
+                            f"python .gitlab/scripts/compare_summary.py {baseline_csv} {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv --output_file {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/compare.csv"
+                        ],
+                        "needs": [f"{base_job_name}_compact"],
+                    }
                 elif stage == "cleanup_compact":
                     ci_config[f"{base_job_name}_cleanup_compact"] = {
                         "stage": "cleanup_compact",
@@ -482,19 +503,6 @@ def generate_gitlab_ci_yaml(config_files):
                         "when": "always",
                     }
             nodes *= 2
-    ci_config[f"create_summary"] = {
-        "stage": "create_summary",
-        "extends": f".{system_name}",
-        "script": [
-            "ls",
-            "source .gitlab/scripts/variables.sh",
-            "source .gitlab/scripts/pre.sh",
-            "which python; which dftracer_event_count;",
-            "./.gitlab/scripts/generate_summary.sh",
-        ],
-        "needs": compact_stages,
-        "when": "always",
-    }
     return ci_config
 
 

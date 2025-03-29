@@ -29,7 +29,7 @@ dlio_corona_build:
   script:
     - source .gitlab/scripts/variables.sh
     - source .gitlab/scripts/pre.sh
-    - source .gitlab/scripts/build.sh
+    #- source .gitlab/scripts/build.sh
 
 dlio_corona_generate:
   extends: .corona
