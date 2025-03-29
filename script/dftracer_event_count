@@ -1,9 +1,5 @@
 #!/bin/bash
 
-LOG_FILE="/tmp/dftracer_event_count.log" # Replace with the desired log file path
-exec 3>&1 # Save stdout to file descriptor 3
-exec >"$LOG_FILE" 2>&1 # Redirect stdout and stderr to the log file
-
 # The script will count number of valid events of traces
 # This has the following signature.
 #
@@ -12,44 +8,44 @@ exec >"$LOG_FILE" 2>&1 # Redirect stdout and stderr to the log file
 #   -f                      force index creation
 #   -h                      display help
 date_echo() {
-  dt=$(date '+%d/%m/%Y %H:%M:%S')
-  echo "$dt  $*"
+    dt=$(date '+%d/%m/%Y %H:%M:%S')
+    echo "$dt  $*"
 }
 
 progress_date_echo() {
-  dt=$(date '+%d/%m/%Y %H:%M:%S')
-  echo -ne "$dt  $*                              "\\r
+    dt=$(date '+%d/%m/%Y %H:%M:%S')
+    echo -ne "$dt  $@*                             "\\r
 }
 LOG_DIR=$PWD
 run_create_index=1
 
 function usage {
-  echo "usage: $(basename "$0") [-f] [-d input_directory]"
-  echo "  -h                      display help"
-  echo "  -f                      force index creation"
-  echo "  -d input_directory      specify input directories. should contain .pfw or .pfw.gz files."
-  exit 1
+    echo "usage: $(basename "$0") [-f] [-d input_directory]"
+    echo "  -h                      display help"
+    echo "  -f                      force index creation"
+    echo "  -d input_directory      specify input directories. should contain .pfw or .pfw.gz files."
+    exit 1
 }
 while getopts ':fd:h' opt; do
   case "$opt" in
-  f)
-    run_create_index=0
-    ;;
-  d)
-    LOG_DIR="${OPTARG}"
-    ;;
-  h)
-    usage
-    ;;
-  :)
-    echo -e "option requires an argument.\n"
-    usage
-    ;;
+    f)
+      run_create_index=0
+      ;;
+    d)
+      LOG_DIR="${OPTARG}"
+      ;;
+    h)
+      usage
+      ;;
+    :)
+      echo -e "option requires an argument.\n"
+      usage
+      ;;
 
-  ?)
-    echo -e "Invalid command option.\n"
-    usage
-    ;;
+    ?)
+      echo -e "Invalid command option.\n"
+      usage
+      ;;
   esac
 done
 
@@ -62,60 +58,60 @@ function get_lines_count {
 
   # if dir empty use current dir
   if [ -z "$dir" ]; then
-  dir=$PWD
+    dir=$PWD
   fi
 
-  pushd "$dir" > /dev/null || return
+  pushd $dir > /dev/null || return
 
   # check if sqlite3 exists
   sqlite_exists=0
   if command -v sqlite3 &> /dev/null; then
-  date_echo "sqlite3 exists"
-  sqlite_exists=1
-  else
-  date_echo "sqlite3 not found, using Python fallback"
+    # echo "sqlite3 exists"
+    sqlite_exists=1
   fi
 
   files=("$dir"/*.zindex)
   JOBS_LIMIT=$(nproc --all)
   declare -A lines_counts
-  total_files=${#files[@]}
-  date_echo "Total number of .zindex files: $total_files"
-  date_echo "Found ${#files[@]} .zindex files to process"
+  total=${#files[@]}
+  # for i in $(seq 1 $JOBS_LIMIT); do
+  #   lines_counts+=("0")
+  # done
   for file_index in "${!files[@]}"; do
-  running_jobs=$(jobs -rp | wc -l)
-  if [ $running_jobs -ge $JOBS_LIMIT ]; then
-    date_echo "Waiting for running jobs ($running_jobs) to be less than $JOBS_LIMIT"
-    while [ $running_jobs -ge $JOBS_LIMIT ]
-    do
-    sleep 1
     running_jobs=$(jobs -rp | wc -l)
-    done
-    date_echo "Running jobs are now less than $JOBS_LIMIT"
-  fi
+    if [ $running_jobs -ge $JOBS_LIMIT ]; then
+      date_echo "waiting for Running $running_jobs jobs to be less than $JOBS_LIMIT"
+      while [ $running_jobs -ge $JOBS_LIMIT ]
+      do
+        sleep 1
+        running_jobs=$(jobs -rp | wc -l)
+      done
+      date_echo "Running $running_jobs jobs are now less than $JOBS_LIMIT"
+    fi
 
-  file_name=${files[$file_index]}
-  date_echo "Processing file: $file_name"
-  if [ $sqlite_exists -eq 1 ]; then
-    lines_counts[$file_index]=$(
-    {
-    sqlite3 "$file_name" "select count(line) as a from LineOffsets where length > 8;"
-    progress_date_echo "Finished counting $file_index of $total_files" >&2
-    } &)
-  else
-    lines_counts[$file_index]=$(
-    {
+    file_name=${files[$file_index]}
+    # echo "Processing $file_name"
+    if [ $sqlite_exists -eq 1 ]; then
+      lines_counts[$file_index]=$(
+      {
+        sqlite3 "$file_name" "select count(line) as a from LineOffsets where length > 8;"
+        progress_date_echo "Finished counting $file_index of $total" >&2
+      } &)
+    else
+      lines_counts[$file_index]=$(
+      {
 python3 <<-EOF
 import zindex_py as zindex
+import glob
 import sqlite3
 
 conn = sqlite3.connect("${file_name}")
-res = conn.execute("select count(line) as a from LineOffsets where length > 8;")
+res = conn.execute("select max(line) as a from LineOffsets where length > 8;")
 lines_count = res.fetchone()[0]
 print(lines_count)
 EOF
 } &)
-  fi
+    fi
   done
   wait
 
@@ -123,31 +119,23 @@ EOF
 
   lines_count=0
   for line_count in "${lines_counts[@]}"; do
-  lines_count=$((lines_count + line_count))
+    lines_count=$((lines_count + line_count))
   done
 
   echo $lines_count
 }
 
 files=("$LOG_DIR"/*.pfw.gz)
-date_echo "Checking for .pfw.gz files in $LOG_DIR"
 for file in "${files[@]}"; do
   if [ ! -f "$file.zindex" ]; then
-  date_echo "Index file for $file not found, forcing index creation"
-  run_create_index=1
-  break
+    run_create_index=1
+    break
   fi
 done
 
 if [ "$run_create_index" == "1" ]; then
   SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-  date_echo "Running index creation script"
   "$SCRIPT_DIR"/dftracer_create_index -f -d "$LOG_DIR" -f >/dev/null
-  date_echo "Index creation completed"
-else
-  date_echo "Index files already exist, skipping index creation"
 fi
 
-# Restore stdout and print final output to console
-exec >&3
 get_lines_count "$LOG_DIR"

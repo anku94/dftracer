@@ -40,6 +40,8 @@ def find_workload_configs(config_dir):
     logging.info(f"Searching for workload configuration files in {config_dir}")
     config_files = [os.path.splitext(f.name)[0] for f in config_dir.glob("*.yaml")]
     logging.info(f"Found {len(config_files)} configuration files.")
+    if os.getenv("DEBUG", "1") == "1":
+        config_files = [config_files[-1]]
     return config_files
 
 
@@ -236,7 +238,7 @@ def generate_gitlab_ci_yaml(config_files):
     create_stages = set()
     baseline_csv=os.getenv("BASELINE_CSV", "temp.csv")
     for idx, workload in enumerate(
-        tqdm([config_files[-1]], desc="Processing workloads"), start=1
+        tqdm(config_files, desc="Processing workloads"), start=1
     ):
         workload_parts = workload.split("_")
         workload_name = workload_parts[0]
