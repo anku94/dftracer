@@ -492,7 +492,8 @@ def generate_gitlab_ci_yaml(config_files):
             "which python; which dftracer_event_count;",
             "./.gitlab/scripts/generate_summary.sh",
         ],
-        "needs": compact_stages[:99],
+        "needs": compact_stages,
+        "when": "always",
     }
     return ci_config
 
