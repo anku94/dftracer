@@ -384,7 +384,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "compress_output",
                     "move",
                     "compact",
-                    "generate_summary",
+                    "create_summary",
                     "cleanup_compact",
                     "cleanup",
                 ],
@@ -460,9 +460,9 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
-                elif stage == "generate_summary":
-                    ci_config[f"{base_job_name}_generate_summary"] = {
-                        "stage": "generate_summary",
+                elif stage == "create_summary":
+                    ci_config[f"{base_job_name}_create_summary"] = {
+                        "stage": "create_summary",
                         "extends": f".{system_name}",
                         "script": [
                             "source .gitlab/scripts/variables.sh",
