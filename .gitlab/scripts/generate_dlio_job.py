@@ -236,7 +236,7 @@ def generate_gitlab_ci_yaml(config_files):
     create_stages = set()
     baseline_csv=os.getenv("BASELINE_CSV", "temp.csv")
     for idx, workload in enumerate(
-        tqdm(config_files[:2], desc="Processing workloads"), start=1
+        tqdm([config_files[-1]], desc="Processing workloads"), start=1
     ):
         workload_parts = workload.split("_")
         workload_name = workload_parts[0]
