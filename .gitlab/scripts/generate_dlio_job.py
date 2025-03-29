@@ -444,14 +444,14 @@ def generate_gitlab_ci_yaml(config_files):
                             "source .gitlab/scripts/pre.sh",
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_event_count;",
-                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                            f"event_count=$(dftracer_event_count -d $PWD/RAW)",
-                            f"size_bytes=$(du -b $PWD/RAW | cut -f1)",
-                            f"size_formatted=$(du -sh $PWD/RAW | cut -f1)"
-                            f"echo workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt,num_events >> $PWD/summary.csv"
-                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,$size_formatted,$event_count >> $PWD/summary.csv",
-                            f"python $PROJECT_PATH/.gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv"
+                            f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id};",
+                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload};",
+                            f"event_count=$(dftracer_event_count -d $PWD/RAW);",
+                            f"size_bytes=$(du -b $PWD/RAW | cut -f1);",
+                            f"size_formatted=$(du -sh $PWD/RAW | cut -f1);"
+                            f"echo workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt,num_events >> $PWD/summary.csv;"
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,$size_formatted,$event_count >> $PWD/summary.csv;",
+                            f"python $PROJECT_PATH/.gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv;"
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
