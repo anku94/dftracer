@@ -116,7 +116,7 @@ def generate_gitlab_ci_yaml(config_files):
             "train",
             "compress_output",
             "move",
-            "create_summary",
+            "process_trace",
             "cleanup",
         ],
         "include": [
@@ -236,7 +236,7 @@ def generate_gitlab_ci_yaml(config_files):
     create_stages = set()
     baseline_csv=os.getenv("BASELINE_CSV", "temp.csv")
     for idx, workload in enumerate(
-        tqdm(config_files, desc="Processing workloads"), start=1
+        tqdm(config_files[:2], desc="Processing workloads"), start=1
     ):
         workload_parts = workload.split("_")
         workload_name = workload_parts[0]
@@ -380,7 +380,7 @@ def generate_gitlab_ci_yaml(config_files):
                     "train",
                     "compress_output",
                     "move",
-                    "create_summary",
+                    "process_trace",
                     "cleanup",
                 ],
                 start=1,
@@ -435,9 +435,9 @@ def generate_gitlab_ci_yaml(config_files):
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
-                elif stage == "create_summary":
-                    ci_config[f"{base_job_name}_create_summary"] = {
-                        "stage": "create_summary",
+                elif stage == "process_trace":
+                    ci_config[f"{base_job_name}_process_trace"] = {
+                        "stage": "process_trace",
                         "extends": f".{system_name}",
                         "script": [
                             "source .gitlab/scripts/variables.sh",
@@ -445,9 +445,11 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_event_count;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
+                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
                             f"event_count=$(dftracer_event_count -d $PWD/RAW)",
                             f"size_bytes=$(du -b $PWD/RAW | cut -f1)",
-                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> $PWD/summary.csv",
+                            f"echo workload_name,num_nodes,ci_date,trace_path,trace_size_bytes,trace_size_fmt,num_events >> $PWD/summary.csv"
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,$size_bytes,$event_count >> $PWD/summary.csv",
                             f"python $PROJECT_PATH/.gitlab/scripts/compare_summary.py {baseline_csv} $PWD/summary.csv --output_file $PWD/compare.csv"
                         ],
                         "needs": [f"{base_job_name}_move"],
@@ -461,7 +463,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"{flux_cores_one_node_args} drm {output}",
                         ],
                         "needs": {
-                            "job": f"{base_job_name}_create_summary",
+                            "job": f"{base_job_name}_process_trace",
                             "optional": True,
                         },
                         "when": "always",
