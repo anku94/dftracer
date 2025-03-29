@@ -449,14 +449,13 @@ def generate_gitlab_ci_yaml(config_files):
                             "which python; which dftracer_split;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfsplit dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload}",
-                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
-                            f"{flux_cores_one_node_args} drm {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/RAW",
-                            f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_dfci dftracer_create_index -f -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
-                            f"event_count=$(dftracer_event_count -d {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT)",
-                            f"size_bytes=$(du -b {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT | cut -f1)",
-                            f"tar -czf {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT.tar.gz {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/COMPACT",
-                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv",
-                            f"python .gitlab/scripts/compare_summary.py {baseline_csv} {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/summary.csv --output_file {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/compare.csv"
+                            f"tar -czf RAW.tar.gz RAW",
+                            f"event_count=$(dftracer_event_count -d $PWD/RAW)",
+                            f"size_bytes=$(du -b $PWD/RAW | cut -f1)",
+                            f"tar -czf COMPACT.tar.gz COMPACT",
+                            f"echo {workload},{nodes},{unique_run_id},{workload}/nodes-{nodes}/{unique_run_id},$size_bytes,,$event_count >> $PWD/summary.csv",
+                            f"python .gitlab/scripts/compare_summary.py {baseline_csv} $PWD/compare.csv"
+                            f"{flux_cores_one_node_args} drm $PWD/RAW",
                         ],
                         "needs": [f"{base_job_name}_move"],
                     }
