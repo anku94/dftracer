@@ -1,5 +1,9 @@
 #!/bin/bash
 
+LOG_FILE="/tmp/dftracer_event_count.log" # Replace with the desired log file path
+exec 3>&1 # Save stdout to file descriptor 3
+exec >"$LOG_FILE" 2>&1 # Redirect stdout and stderr to the log file
+
 # The script will count number of valid events of traces
 # This has the following signature.
 #
@@ -144,6 +148,6 @@ else
   date_echo "Index files already exist, skipping index creation"
 fi
 
-date_echo "Starting line count computation"
+# Restore stdout and print final output to console
+exec >&3
 get_lines_count "$LOG_DIR"
-date_echo "Line count computation completed"
