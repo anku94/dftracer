@@ -57,7 +57,7 @@ dftracer::ConfigurationManager::ConfigurationManager()
       tids(true),
       bind_signals(false),
       throw_error(false),
-      write_buffer_size(4 * 1024L * 1024L) {
+      write_buffer_size(10) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
