@@ -40,7 +40,7 @@ def find_workload_configs(config_dir):
     logging.info(f"Searching for workload configuration files in {config_dir}")
     config_files = [os.path.splitext(f.name)[0] for f in config_dir.glob("*.yaml")]
     logging.info(f"Found {len(config_files)} configuration files.")
-    if os.getenv("DEBUG", "1") == "1":
+    if os.getenv("DEBUG", "0") == "1":
         config_files = [config_files[-1]]
     return config_files
 
