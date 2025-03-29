@@ -42,6 +42,12 @@ def find_workload_configs(config_dir):
     logging.info(f"Found {len(config_files)} configuration files.")
     if os.getenv("DEBUG", "0") == "1":
         config_files = [config_files[-1]]
+    # Parse inclusion list from environment variable
+    inclusion_list = os.getenv("INCLUSION_LIST", "")
+    if inclusion_list:
+        included_configs = set(inclusion_list.split(";"))
+        config_files = [config for config in config_files if config in included_configs]
+        logging.info(f"Inclusion list applied. Remaining configs: {config_files}")
     return config_files
 
 
@@ -237,6 +243,15 @@ def generate_gitlab_ci_yaml(config_files):
     
     create_stages = set()
     baseline_csv=os.getenv("BASELINE_CSV", "temp.csv")
+    # Parse exclusion list from environment variable
+    exclusion_list = os.getenv("EXCLUSION_LIST", "")
+    excluded_combinations = set()
+    if exclusion_list:
+        for exclusion in exclusion_list.split(";"):
+            workload, nodes = exclusion.split("-")
+            excluded_combinations.add((workload.strip(), int(nodes.strip())))
+
+    logging.info(f"Exclusion list: {excluded_combinations}")
     for idx, workload in enumerate(
         tqdm(config_files, desc="Processing workloads"), start=1
     ):
@@ -369,6 +384,10 @@ def generate_gitlab_ci_yaml(config_files):
         )
         nodes = min_nodes
         while nodes <= max_nodes:
+            if (workload, nodes) in excluded_combinations or (workload, 0) in excluded_combinations:
+                logging.info(f"Skipping workload '{workload}' with nodes {nodes} as it is in the exclusion list.")
+                nodes *= 2
+                continue
             output = f"{custom_ci_output_dir}/{workload}/{nodes}/{unique_run_id}"
             dlio_checkpoint_dir = f"{data_path}/{workload}-{idx}-{nodes}/"
             workload_args = f"++workload.dataset.data_folder={dlio_data_dir}/data ++workload.checkpoint.checkpoint_folder={dlio_checkpoint_dir}/checkpoint ++workload.train.epochs=1 {override_data_size_args}"
