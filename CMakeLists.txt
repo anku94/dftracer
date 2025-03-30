@@ -308,10 +308,12 @@ endif()
 target_sources(${PROJECT_NAME}
         PRIVATE
         ${DFTRACER_CORE_SRC}
+        ${DFTRACER_PRELOAD_SRC}
         )
 target_sources(${PROJECT_NAME}_dbg
         PRIVATE
         ${DFTRACER_CORE_SRC}
+        ${DFTRACER_PRELOAD_SRC}
         )
 target_sources(${PROJECT_NAME}_preload
         PRIVATE
