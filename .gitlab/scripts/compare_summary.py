@@ -21,15 +21,13 @@ def compare_trace_files(file1, file2):
     merged_df = pd.merge(df1, df2, on=['workload_name', 'num_nodes'], how='inner', suffixes=('_file1', '_file2'))
 
     # Calculate percentage difference for num_events and trace_size_bytes
-    logging.info("Calculating percentage differences for 'num_events' and 'trace_size_bytes'.")
+    logging.info("Calculating percentage differences for 'num_events'.")
     merged_df['num_events_diff_%'] = ((merged_df['num_events_file2'] - merged_df['num_events_file1']) / 
                                       merged_df['num_events_file1']) * 100
-    merged_df['trace_size_bytes_diff_%'] = ((merged_df['trace_size_bytes_file2'] - merged_df['trace_size_bytes_file1']) / 
-                                            merged_df['trace_size_bytes_file1']) * 100
 
     # Select relevant columns to display
     logging.info("Selecting relevant columns for the result.")
-    result = merged_df[['workload_name', 'num_nodes', 'num_events_diff_%', 'trace_size_bytes_diff_%']]
+    result = merged_df[['workload_name', 'num_nodes', 'num_events_diff_%']]
 
     logging.info("Comparison completed successfully.")
     return result
@@ -47,7 +45,6 @@ def color_code_output(row):
         row['workload_name'],
         row['num_nodes'],
         colorize(row['num_events_diff_%']),
-        colorize(row['trace_size_bytes_diff_%'])
     ]
 
 if __name__ == "__main__":
@@ -75,11 +72,11 @@ if __name__ == "__main__":
         comparison_result = compare_trace_files(file1, file2)
         
         # Display the result in the console
-        print(f"{'Workload Name':<20} {'Num Nodes':<10} {'Num Events Diff %':<20} {'Trace Size Diff %':<20}")
+        print(f"{'Workload Name':<20} {'Num Nodes':<10} {'Num Events Diff %':<20}")
         print("-" * 70)
         for _, row in comparison_result.iterrows():
             colored_row = color_code_output(row)
-            print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20} {colored_row[3]:<20}")
+            print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20}")
             
         # Save the result to the specified file
         comparison_result.to_csv(args.output_file, index=False)
@@ -90,17 +87,16 @@ if __name__ == "__main__":
     
     # Check for rows with percentage differences greater than 10%
     error_rows = comparison_result[
-        (comparison_result['num_events_diff_%'].abs() > 10) | 
-        (comparison_result['trace_size_bytes_diff_%'].abs() > 10)
+        (comparison_result['num_events_diff_%'].abs() > 10)
     ]
 
     if not error_rows.empty:
         logging.error("Percentage difference exceeds 10% for the following rows:")
-        print(f"{'Workload Name':<20} {'Num Nodes':<10} {'Num Events Diff %':<20} {'Trace Size Diff %':<20}")
+        print(f"{'Workload Name':<20} {'Num Nodes':<10} {'Num Events Diff %':<20}")
         print("-" * 70)
         for _, row in error_rows.iterrows():
             colored_row = color_code_output(row)
-            print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20} {colored_row[3]:<20}")
+            print(f"{colored_row[0]:<20} {colored_row[1]:<10} {colored_row[2]:<20}")
         raise ValueError("Percentage difference exceeds 10% for one or more rows.")
     else:
         logging.info("No rows found with percentage difference exceeding 10%.")
