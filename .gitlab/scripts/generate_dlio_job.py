@@ -384,6 +384,9 @@ def generate_gitlab_ci_yaml(config_files):
         )
         nodes = min_nodes
         while nodes <= max_nodes:
+             if os.getenv("ONE_SCALE_PER_WORKLOAD", "0") == "1" and nodes != min_nodes:
+                logging.info(f"Skipping workload '{workload}' with nodes {nodes} due to ONE_SCALE_PER_WORKLOAD setting.")
+                break
             if (workload, nodes) in excluded_combinations or (workload, 0) in excluded_combinations:
                 logging.info(f"Skipping workload '{workload}' with nodes {nodes} as it is in the exclusion list.")
                 nodes *= 2

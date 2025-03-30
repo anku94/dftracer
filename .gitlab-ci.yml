@@ -17,7 +17,7 @@ variables:
   # test variables
   MIN_NODES: 1
   MAX_NODES: 8
-  EXCLUSION_CONFIGS: llama_70b_zero3-0;llama_70b-4
+  EXCLUSION_LIST: llama_70b_zero3-0;llama_70b-4
 
 stages:
 - build
