@@ -454,7 +454,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"mv {output}/train/.hydra {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"mv {output}/train/dlio.log {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}/",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
-                            f"tar -czf RAW.tar.gz RAW",
+                            f"tar -czf RAW.tar.gz RAW || true",
                         ],
                         "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
                     }
@@ -470,7 +470,7 @@ def generate_gitlab_ci_yaml(config_files):
                             "which python; which dftracer_event_count;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id};",
                             f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload};",
-                            f"tar -czf COMPACT.tar.gz COMPACT",
+                            f"tar -czf COMPACT.tar.gz COMPACT || true;",
                             f"event_count=$(dftracer_event_count -d $PWD/COMPACT);",
                             f"size_bytes=$(du -b $PWD/COMPACT | cut -f1);",
                             f"size_formatted=$(du -sh $PWD/COMPACT | cut -f1);"
