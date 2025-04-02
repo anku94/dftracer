@@ -51,7 +51,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "pybind11", 
-  "zindex_py==0.0.4", 
+  "zindex_py==0.0.5", 
   "setuptools>=64", 
   "setuptools-scm>=8"
 ]
