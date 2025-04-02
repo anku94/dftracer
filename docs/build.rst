@@ -13,18 +13,45 @@ There are three build options:
 ----------
 
 ------------------------------------------
+Create Python environment (Recommended)
+------------------------------------------
+Creating a Python environment is the cleanest way to install DFTracer.
+
+.. code-block:: Bash
+
+    python -m venv <PYTHON-VENV-PATH>
+    source <PYTHON-VENV-PATH>/bin/activate
+
+
+------------------------------------------
 Build DFTracer with pip (Recommended)
 ------------------------------------------
 
 Users can easily install DFTracer using pip. This is the way most python packages are installed.
 This method would work for both native python environments and conda environments.
 
+
+Install DFTracer
+*******************************
+
+From PyPI (Recommended)
+************************
+
+.. code-block:: Bash
+
+    pip install pydftracer
+
+.. attention::
+
+    For pip installations, all libraries will be present within the site-packages/dftracer/lib.
+    This enables clean management of pip installation and uninstallations.
+
 From source
 ************
 
 .. code-block:: Bash
 
-    git clone git@github.com:hariharan-devarajan/dftracer.git
+    git clone git@github.com:LLNL/dftracer.git
     cd dftracer
     # You can skip this for installing the dev branch.
     # for latest stable version use master branch.
@@ -37,7 +64,7 @@ From Github
 .. code-block:: Bash
 
   DFT_VERSION=v1.0.4
-  pip install git+https://github.com/hariharan-devarajan/dftracer.git@${DFT_VERSION}
+  pip install git+https://github.com/LLNL/dftracer.git@${DFT_VERSION}
 
 .. attention::
 
@@ -71,11 +98,11 @@ Build and Install DFTracer
 
 .. code-block:: Bash
 
-    $ spack install py-dftracer-py
-    $ spack load py-dftracer-py
+    $ spack install py-pydftracer
+    $ spack load py-pydftracer
 
 If the most recent changes on the development branch ('dev') of DFTracer are
-desired, then do ``spack install py-dftracer-py@develop``.
+desired, then do ``spack install py-pydftracer@develop``.
 
 .. attention::
 
@@ -96,7 +123,7 @@ Build DFTracer with CMake
 
 Download the latest DFTracer release from the Releases_ page or clone the develop
 branch ('develop') from the DFTracer repository
-`https://github.com/hariharan-devarajan/dftracer <https://github.com/hariharan-devarajan/dftracer>`_.
+`https://github.com/LLNL/dftracer <https://github.com/LLNL/dftracer>`_.
 
 ---------------
 Build Variables
@@ -139,7 +166,7 @@ These dependencies can be either installed using spack or through cmake from res
 
 .. explicit external hyperlink targets
 
-.. _Releases: https://github.com/hariharan-devarajan/dftracer/releases
+.. _Releases: https://github.com/LLNL/dftracer/releases
 .. _Spack: https://github.com/spack/spack
 .. _Spack's shell support: https://spack.readthedocs.io/en/latest/getting_started.html#add-spack-to-the-shell
 .. _packages.yaml: https://spack.readthedocs.io/en/latest/build_settings.html#external-packages

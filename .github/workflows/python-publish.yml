@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
     name: ${{ matrix.python }}-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -35,7 +35,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc g++ libtool-bin openmpi-bin libopenmpi-dev
           python -m pip install --upgrade pip
-          pip install build wheel auditwheel pybind11 patchelf setuptools
+          pip install build wheel auditwheel pybind11 patchelf setuptools>=64 setuptools-scm>=8
       - name: Build wheel package
         run: |
           export DFTRACER_WHEEL=1

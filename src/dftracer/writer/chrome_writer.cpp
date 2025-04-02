@@ -36,6 +36,7 @@ void dftracer::ChromeWriter::initialize(char *filename, bool throw_error,
       DFTRACER_LOG_INFO("created log file %s", filename);
     }
   }
+  init = true;
   DFTRACER_LOG_DEBUG("ChromeWriter.initialize %s", this->filename.c_str());
 }
 
@@ -73,74 +74,81 @@ void dftracer::ChromeWriter::log_metadata(int index, ConstEventNameType name,
 }
 
 void dftracer::ChromeWriter::finalize(bool has_entry) {
-  DFTRACER_LOG_DEBUG("ChromeWriter.finalize", "");
-  if (fh != nullptr) {
-    DFTRACER_LOG_INFO("Profiler finalizing writer %s", filename.c_str());
-    write_buffer_op(true);
-    fflush(fh);
-    int status = fclose(fh);
-    if (status != 0) {
-      DFTRACER_LOG_ERROR("unable to close log file %s for a+",
-                         filename.c_str());  // GCOVR_EXCL_LINE
-    }
-    if (!has_entry) {
-      DFTRACER_LOG_INFO("No trace data written deleting file %s",
-                        filename.c_str());
-      df_unlink(filename.c_str());
-    } else {
-      DFTRACER_LOG_INFO("Profiler writing the final symbol", "");
-      fh = fopen(this->filename.c_str(), "r+");
-      if (fh != nullptr) {
-        std::string data = "[\n";
-        auto written_elements =
-            fwrite(data.c_str(), sizeof(char), data.size(), fh);
-        if (written_elements != data.size()) {  // GCOVR_EXCL_START
-          DFTRACER_LOG_ERROR(
-              "unable to finalize log write %s for O_WRONLY written only %ld "
-              "of %ld",
-              filename.c_str(), data.size(), written_elements);
-        }  // GCOVR_EXCL_STOP
-        data = "]";
-        fseek(fh, 0, SEEK_END);
-        written_elements = fwrite(data.c_str(), sizeof(char), data.size(), fh);
-        if (written_elements != data.size()) {  // GCOVR_EXCL_START
-          DFTRACER_LOG_ERROR(
-              "unable to finalize log write %s for O_WRONLY written only %ld "
-              "of %ld",
-              filename.c_str(), data.size(), written_elements);
-        }  // GCOVR_EXCL_STOP
-        status = fclose(fh);
-        if (status != 0) {
-          DFTRACER_LOG_ERROR("unable to close log file %s for O_WRONLY",
-                             filename.c_str());  // GCOVR_EXCL_LINE
-        }
+  if (this->init) {
+    DFTRACER_LOG_DEBUG("ChromeWriter.finalize", "");
+    if (fh != nullptr) {
+      DFTRACER_LOG_INFO("Profiler finalizing writer %s", filename.c_str());
+      write_buffer_op(true);
+      fflush(fh);
+      int status = fclose(fh);
+      if (status != 0) {
+        DFTRACER_LOG_ERROR("unable to close log file %s for a+",
+                           filename.c_str());  // GCOVR_EXCL_LINE
       }
-      if (enable_compression) {
-        if (system("which gzip > /dev/null 2>&1")) {
-          DFTRACER_LOG_ERROR("Gzip compression does not exists",
-                             "");  // GCOVR_EXCL_LINE
-        } else {
-          DFTRACER_LOG_INFO("Applying Gzip compression on file %s",
-                            filename.c_str());
-          char cmd[2048];
-          sprintf(cmd, "gzip -f %s", filename.c_str());
-          int ret = system(cmd);
-          if (ret == 0) {
-            DFTRACER_LOG_INFO("Successfully compressed file %s.gz",
-                              filename.c_str());
+      if (!has_entry) {
+        DFTRACER_LOG_INFO("No trace data written deleting file %s",
+                          filename.c_str());
+        df_unlink(filename.c_str());
+      } else {
+        DFTRACER_LOG_INFO("Profiler writing the final symbol", "");
+        fh = fopen(this->filename.c_str(), "r+");
+        if (fh != nullptr) {
+          std::string data = "[\n";
+          auto written_elements =
+              fwrite(data.c_str(), sizeof(char), data.size(), fh);
+          if (written_elements != data.size()) {  // GCOVR_EXCL_START
+            DFTRACER_LOG_ERROR(
+                "unable to finalize log write %s for O_WRONLY written only %ld "
+                "of %ld",
+                filename.c_str(), data.size(), written_elements);
+          }  // GCOVR_EXCL_STOP
+          data = "]";
+          fseek(fh, 0, SEEK_END);
+          written_elements =
+              fwrite(data.c_str(), sizeof(char), data.size(), fh);
+          if (written_elements != data.size()) {  // GCOVR_EXCL_START
+            DFTRACER_LOG_ERROR(
+                "unable to finalize log write %s for O_WRONLY written only %ld "
+                "of %ld",
+                filename.c_str(), data.size(), written_elements);
+          }  // GCOVR_EXCL_STOP
+          status = fclose(fh);
+          if (status != 0) {
+            DFTRACER_LOG_ERROR("unable to close log file %s for O_WRONLY",
+                               filename.c_str());  // GCOVR_EXCL_LINE
+          }
+          fh = nullptr;
+        }
+        if (enable_compression) {
+          if (system("which gzip > /dev/null 2>&1")) {
+            DFTRACER_LOG_ERROR("Gzip compression does not exists",
+                               "");  // GCOVR_EXCL_LINE
           } else {
-            DFTRACER_LOG_ERROR("Unable to compress file %s", filename.c_str());
+            DFTRACER_LOG_INFO("Applying Gzip compression on file %s",
+                              filename.c_str());
+            char cmd[2048];
+            sprintf(cmd, "gzip -f %s", filename.c_str());
+            int ret = system(cmd);
+            if (ret == 0) {
+              DFTRACER_LOG_INFO("Successfully compressed file %s.gz",
+                                filename.c_str());
+            } else {
+              DFTRACER_LOG_ERROR("Unable to compress file %s",
+                                 filename.c_str());
+            }
           }
         }
       }
     }
-  }
-  if (enable_core_affinity) {
+    if (enable_core_affinity) {
 #if DISABLE_HWLOC == 1
-    hwloc_topology_destroy(topology);
+      hwloc_topology_destroy(topology);
 #endif
+    }
+    DFTRACER_LOG_DEBUG("Finished writer finalization", "");
+  } else {
+    DFTRACER_LOG_DEBUG("Already finalized writer", "");
   }
-  DFTRACER_LOG_DEBUG("Finished writer finalization", "");
 }
 
 void dftracer::ChromeWriter::convert_json(
@@ -186,8 +194,8 @@ void dftracer::ChromeWriter::convert_json(
         if (i < meta_size - 1) meta_stream << ",";
 
       } else if (item.second.type() == typeid(HashType)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<HashType>(item.second) << "";
+        meta_stream << "\"" << item.first << "\":\""
+                    << std::any_cast<HashType>(item.second) << "\"";
         if (i < meta_size - 1) meta_stream << ",";
 
       } else if (item.second.type() == typeid(long)) {
@@ -219,7 +227,7 @@ void dftracer::ChromeWriter::convert_json(
       previous_index = current_index;
       auto written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"%s","pid":%lu,"tid":%lu,"ts":%llu,"dur":%llu,"ph":"X","args":{"hhash":%llu%s}})",
+          R"(%s{"id":%d,"name":"%s","cat":"%s","pid":%lu,"tid":%lu,"ts":%llu,"dur":%llu,"ph":"X","args":{"hhash":"%s"%s}})",
           is_first_char, index, event_name, category, process_id, thread_id,
           start_time, duration, this->hostname_hash, all_stream.str().c_str());
       current_index += written_size;
@@ -260,13 +268,13 @@ void dftracer::ChromeWriter::convert_json_metadata(
     if (is_string) {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":%llu,"name":"%s","value":"%s"}})",
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":"%s"}})",
           is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
           name, value);
     } else {
       written_size = sprintf(
           buffer.data() + current_index,
-          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":%llu,"name":"%s","value":%s}})",
+          R"(%s{"id":%d,"name":"%s","cat":"dftracer","pid":%lu,"tid":%lu,"ph":"M","args":{"hhash":"%s","name":"%s","value":%s}})",
           is_first_char, index, ph, process_id, thread_id, this->hostname_hash,
           name, value);
     }

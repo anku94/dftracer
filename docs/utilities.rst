@@ -49,6 +49,8 @@ Arguments for this script are
 7. **-v** enable verbose mode.
 8. **-h** display help
 
+Alternatively, the **dftracer_compact_by_pid** script can be used to compact trace files by process ID using the same set of parameters.
+
 ------------------
 Sanitize script
 ------------------
@@ -155,3 +157,19 @@ Arguments for this script are:
 
 1. **-d input_directory** specify input directories. should contain .pfw or .pfw.gz files.
 3. **-h** display help
+
+------------------
+Parallel GZip
+------------------
+
+The script is a multi-threaded gzip utility for dftracer traces.
+
+.. code-block:: bash
+
+    <install-dir>/bin/usage: dftracer_pgzip [-v] [-d input_directory]
+
+Arguments for this script are:
+
+3. **-v** enable verbose mode
+4. **-h** display help
+5. **-d input_directory** specify input directories. should contain .pfw or .pfw.gz files.

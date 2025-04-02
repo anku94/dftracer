@@ -55,6 +55,7 @@ build
 /cmake-build-debug-1/
 /temp/dftracer/
 /Testing/Temporary/
+dftracer/_version.py
 
 # Additional aux files
 logs/*.log
@@ -78,6 +79,7 @@ examples/dfanalyzer/test-trace.pfw.gz.zindex
 pydftracer.egg-info
 /dist/
 /output/
+.eggs/
 
 # Python checkpoints
 /examples/.ipynb_checkpoints/
@@ -90,3 +92,7 @@ dfanalyzer/dask/run_dir
 dfanalyzer/dask/logs
 dfanalyzer/dask/scripts/STDIN.*
 *.zindex
+
+# gitlab
+.gitlab/scripts/hydra_log
+.gitlab/scripts/run_dlio_workload_test_ci.yaml

@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 RUN apt-get update && apt-get install -y python3 python3-pip mpich libhwloc-dev git cmake default-jre jq
-RUN pip install "dlio_benchmark @ git+https://github.com/argonne-lcf/dlio_benchmark.git"
+RUN pip install dlio-benchmark
 RUN mkdir -p /dlio/data /dlio/output
 RUN mpirun -np 4 dlio_benchmark workload=resnet50 ++workload.dataset.data_folder=/dlio/data ++workload.output.folder=/dlio/output ++workload.workflow.generate_data=True ++workload.workflow.train=False
 ENV DFTRACER_LOG_LEVEL=ERROR
