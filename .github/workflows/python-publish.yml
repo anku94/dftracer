@@ -55,7 +55,7 @@ jobs:
           rm dist/*linux_x86_64.whl
           rm dist/*.tar.gz
       - name: Build source package
-        if: matrix.os == 'ubuntu-20.04' && matrix.python == '3.12'
+        if: matrix.os == 'ubuntu-24.04' && matrix.python == '3.12'
         run: |
           export DFTRACER_WHEEL=1
           python setup.py sdist
