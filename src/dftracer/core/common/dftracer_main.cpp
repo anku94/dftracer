@@ -3,6 +3,8 @@
 //
 #include <dftracer/core/common/dftracer_main.h>
 #include <dftracer/core/finstrument/functions.h>
+#include <dftracer/function/hip/intercept.h>
+
 template <>
 std::shared_ptr<dftracer::DFTracerCore>
     dftracer::Singleton<dftracer::DFTracerCore>::instance = nullptr;
@@ -24,9 +26,9 @@ void dft_finalize(bool force) {
 }
 
 dftracer::DFTracerCore::DFTracerCore(ProfilerStage stage, ProfileType type,
-                                     const char *log_file,
-                                     const char *data_dirs,
-                                     const int *process_id)
+                                     const char* log_file,
+                                     const char* data_dirs,
+                                     const int* process_id)
     : is_initialized(false),
       bind(false),
       log_file_suffix(),
@@ -79,7 +81,7 @@ void dftracer::DFTracerCore::log(ConstEventNameType event_name,
                                  ConstEventNameType category,
                                  TimeResolution start_time,
                                  TimeResolution duration,
-                                 dftracer::Metadata *metadata) {
+                                 dftracer::Metadata* metadata) {
   DFTRACER_LOG_DEBUG("DFTracerCore::log", "");
   if (this->is_initialized && conf->enable) {
     if (logger != nullptr) {
@@ -111,24 +113,33 @@ bool dftracer::DFTracerCore::finalize() {
       trie->finalize();
       dftracer::Singleton<Trie>::finalize();
     }
-    if (bind && conf->io) {
-      DFTRACER_LOG_INFO("Release I/O bindings", "");
-      auto posix_instance = brahma::POSIXDFTracer::get_instance();
-      if (posix_instance != nullptr) {
-        posix_instance->unbind();
-        posix_instance->finalize();
-      }
-      auto stdio_instance = brahma::STDIODFTracer::get_instance();
-      if (stdio_instance != nullptr) {
-        stdio_instance->unbind();
-        stdio_instance->finalize();
-      }
+    if (bind) {
 #ifdef DFTRACER_FTRACING_ENABLE
       auto function_instance = dftracer::Function::get_instance();
       if (function_instance != nullptr) {
         function_instance->finalize();
       }
 #endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+      auto hip_instance =
+          dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+      if (hip_instance != nullptr) {
+        hip_instance->finalize();
+      }
+#endif
+      if (conf->io) {
+        DFTRACER_LOG_INFO("Release I/O bindings", "");
+        auto posix_instance = brahma::POSIXDFTracer::get_instance();
+        if (posix_instance != nullptr) {
+          posix_instance->unbind();
+          posix_instance->finalize();
+        }
+        auto stdio_instance = brahma::STDIODFTracer::get_instance();
+        if (stdio_instance != nullptr) {
+          stdio_instance->unbind();
+          stdio_instance->finalize();
+        }
+      }
     }
     if (logger != nullptr) {
       logger->finalize();
@@ -172,9 +183,69 @@ void dftracer::DFTracerCore::reinitialize() {
   initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
 }
 
-void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
-                                        const char *_data_dirs,
-                                        const int *_process_id) {
+void dftracer::DFTracerCore::initialize() {
+  DFTRACER_LOG_DEBUG("DFTracerCore::reinitialize", "");
+  is_initialized = false;
+  std::string log_file_path = this->log_file;
+  size_t last_slash = log_file_path.find_last_of("/\\");
+  std::string folder = (last_slash != std::string::npos)
+                           ? log_file_path.substr(0, last_slash)
+                           : "";
+  std::string base_filename = (last_slash != std::string::npos)
+                                  ? log_file_path.substr(last_slash + 1)
+                                  : log_file_path;
+  size_t first_dash = base_filename.find('-');
+  std::string prefix = (first_dash != std::string::npos)
+                           ? base_filename.substr(0, first_dash)
+                           : base_filename;
+
+  std::string new_log_file;
+  if (!folder.empty()) {
+    new_log_file = folder + "/" + prefix;
+  } else {
+    new_log_file = prefix;
+  }
+  conf->log_file = new_log_file;
+  this->process_id = df_getpid();
+  DFTRACER_LOG_INFO(
+      "Reinitializing DFTracer with log_file %s data_dirs %s and process %d",
+      new_log_file.c_str(), this->data_dirs.c_str(), this->process_id);
+  initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
+}
+
+void dftracer::DFTracerCore::reinitialize() {
+  DFTRACER_LOG_DEBUG("DFTracerCore::reinitialize", "");
+  is_initialized = false;
+  std::string log_file_path = this->log_file;
+  size_t last_slash = log_file_path.find_last_of("/\\");
+  std::string folder = (last_slash != std::string::npos)
+                           ? log_file_path.substr(0, last_slash)
+                           : "";
+  std::string base_filename = (last_slash != std::string::npos)
+                                  ? log_file_path.substr(last_slash + 1)
+                                  : log_file_path;
+  size_t first_dash = base_filename.find('-');
+  std::string prefix = (first_dash != std::string::npos)
+                           ? base_filename.substr(0, first_dash)
+                           : base_filename;
+
+  std::string new_log_file;
+  if (!folder.empty()) {
+    new_log_file = folder + "/" + prefix;
+  } else {
+    new_log_file = prefix;
+  }
+  conf->log_file = new_log_file;
+  this->process_id = df_getpid();
+  DFTRACER_LOG_INFO(
+      "Reinitializing DFTracer with log_file %s data_dirs %s and process %d",
+      new_log_file.c_str(), this->data_dirs.c_str(), this->process_id);
+  initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
+}
+
+void dftracer::DFTracerCore::initialize(bool _bind, const char* _log_file,
+                                        const char* _data_dirs,
+                                        const int* _process_id) {
   DFTRACER_LOG_DEBUG("DFTracerCore::initialize", "");
   if (conf->bind_signals) set_signal();
   if (!is_initialized) {
@@ -235,7 +306,7 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
           hostname[sizeof(hostname) - 1] = '\0';
           snprintf(log_filename_str, sizeof(log_filename_str), "%s-%s-%d",
                    exec_name, hostname, this->process_id);
-          char *log_file_hash = logger->get_hash(log_filename_str);
+          char* log_file_hash = logger->get_hash(log_filename_str);
           DFTRACER_LOG_DEBUG("Conf has log file %s", conf->log_file.c_str());
           std::string extension = ".pfw";
           if (conf->compression) {
@@ -268,14 +339,14 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
       if (bind) {
         if (conf->io) {
           auto trie = dftracer::Singleton<Trie>::get_instance();
-          const char *ignore_extensions[3] = {".pfw", ".py", ".pfw.gz"};
-          const char *ignore_prefix[8] = {"/pipe",  "/socket", "/proc",
+          const char* ignore_extensions[3] = {".pfw", ".py", ".pfw.gz"};
+          const char* ignore_prefix[8] = {"/pipe",  "/socket", "/proc",
                                           "/sys",   "/collab", "anon_inode",
                                           "socket", "/var/tmp"};
-          for (const char *folder : ignore_prefix) {
+          for (const char* folder : ignore_prefix) {
             trie->exclude(folder, strlen(folder));
           }
-          for (const char *ext : ignore_extensions) {
+          for (const char* ext : ignore_extensions) {
             trie->exclude_reverse(ext, strlen(ext));
           }
           if (!conf->trace_all_files) {
@@ -300,7 +371,7 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
 
           if (!conf->trace_all_files) {
             auto paths = split(this->data_dirs, DFTRACER_DATA_DIR_DELIMITER);
-            for (const auto &path : paths) {
+            for (const auto& path : paths) {
               DFTRACER_LOG_DEBUG("Profiler will trace %s\n", path.c_str());
               trie->include(path.c_str(), path.size());
             }
@@ -318,13 +389,29 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
                                                conf->gotcha_priority);
           }
         }
+        DFTRACER_LOG_DEBUG("Checking if FTRACING and HIP_TRACING are enabled",
+                           "");
 #ifdef DFTRACER_FTRACING_ENABLE
         dftracer::Function::get_instance();
+#endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+        DFTRACER_LOG_DEBUG("HIP tracing is enabled", "");
+        dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+        // cast to HIPFunction
+        // auto hip_instance = std::dynamic_pointer_cast<dftracer::HIPFunction>(
+        //     dftracer::HIPFunction::get_instance());
 #endif
       }
     } else {
 #ifdef DFTRACER_FTRACING_ENABLE
       dftracer::Function::get_instance()->finalize();
+#endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+      auto hip_instance =
+          dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+      if (hip_instance != nullptr) {
+        hip_instance->finalize();
+      }
 #endif
     }
     is_initialized = true;

@@ -38,6 +38,7 @@ class ConfigurationManager {
   std::vector<std::string> aggregation_inclusion_rules;
   std::vector<std::string> aggregation_exclusion_rules;
   ConfigurationManager();
+  void initialize() {}
   void finalize() {}
 };
 }  // namespace dftracer

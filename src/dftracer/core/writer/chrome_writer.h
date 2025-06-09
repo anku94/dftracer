@@ -25,7 +25,7 @@
 namespace dftracer {
 class ChromeWriter {
  private:
-  std::unordered_map<char *, std::any> metadata;
+  std::unordered_map<char*, std::any> metadata;
   std::mutex mtx;
 
  protected:
@@ -37,7 +37,7 @@ class ChromeWriter {
   bool init;
   bool enable_core_affinity;
 
-  FILE *fh;
+  FILE* fh;
   HashType hostname_hash;
   static const int MAX_LINE_SIZE = 16 * 1024L;
   size_t write_buffer_size;
@@ -46,7 +46,7 @@ class ChromeWriter {
   std::vector<char> buffer;
   void convert_json(int index, ConstEventNameType event_name,
                     ConstEventNameType category, TimeResolution start_time,
-                    TimeResolution duration, dftracer::Metadata *metadata,
+                    TimeResolution duration, dftracer::Metadata* metadata,
                     ProcessID process_id, ThreadID thread_id);
 
   void convert_json_metadata(int index, ConstEventNameType name,
@@ -102,11 +102,13 @@ class ChromeWriter {
     }
   }
   ~ChromeWriter() { DFTRACER_LOG_DEBUG("Destructing ChromeWriter", ""); }
-  void initialize(char *filename, bool throw_error, HashType hostname_hash);
+  void initialize(char* filename, bool throw_error, HashType hostname_hash);
+  void initialize() {}
 
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
-           TimeResolution duration, dftracer::Metadata *metadata,
+           TimeResolution duration,
+           std::unordered_map<std::string, std::any>* metadata,
            ProcessID process_id, ThreadID tid);
 
   void log_metadata(int index, ConstEventNameType name,
