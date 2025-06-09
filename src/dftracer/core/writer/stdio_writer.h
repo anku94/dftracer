@@ -25,6 +25,8 @@ class STDIOWriter {
     }
   }
 
+  void initialize() {}
+
   ~STDIOWriter() {}
   void finalize(int index) {
     if (fh_ != nullptr) {

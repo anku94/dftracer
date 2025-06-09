@@ -102,3 +102,6 @@ dfanalyzer_old/dask/scripts/STDIN.*
 *egg-info
 hydra*
 examples/dfanalyzer/outputs/
+
+# data
+*.pfw*

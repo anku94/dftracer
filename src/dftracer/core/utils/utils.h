@@ -177,6 +177,7 @@ class Trie {
       delete (node);
     }
   }
+
   void finalize() {
     DFTRACER_LOG_DEBUG("Finalizing Trie", "");
     if (inclusion_prefix != nullptr) {

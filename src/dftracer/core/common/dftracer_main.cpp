@@ -3,6 +3,8 @@
 //
 #include <dftracer/core/common/dftracer_main.h>
 #include <dftracer/core/finstrument/functions.h>
+#include <dftracer/core/function/hip/intercept.h>
+
 template <>
 std::shared_ptr<dftracer::DFTracerCore>
     dftracer::Singleton<dftracer::DFTracerCore>::instance = nullptr;
@@ -111,24 +113,33 @@ bool dftracer::DFTracerCore::finalize() {
       trie->finalize();
       dftracer::Singleton<Trie>::finalize();
     }
-    if (bind && conf->io) {
-      DFTRACER_LOG_INFO("Release I/O bindings", "");
-      auto posix_instance = brahma::POSIXDFTracer::get_instance();
-      if (posix_instance != nullptr) {
-        posix_instance->unbind();
-        posix_instance->finalize();
-      }
-      auto stdio_instance = brahma::STDIODFTracer::get_instance();
-      if (stdio_instance != nullptr) {
-        stdio_instance->unbind();
-        stdio_instance->finalize();
-      }
+    if (bind) {
 #ifdef DFTRACER_FTRACING_ENABLE
       auto function_instance = dftracer::Function::get_instance();
       if (function_instance != nullptr) {
         function_instance->finalize();
       }
 #endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+      auto hip_instance =
+          dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+      if (hip_instance != nullptr) {
+        hip_instance->finalize();
+      }
+#endif
+      if (conf->io) {
+        DFTRACER_LOG_INFO("Release I/O bindings", "");
+        auto posix_instance = brahma::POSIXDFTracer::get_instance();
+        if (posix_instance != nullptr) {
+          posix_instance->unbind();
+          posix_instance->finalize();
+        }
+        auto stdio_instance = brahma::STDIODFTracer::get_instance();
+        if (stdio_instance != nullptr) {
+          stdio_instance->unbind();
+          stdio_instance->finalize();
+        }
+      }
     }
     if (logger != nullptr) {
       logger->finalize();
@@ -318,13 +329,30 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
                                                conf->gotcha_priority);
           }
         }
+        DFTRACER_LOG_DEBUG("Checking if FTRACING and HIP_TRACING are enabled",
+                           "");
 #ifdef DFTRACER_FTRACING_ENABLE
         dftracer::Function::get_instance();
+#endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+        DFTRACER_LOG_DEBUG("HIP tracing is enabled", "");
+        auto hip_instance =
+            dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+        hip_instance->initialize();
+#else
+        DFTRACER_LOG_DEBUG("HIP tracing is not enabled", "");
 #endif
       }
     } else {
 #ifdef DFTRACER_FTRACING_ENABLE
       dftracer::Function::get_instance()->finalize();
+#endif
+#ifdef DFTRACER_HIP_TRACING_ENABLE
+      auto hip_instance =
+          dftracer::Singleton<dftracer::HIPFunction>::get_instance();
+      if (hip_instance != nullptr) {
+        hip_instance->finalize();
+      }
 #endif
     }
     is_initialized = true;
