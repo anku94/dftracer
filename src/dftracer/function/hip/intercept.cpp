@@ -205,6 +205,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
               header->payload);
 
       // Create metadata for kernel dispatch
+
       auto metadata = new std::unordered_map<std::string, std::any>();
       metadata->insert_or_assign("tid", record->thread_id);
       metadata->insert_or_assign("correlation_id",

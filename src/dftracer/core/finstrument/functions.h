@@ -23,9 +23,9 @@
 
 static ConstEventNameType CATEGORY = "FUNC";
 extern "C" {
-void __cyg_profile_func_enter(void *, void *)
+void __cyg_profile_func_enter(void*, void*)
     __attribute__((no_instrument_function));
-void __cyg_profile_func_exit(void *, void *)
+void __cyg_profile_func_exit(void*, void*)
     __attribute__((no_instrument_function));
 }
 namespace dftracer {
@@ -39,6 +39,7 @@ class Function {
   std::shared_ptr<DFTLogger> logger;
   Function() {
     DFTRACER_LOG_DEBUG("Function class intercepted", "");
+    printf("Function class initialized\n");
     logger = DFT_LOGGER_INIT();
   }
 
@@ -55,8 +56,8 @@ class Function {
     return instance;
   }
   bool is_active() { return !stop_trace; }
-  int enter_event(std::string &name);
-  int exit_event(std::string &name, TimeResolution &start);
+  int enter_event(std::string& name);
+  int exit_event(std::string& name, TimeResolution& start);
 };
 
 }  // namespace dftracer
