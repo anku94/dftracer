@@ -119,12 +119,12 @@ def add_enhanced_timing_to_graph(gm):
 
         with graph.inserting_before(node):
             graph.call_function(
-                record_enhanced_time_start,
+                record_time_start,
                 args=(op_name, node.op, str(node.target)),
             )
 
         with graph.inserting_after(node):
-            graph.call_function(record_enhanced_time_end, args=(op_name, node))
+            graph.call_function(record_time_end, args=(op_name, node))
 
     gm.recompile()
     # Print graph
@@ -132,8 +132,8 @@ def add_enhanced_timing_to_graph(gm):
     return gm
 
 
-def record_enhanced_time_start(op_name: str, op_type: str, target: str):
-    """Record enhanced start time for an operation"""
+def record_time_start(op_name: str, op_type: str, target: str):
+    """Record start time for an operation"""
     self = dft_fn.get_instance()
     timestamp_us = self.df_log.get_time()
 
@@ -150,12 +150,13 @@ def record_enhanced_time_start(op_name: str, op_type: str, target: str):
     return None
 
 
-def record_enhanced_time_end(op_name: str, node):
-    """Record enhanced end time for an operation"""
+def record_time_end(op_name: str, node):
+    """Record end time for an operation"""
     self = dft_fn.get_instance()
     if not self.call_stack:
         return None
 
+    # The start_info is at the top of the call stack because of the graph structure
     start_info = self.call_stack.pop()
     end_timestamp_us = self.df_log.get_time()
 
@@ -169,7 +170,6 @@ def record_enhanced_time_end(op_name: str, node):
         cat=self.name,
         timestamp_us=start_info["timestamp_us"],
         duration_us=duration_us,
-        # tensor_count=tensor_count_after - start_info['tensor_count_before'],
         grad_enabled=start_info["grad_enabled"],
     )
 
