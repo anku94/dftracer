@@ -22,7 +22,7 @@ To use the function decorators, they can be initialized in place or globally to 
 
 .. code-block:: python
 
-    from dftracer.dynamo import dyn_fn
+    dftracer.dynamo import dft_fn as dyn_fn
     from dftracer.logger import dftracer 
 
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)

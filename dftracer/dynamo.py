@@ -20,6 +20,7 @@ class TraceRecord:
     # TODO: add input and output shapes
 
 
+# function wrapper to enable model tracing using dynamo
 class dft_fn:
     __instance = None
 
@@ -66,6 +67,10 @@ class dft_fn:
         self.df_log.exit_event()
 
     def compile(self, f_py=None, autograd: bool = True):
+        """Used to compile torch.nn.Module and the forward functions
+        - Uses PyTorch Dynamo to add nodes before and after each operation
+        - The nodes are run before and after each operation -> providing detailed timing information
+        """
         if not (DFTRACER_ENABLE and self._enabled):
             # If DFTracer is not enabled, return the function as is
             return f_py
@@ -111,6 +116,7 @@ def add_enhanced_timing_to_graph(gm):
     # Insert timing calls before and after each operation
     nodes_to_instrument = []
     for node in graph.nodes:
+        # We do not want to profile placeholder nodes
         if node.op in ["call_module", "call_function", "call_method"]:
             nodes_to_instrument.append(node)
 
