@@ -32,4 +32,4 @@ if __name__ == "__main__":
     with open("dynamo.pfw", "rb") as f:
         data = f.read()
         var = b'"cat":"dynamo"' in data
-        assert var == True
+        assert var

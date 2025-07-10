@@ -27,7 +27,7 @@ class dft_fn:
         self._enabled = enabled
         if DFTRACER_ENABLE and self._enabled:
             if self.__instance is not None:
-                # We can only have one instance, sincce it relies on the call_stack to trace, reuse same dft_fn for multiple models
+                # We can only have one instance, since it relies on the call_stack to trace, reuse same dft_fn for multiple models
                 raise RuntimeError("dft_fn instance already exists")
             self.traces: List[TraceRecord] = []
             self.call_stack = []
@@ -72,7 +72,7 @@ class dft_fn:
         # Imports are here so torch isn't a dependency for dftracer
         import torch
         from functorch.compile import make_boxed_func
-        from torch._dynamo.backends.common import aot_autograd
+        from torch._functorch.aot_autograd import aot_autograd
 
         def _decorator(func):
 
