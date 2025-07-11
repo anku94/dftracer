@@ -8,6 +8,14 @@ import torch
 DFTRACER_ENABLE_ENV = "DFTRACER_ENABLE"
 DFTRACER_ENABLE = True if os.getenv(DFTRACER_ENABLE_ENV, "0") == "1" else False
 
+if DFTRACER_ENABLE:
+    try:
+        import torch
+        from functorch.compile import make_boxed_func
+        from torch._functorch.aot_autograd import aot_autograd
+    except ImportError:
+        raise RuntimeError("DFTracer requires PyTorch to be installed")
+
 
 # Data structure for trace records
 @dataclass
@@ -74,10 +82,6 @@ class dft_fn:
         if not (DFTRACER_ENABLE and self._enabled):
             # If DFTracer is not enabled, return the function as is
             return f_py
-        # Imports are here so torch isn't a dependency for dftracer
-        import torch
-        from functorch.compile import make_boxed_func
-        from torch._functorch.aot_autograd import aot_autograd
 
         def _decorator(func):
 

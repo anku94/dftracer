@@ -13,6 +13,13 @@ This section describes how to use DFTracer for profiling pytorch applications.
 
 -----
 
+Installing DFTracer with model tracing
+****************************************
+
+Install DFTracer with model tracing
+
+.. code-block:: bash
+    pip install pydftracer[dynamo]
 
 Function decorator style profiling
 ****************************************
