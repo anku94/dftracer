@@ -33,3 +33,4 @@ if __name__ == "__main__":
         data = f.read()
         var = b'"cat":"dynamo"' in data
         assert var
+        print("DFTracer model tracing is enabled and working")
