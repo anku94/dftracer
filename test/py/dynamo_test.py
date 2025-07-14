@@ -1,6 +1,11 @@
 from dftracer.dynamo import dft_fn
 from dftracer.logger import dftracer
 import torch
+import os
+
+# Delete log file if exists
+if os.path.exists("dynamo.pfw"):
+    os.remove("dynamo.pfw")
 
 df_logger = dftracer.initialize_log(f"dynamo.pfw", None, -1)
 dyn = dft_fn(name="dynamo", enabled=True)

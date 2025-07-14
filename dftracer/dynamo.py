@@ -12,7 +12,9 @@ if DFTRACER_ENABLE:
     try:
         import torch
         from functorch.compile import make_boxed_func
-        from torch._functorch.aot_autograd import aot_autograd
+
+        # Alpha feature from: https://docs.pytorch.org/docs/stable/torch.compiler_custom_backends.html#custom-backends-after-aotautograd
+        from torch._dynamo.backends.common import aot_autograd
     except ImportError:
         raise RuntimeError("DFTracer requires PyTorch to be installed")
 
