@@ -441,5 +441,5 @@ Example:
     profiler_collate.update(epoch=epoch)
     # This also works:
     ## this will update all children of ai.data.preprocess
-    ## inckuding the derived profiler such as `collate`
+    ## including the derived profiler such as `collate`
     ai.data.preprocess.update(epoch=epoch) 
