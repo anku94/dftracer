@@ -121,7 +121,7 @@ class _DFTracerAI:
                 @functools.wraps(f)
                 def wrapper(*args, **kwargs):
                     if enable:
-                        with self.profiler:
+                        with self:
                             return f(*args, **kwargs)
                     return f(*args, **kwargs)
 
@@ -262,20 +262,6 @@ class _DFTracerAI:
                 iter_val += 1
                 start = dftracer.get_instance().get_time()
 
-    def derive(self, name: str):
-        _name = name
-        if self.profiler._name:
-            _name = f"{self.profiler._name}.{name}"
-        return DFTracerAI(
-            cat=self.profiler._cat,
-            name=_name,
-            epoch=self.profiler._arguments.get("epoch"),
-            step=self.profiler._arguments.get("step"),
-            image_idx=self.profiler._arguments.get("image_idx"),
-            image_size=self.profiler._arguments.get("image_size"),
-            enable=self.profiler._enable,
-        )
-
 
 class DFTracerAI(_DFTracerAI):
     def __init__(
@@ -348,6 +334,23 @@ class DFTracerAI(_DFTracerAI):
         super().disable()
         for tracer in self._children.values():
             tracer.disable()
+
+    def derive(self, name: str) -> "DFTracerAI":
+        _name = f"{self.profiler._name}.{name}"
+        if _name in self._children:
+            return self._children[_name]
+        
+        child = DFTracerAI(
+            cat=self.profiler._cat,
+            name=_name,
+            epoch=self.profiler._arguments.get("epoch"),
+            step=self.profiler._arguments.get("step"),
+            image_idx=self.profiler._arguments.get("image_idx"),
+            image_size=self.profiler._arguments.get("image_size"),
+            enable=self.profiler._enable,
+        )
+        self._children[name] = child
+        return child
 
 
 # Enumerations
