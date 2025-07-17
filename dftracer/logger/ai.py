@@ -349,7 +349,7 @@ class DFTracerAI(_DFTracerAI):
             image_size=self.profiler._arguments.get("image_size"),
             enable=self.profiler._enable,
         )
-        self._children[name] = child
+        self._children[_name] = child
         return child
 
 
