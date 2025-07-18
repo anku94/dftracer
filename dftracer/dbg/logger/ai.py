@@ -33,6 +33,8 @@ INIT_NAME = "init"
 BLOCK_NAME = "block"
 ITER_NAME = "iter"
 CTX_SEPARATOR = "."
+ROOT_NAME = "ai_root"
+ROOT_CAT = "ai_root"
 
 def get_iter_block_name(name: str):
     return f"{name}{CTX_SEPARATOR}{BLOCK_NAME}" if not name.endswith(f"{CTX_SEPARATOR}{BLOCK_NAME}") else name
@@ -618,7 +620,7 @@ class _AI(DFTracerAI):
         image_size: Optional[Any] = None,
         enable: bool = True,
     ):
-        super().__init__(cat="root", name="root", epoch=epoch, step=step, image_idx=image_idx, image_size=image_size, enable=enable)
+        super().__init__(cat=ROOT_CAT, name=ROOT_NAME, epoch=epoch, step=step, image_idx=image_idx, image_size=image_size, enable=enable)
         self.compute = _Compute(epoch=epoch, step=step, image_idx=image_idx, image_size=image_size, enable=enable)
         self.data = _Data(epoch=epoch, step=step, image_idx=image_idx, image_size=image_size, enable=enable)
         self.dataloader = _DataLoader(epoch=epoch, step=step, image_idx=image_idx, image_size=image_size, enable=enable)
