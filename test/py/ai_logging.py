@@ -54,16 +54,19 @@ def get_args():
     return args
 
 
-def data_gen(args, io: IOHandler, data):
+def data_gen(args, io, data):
     for i in range(args.num_files):
         io.write(f"{args.data_dir}/npz/{i}-of-{args.num_files}.npy", data)
 
 
 @ai.dataloader.fetch
-def read_data(args, io: IOHandler, epoch):
+def read_data(args, io, epoch):
     for i in range(args.num_files):
         yield io.read(f"{args.data_dir}/npz/{i}-of-{args.num_files}.npy")
 
+@ai.data.preprocess.derive(name="collate")
+def collate(data):
+    return data
 
 @ai.device.transfer
 def transfer(data):
@@ -113,6 +116,7 @@ def train(args, hook):
             enumerate(read_data(args, io, epoch))
         ):
             hook.before_step()
+            data = collate(data)
             _ = transfer(data)
             _ = compute(data)
             hook.after_step()

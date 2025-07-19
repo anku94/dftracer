@@ -408,6 +408,9 @@ Derivation
 Since sometimes our logging needs to be more dynamic, you can derive new profilers from existing ones. 
 This is useful when you want to create a specialized profiler with the same context as an existing one.
 
+The derived profiler becomes a child of the original profiler, inheriting its context and metadata.
+All methods like ``update``, ``enable``, and ``disable`` work on the derived profiler as expected.
+
 Example:
 
 .. code-block:: python
@@ -433,3 +436,10 @@ Example:
     def collate_fn(batch):
         with profiler_collate:
             return collate(batch)
+
+    # Update
+    profiler_collate.update(epoch=epoch)
+    # This also works:
+    ## this will update all children of ai.data.preprocess
+    ## including the derived profiler such as `collate`
+    ai.data.preprocess.update(epoch=epoch) 
