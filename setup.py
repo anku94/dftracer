@@ -18,10 +18,9 @@ PLAT_TO_CMAKE = {
 }
 
 
-
-
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
+
     return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
 
 
@@ -44,11 +43,10 @@ class CMakeBuild(build_ext):
         # Must be in this form due to bug in .resolve() only fixed in Python 3.10+
         ext_fullpath = project_dir / self.get_ext_fullpath(ext.name)
         extdir = ext_fullpath.parent.parent.resolve()
-        sourcedir = extdir.parent.resolve()
         print(f"{extdir}")
-        install_prefix = f"{get_python_lib()}/dftracer"
+        install_prefix = f"{get_python_lib()}/dftracer_libs"
         if "DFT_LOGGER_USER" in os.environ:
-            install_prefix = f"{site.USER_SITE}/dftracer"
+            install_prefix = f"{site.USER_SITE}/dftracer_libs"
             # cmake_args += [f"-DUSER_INSTALL=ON"]
         if "DFTRACER_INSTALL_DIR" in os.environ:
             install_prefix = os.environ["DFTRACER_INSTALL_DIR"]
@@ -78,7 +76,9 @@ class CMakeBuild(build_ext):
 
         # Using this requires trailing slash for auto-detection & inclusion of
         # auxiliary "native" libs
-        build_type = os.environ.get("DFTRACER_BUILD_TYPE", "Release") # Setting this to release causes memory issues with GCC-13.
+        build_type = os.environ.get(
+            "DFTRACER_BUILD_TYPE", "Release"
+        )  # Setting this to release causes memory issues with GCC-13.
         cmake_args += [f"-DCMAKE_BUILD_TYPE={build_type}"]
         enable_ftracing = os.environ.get("DFTRACER_ENABLE_FTRACING", "OFF")
         cmake_args += [f"-DDFTRACER_ENABLE_FTRACING={enable_ftracing}"]
@@ -111,7 +111,7 @@ class CMakeBuild(build_ext):
 
         # CMake lets you override the generator - we need to check this.
         # Can be set with Conda-Build, for example.
-        cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
+        # cmake_generator = os.environ.get("CMAKE_GENERATOR", "")
 
         # Set Python_EXECUTABLE instead if you use PYBIND11_FINDPYTHON
         # EXAMPLE_VERSION_INFO shows you how to pass a value into the C++ code
@@ -177,7 +177,9 @@ setup(
     name="pydftracer",
     use_scm_version={"version_scheme": myversion_func},
     packages=(
-        find_namespace_packages(include=["dftracer", "dftracer.dbg", "dftracer.logger", "dfanalyzer"])
+        find_namespace_packages(
+            include=["dftracer_libs", "dftracer.dbg", "dftracer.logger", "dfanalyzer"]
+        )
     ),
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
