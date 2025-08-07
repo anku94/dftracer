@@ -54,7 +54,7 @@ class CMakeBuild(build_ext):
         python_site = extdir
 
         if is_wheel:
-            install_prefix = f"{extdir}/dftracer"
+            install_prefix = f"{extdir}/dftracer_libs"
 
         if "DFTRACER_PYTHON_SITE" in os.environ:
             python_site = os.environ["DFTRACER_PYTHON_SITE"]
