@@ -4,14 +4,13 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
             "name": "Cmake Debug Target",
             "type": "lldb",
             "request": "launch",
-            "program": "/usr/workspace/haridev/dftracer/build/bin/test_cpp",
+            "program": "${workspaceFolder}/build/bin/test_cpp",
             "args": [
-                "/usr/workspace/haridev/dftracer/build/test/data",
+                "${workspaceFolder}/build/test/data",
                 "1"
             ],
             "cwd": "${workspaceFolder}/build",

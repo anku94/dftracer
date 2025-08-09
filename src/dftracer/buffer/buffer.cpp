@@ -1,0 +1,109 @@
+#include <dftracer/buffer/buffer.h>
+template <>
+std::shared_ptr<dftracer::BufferManager>
+    dftracer::Singleton<dftracer::BufferManager>::instance = nullptr;
+template <>
+bool dftracer::Singleton<dftracer::BufferManager>::stop_creating_instances =
+    false;
+namespace dftracer {
+int BufferManager::initialize(const char* filename, HashType hostname_hash) {
+  auto conf =
+      dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
+  enable_compression = conf->compression;
+  buffer_size = conf->write_buffer_size;
+  buffer = (char*)malloc(buffer_size + 4096);
+  if (!buffer) {
+    DFTRACER_LOG_ERROR("DFTLogger.DFTLogger Failed to allocate buffer", "");
+  }
+  this->writer = dftracer::Singleton<dftracer::STDIOWriter>::get_instance();
+  this->writer->initialize(filename);
+  this->serializer = dftracer::Singleton<dftracer::JsonLines>::get_instance();
+  if (enable_compression) {
+    this->compressor =
+        dftracer::Singleton<dftracer::ZlibCompression>::get_instance();
+    this->compressor->initialize(buffer_size);
+  }
+  size_t size = this->serializer->initialize(buffer, hostname_hash);
+  if (enable_compression && size > 0) {
+    size = this->compressor->compress(buffer, size);
+  }
+  if (size > 0) {
+    size = this->writer->write(buffer, size);
+    buffer_pos += size;
+    if (buffer_pos >= buffer_size) {
+      buffer_pos = 0;
+    }
+  }
+  return 0;
+}
+
+int BufferManager::finalize() {
+  std::unique_lock lock(mtx);
+  if (buffer) {
+    size_t size = this->serializer->finalize(buffer + buffer_pos);
+    if (enable_compression && size > 0) {
+      size = this->compressor->compress(buffer + buffer_pos, size);
+    }
+    if (size > 0) {
+      size = this->writer->write(buffer + buffer_pos, size, true);
+      buffer_pos += size;
+    }
+    if (enable_compression) this->compressor->finalize();
+    this->writer->finalize();
+    free(buffer);
+    buffer = nullptr;
+    buffer_size = 0;
+    buffer_pos = 0;
+  }
+  return 0;
+}
+
+void BufferManager::log_data_event(
+    int index, ConstEventNameType event_name, ConstEventNameType category,
+    TimeResolution start_time, TimeResolution duration,
+    std::unordered_map<std::string, std::any>* metadata, ProcessID process_id,
+    ThreadID tid) {
+  std::unique_lock lock(mtx);
+  DFTRACER_LOG_DEBUG("DFTLogger.log_data_event %s", buffer);
+  size_t size = 0;
+  if (this->serializer) {
+    size =
+        this->serializer->data(buffer + buffer_pos, index, event_name, category,
+                               start_time, duration, metadata, process_id, tid);
+  }
+  if (size > 0 && this->enable_compression && this->compressor) {
+    size = this->compressor->compress(buffer + buffer_pos, size);
+  }
+  if (size > 0) {
+    size = this->writer->write(buffer + buffer_pos, size);
+    buffer_pos += size;
+    if (buffer_pos >= buffer_size) {
+      buffer_pos = 0;
+    }
+  }
+}
+
+void BufferManager::log_metadata_event(int index, ConstEventNameType name,
+                                       ConstEventNameType value,
+                                       ConstEventNameType ph,
+                                       ProcessID process_id, ThreadID tid,
+                                       bool is_string) {
+  std::unique_lock lock(mtx);
+  DFTRACER_LOG_DEBUG("DFTLogger.log_metadata_event %d", index);
+  size_t size = 0;
+  if (this->serializer) {
+    size = this->serializer->metadata(buffer + buffer_pos, index, name, value,
+                                      ph, process_id, tid, is_string);
+  }
+  if (size > 0 && this->enable_compression && this->compressor) {
+    size = this->compressor->compress(buffer + buffer_pos, size);
+  }
+  if (size > 0) {
+    size = this->writer->write(buffer, size);
+    buffer_pos += size;
+    if (buffer_pos >= buffer_size) {
+      buffer_pos = 0;
+    }
+  }
+}
+}  // namespace dftracer

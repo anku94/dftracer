@@ -1,0 +1,61 @@
+#pragma once
+#include <dftracer/core/logging.h>
+#include <dftracer/core/singleton.h>
+#include <dftracer/utils/configuration_manager.h>
+
+#include <cstdio>
+#include <cstring>
+#include <stdexcept>
+namespace dftracer {
+class STDIOWriter {
+ public:
+  STDIOWriter() : max_size_(0), fh_(nullptr) {}
+  void initialize(const char* filename) {
+    this->filename = filename;
+    auto conf =
+        dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
+    max_size_ = conf->write_buffer_size;
+    if (fh_ == nullptr) {
+      fh_ = fopen(filename, "ab+");
+      if (fh_ == nullptr) {
+        DFTRACER_LOG_ERROR("unable to create log file %s",
+                           filename);  // GCOVR_EXCL_LINE
+      } else {
+        setvbuf(fh_, NULL, _IOLBF, max_size_ + 4096);
+        DFTRACER_LOG_INFO("created log file %s", filename);
+      }
+    }
+  }
+
+  ~STDIOWriter() {}
+  void finalize() {
+    if (fh_ != nullptr) {
+      DFTRACER_LOG_INFO("Finalizing STDIOWriter", "");
+      fflush(fh_);
+      int status = fclose(fh_);
+      if (status != 0) {
+        DFTRACER_LOG_ERROR("unable to close log file %s",
+                           this->filename);  // GCOVR_EXCL_LINE
+      }
+      fh_ = nullptr;
+    }
+  }
+
+  // Write data to buffer, flush if necessary
+  size_t write(const char* data, size_t len, bool force = false) {
+    if (force || len >= max_size_) {
+      auto written = std::fwrite(data, 1, len, fh_);
+      if (written != len) {
+        DFTRACER_LOG_ERROR("unable to write log file %s",
+                           this->filename);  // GCOVR_EXCL_LINE
+      }
+    }
+    return len;
+  }
+
+ private:
+  const char* filename;
+  size_t max_size_;
+  FILE* fh_;
+};
+}  // namespace dftracer
