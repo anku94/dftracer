@@ -42,21 +42,7 @@ int main(int argc, char *argv[]) {
   FILE *fh = fopen(filename, "w+");
   fwrite("hello", sizeof("hello"), 1, fh);
   int pid = getpid();
-  int child_pid = fork();  // fork a duplicate process
-  printf("child pid %d\n", child_pid);
-  int child_ppid = getppid();  // get the child's parent pid
-
-  if (child_ppid == pid) {
-    // if the current process is a child of the main process
-    char *arr[] = {"ls", "-l", NULL};
-    execv("/bin/ls", arr);
-    if (init) {
-      DFTRACER_C_FINI();
-    }
-    exit(1);
-  }
-  int status = -1;
-  waitpid(child_pid, &status, WEXITED);
+  (void)
   fclose(fh);
   if (init) {
     DFTRACER_C_FINI();
