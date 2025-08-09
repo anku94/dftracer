@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     char *arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
     if (init) {
-    DFTRACER_C_FINI();
-    
+      DFTRACER_C_FINI();
+    }
     exit(1);
   }
   int status = -1;
@@ -61,5 +61,11 @@ int main(int argc, char *argv[]) {
   if (init) {
     DFTRACER_C_FINI();
   }
+  return 0;
+}
+
+// Add definition for bar() to fix the error
+int bar() {
+  // Dummy implementation
   return 0;
 }
