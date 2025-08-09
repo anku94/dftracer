@@ -50,6 +50,9 @@ int main(int argc, char *argv[]) {
     // if the current process is a child of the main process
     char *arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
+    if (init) {
+    DFTRACER_C_FINI();
+    
     exit(1);
   }
   int status = -1;
