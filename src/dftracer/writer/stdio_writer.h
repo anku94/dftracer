@@ -15,15 +15,13 @@ class STDIOWriter {
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
     max_size_ = conf->write_buffer_size;
+    fh_ = fopen(filename, "ab+");
     if (fh_ == nullptr) {
-      fh_ = fopen(filename, "ab+");
-      if (fh_ == nullptr) {
-        DFTRACER_LOG_ERROR("unable to create log file %s",
-                           filename);  // GCOVR_EXCL_LINE
-      } else {
-        setvbuf(fh_, NULL, _IOLBF, max_size_ + 4096);
-        DFTRACER_LOG_INFO("created log file %s", filename);
-      }
+      DFTRACER_LOG_ERROR("unable to create log file %s",
+                         filename);  // GCOVR_EXCL_LINE
+    } else {
+      setvbuf(fh_, NULL, _IOLBF, max_size_ + 4096);
+      DFTRACER_LOG_INFO("created log file %s", filename);
     }
   }
 

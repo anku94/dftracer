@@ -7,13 +7,15 @@ bool dftracer::Singleton<dftracer::BufferManager>::stop_creating_instances =
     false;
 namespace dftracer {
 int BufferManager::initialize(const char* filename, HashType hostname_hash) {
+  DFTRACER_LOG_DEBUG("BufferManager.initialize %s %d", filename, hostname_hash);
   auto conf =
       dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
   enable_compression = conf->compression;
   buffer_size = conf->write_buffer_size;
   buffer = (char*)malloc(buffer_size + 4096);
   if (!buffer) {
-    DFTRACER_LOG_ERROR("DFTLogger.DFTLogger Failed to allocate buffer", "");
+    DFTRACER_LOG_ERROR("BufferManager.BufferManager Failed to allocate buffer",
+                       "");
   }
   this->writer = dftracer::Singleton<dftracer::STDIOWriter>::get_instance();
   this->writer->initialize(filename);
@@ -64,7 +66,7 @@ void BufferManager::log_data_event(
     std::unordered_map<std::string, std::any>* metadata, ProcessID process_id,
     ThreadID tid) {
   std::unique_lock lock(mtx);
-  DFTRACER_LOG_DEBUG("DFTLogger.log_data_event %s", buffer);
+  DFTRACER_LOG_DEBUG("BufferManager.log_data_event %s", buffer);
   size_t size = 0;
   if (this->serializer) {
     size =
@@ -89,7 +91,7 @@ void BufferManager::log_metadata_event(int index, ConstEventNameType name,
                                        ProcessID process_id, ThreadID tid,
                                        bool is_string) {
   std::unique_lock lock(mtx);
-  DFTRACER_LOG_DEBUG("DFTLogger.log_metadata_event %d", index);
+  DFTRACER_LOG_DEBUG("BufferManager.log_metadata_event %d", index);
   size_t size = 0;
   if (this->serializer) {
     size = this->serializer->metadata(buffer + buffer_pos, index, name, value,

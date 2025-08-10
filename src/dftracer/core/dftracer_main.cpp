@@ -141,6 +141,36 @@ bool dftracer::DFTracerCore::finalize() {
   return false;
 }
 
+void dftracer::DFTracerCore::reinitialize() {
+  DFTRACER_LOG_DEBUG("DFTracerCore::reinitialize", "");
+  is_initialized = false;
+  std::string log_file_path = this->log_file;
+  size_t last_slash = log_file_path.find_last_of("/\\");
+  std::string folder = (last_slash != std::string::npos)
+                           ? log_file_path.substr(0, last_slash)
+                           : "";
+  std::string base_filename = (last_slash != std::string::npos)
+                                  ? log_file_path.substr(last_slash + 1)
+                                  : log_file_path;
+  size_t first_dash = base_filename.find('-');
+  std::string prefix = (first_dash != std::string::npos)
+                           ? base_filename.substr(0, first_dash)
+                           : base_filename;
+
+  std::string new_log_file;
+  if (!folder.empty()) {
+    new_log_file = folder + "/" + prefix;
+  } else {
+    new_log_file = prefix;
+  }
+  conf->log_file = new_log_file;
+  this->process_id = df_getpid();
+  DFTRACER_LOG_INFO(
+      "Reinitializing DFTracer with log_file %s data_dirs %s and process %d",
+      new_log_file.c_str(), this->data_dirs.c_str(), this->process_id);
+  initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
+}
+
 void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
                                         const char *_data_dirs,
                                         const int *_process_id) {
@@ -161,7 +191,7 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
       char exec_name[128] = "DEFAULT";
       char exec_cmd[DFT_PATH_MAX] = "DEFAULT";
       char cmd[128];
-      sprintf(cmd, "/proc/%lu/cmdline", df_getpid());
+      sprintf(cmd, "/proc/%d/cmdline", df_getpid());
       int fd = df_open(cmd, O_RDONLY);
       if (fd != -1) {
         ssize_t read_bytes = df_read(fd, exec_cmd, DFT_PATH_MAX);
@@ -195,17 +225,14 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
         exec_cmd[DFT_PATH_MAX - 1] = '\0';
         DFTRACER_LOG_DEBUG("Exec command line %s", exec_cmd);
       }
-      if (_process_id != nullptr && *_process_id != -1) {
-        this->process_id = *_process_id;
-      }
+      DFTRACER_LOG_INFO("Extracted process_name %s", exec_name);
       if (_log_file == nullptr) {
-        DFTRACER_LOG_INFO("Extracted process_name %s", exec_name);
         if (!conf->log_file.empty()) {
           char log_filename_str[DFT_PATH_MAX];
           char hostname[256] = "unknown";
           gethostname(hostname, sizeof(hostname));
           hostname[sizeof(hostname) - 1] = '\0';
-          snprintf(log_filename_str, sizeof(log_filename_str), "%s-%s-%lu",
+          snprintf(log_filename_str, sizeof(log_filename_str), "%s-%s-%d",
                    exec_name, hostname, this->process_id);
           char *log_file_hash = logger->get_hash(log_filename_str);
           DFTRACER_LOG_DEBUG("Conf has log file %s", conf->log_file.c_str());

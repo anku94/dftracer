@@ -5,6 +5,7 @@
 #ifndef DFTRACER_GENERIC_LOGGER_H
 #define DFTRACER_GENERIC_LOGGER_H
 
+#include <dftracer/buffer/buffer.h>
 #include <dftracer/core/constants.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/singleton.h>
@@ -16,18 +17,17 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include <dftracer/buffer/buffer.h>
 
 #include <any>
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <dftracer/dftracer_config.hpp>
-#include <string>
-#include <unordered_map>
 #include <mutex>
 #include <shared_mutex>
-#include <atomic>
+#include <string>
+#include <unordered_map>
 
 #include "core/enumeration.h"
 #include "utils/posix_internal.h"
@@ -106,7 +106,8 @@ class DFTLogger {
       hwloc_topology_load(topology);   // actual detection
 #endif
     }
-    buffer_manager = dftracer::Singleton<dftracer::BufferManager>::get_instance();
+    buffer_manager =
+        dftracer::Singleton<dftracer::BufferManager>::get_instance();
     this->is_init = true;
   }
   ~DFTLogger() {
@@ -145,7 +146,7 @@ class DFTLogger {
       this->buffer_manager->initialize(log_file.c_str(), hostname_hash);
       hostname_hash = hash_and_store(hostname, METADATA_NAME_HOSTNAME_HASH);
       char thread_name[128];
-      auto size = sprintf(thread_name, "%lu", this->process_id);
+      auto size = sprintf(thread_name, "%d", this->process_id);
       thread_name[size] = '\0';
       int current_index = this->enter_event();
       this->buffer_manager->log_metadata_event(
@@ -258,7 +259,7 @@ class DFTLogger {
 
   inline TimeResolution get_time() {
     DFTRACER_LOG_DEBUG("DFTLogger.get_time", "");
-    struct timeval tv {};
+    struct timeval tv{};
     gettimeofday(&tv, NULL);
     TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
     return t;
@@ -404,7 +405,8 @@ class DFTLogger {
       this->buffer_manager.reset();
       clean_stack();
     } else {
-      DFTRACER_LOG_WARN("DFTLogger.finalize buffer manager not initialized", "");
+      DFTRACER_LOG_WARN("DFTLogger.finalize buffer manager not initialized",
+                        "");
     }
   }
 };
