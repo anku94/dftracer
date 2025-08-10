@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
   int child_ppid = getppid();  // get the child's parent pid
 
   if (child_ppid == pid) {
+    DFTRACER_C_FINI();
+    DFTRACER_C_INIT(NULL, NULL, NULL);
     // if the current process is a child of the main process
     char *arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);

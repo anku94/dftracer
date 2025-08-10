@@ -52,7 +52,7 @@ dftracer::ConfigurationManager::ConfigurationManager()
       io(true),
       posix(true),
       stdio(true),
-      compression(true),
+      compression(false),
       trace_all_files(false),
       tids(true),
       bind_signals(false),
@@ -278,7 +278,7 @@ dftracer::ConfigurationManager::ConfigurationManager()
                        this->throw_error);
     const char *env_compression = getenv(DFTRACER_TRACE_COMPRESSION);
     if (env_compression != nullptr && strcmp(env_compression, "0") == 0) {
-      this->compression = true;
+      this->compression = false;
     }
     DFTRACER_LOG_DEBUG("ENV ConfigurationManager.compression %d",
                        this->compression);
