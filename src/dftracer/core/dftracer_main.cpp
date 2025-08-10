@@ -254,15 +254,10 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
         if (conf->compression) {
           extension += ".gz";
         }
-        // Remove existing .pfw or .pfw.gz extension if present
-        if (this->log_file.size() >= 7 &&
-            this->log_file.compare(this->log_file.size() - 7, 7, ".pfw.gz") ==
-                0) {
-          this->log_file = this->log_file.substr(0, this->log_file.size() - 7);
-        } else if (this->log_file.size() >= 4 &&
-                   this->log_file.compare(this->log_file.size() - 4, 4,
-                                          ".pfw") == 0) {
-          this->log_file = this->log_file.substr(0, this->log_file.size() - 4);
+        size_t ext_pos = this->log_file.find_last_of(".");
+        if (ext_pos != std::string::npos) {
+          this->log_file = this->log_file.substr(0, ext_pos);
+          this->log_file = this->log_file.substr(0, ext_pos);
         }
         this->log_file += extension;
       }
