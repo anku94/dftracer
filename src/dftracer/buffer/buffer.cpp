@@ -75,8 +75,8 @@ void BufferManager::log_data_event(
     size = this->compressor->compress(buffer + buffer_pos, size);
   }
   if (size > 0) {
-    size = this->writer->write(buffer + buffer_pos, size);
     buffer_pos += size;
+    size = this->writer->write(buffer, buffer_pos);
     if (buffer_pos >= buffer_size) {
       buffer_pos = 0;
     }
@@ -99,8 +99,8 @@ void BufferManager::log_metadata_event(int index, ConstEventNameType name,
     size = this->compressor->compress(buffer + buffer_pos, size);
   }
   if (size > 0) {
-    size = this->writer->write(buffer, size);
     buffer_pos += size;
+    size = this->writer->write(buffer, buffer_pos);
     if (buffer_pos >= buffer_size) {
       buffer_pos = 0;
     }
