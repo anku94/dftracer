@@ -249,6 +249,22 @@ void dftracer::DFTracerCore::initialize(bool _bind, const char *_log_file,
         }  // GCOV_EXCL_STOP
       } else {
         this->log_file = _log_file;
+        // Ensure log file extension matches compression setting
+        std::string extension = ".pfw";
+        if (conf->compression) {
+          extension += ".gz";
+        }
+        // Remove existing .pfw or .pfw.gz extension if present
+        if (this->log_file.size() >= 7 &&
+            this->log_file.compare(this->log_file.size() - 7, 7, ".pfw.gz") ==
+                0) {
+          this->log_file = this->log_file.substr(0, this->log_file.size() - 7);
+        } else if (this->log_file.size() >= 4 &&
+                   this->log_file.compare(this->log_file.size() - 4, 4,
+                                          ".pfw") == 0) {
+          this->log_file = this->log_file.substr(0, this->log_file.size() - 4);
+        }
+        this->log_file += extension;
       }
       DFTRACER_LOG_DEBUG("Setting log file to %s", this->log_file.c_str());
       logger->update_log_file(this->log_file, exec_name, exec_cmd,
