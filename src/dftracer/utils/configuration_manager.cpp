@@ -52,7 +52,7 @@ dftracer::ConfigurationManager::ConfigurationManager()
       io(true),
       posix(true),
       stdio(true),
-      compression(true),
+      compression(false),
       trace_all_files(false),
       tids(true),
       bind_signals(false),
