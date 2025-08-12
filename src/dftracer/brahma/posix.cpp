@@ -733,8 +733,6 @@ int brahma::POSIXDFTracer::fork() {
 
 void brahma::POSIXDFTracer::exit(int status) {
   BRAHMA_MAP_OR_FAIL(exit);
-  DFT_LOGGER_START_ALWAYS();
-  DFT_LOGGER_END();
   DFTRACER_LOG_INFO("Calling finalize from exit", "");
   dft_finalize(true);
   __real_exit(status);
@@ -742,10 +740,7 @@ void brahma::POSIXDFTracer::exit(int status) {
 
 void brahma::POSIXDFTracer::_exit(int status) {
   BRAHMA_MAP_OR_FAIL(_exit);
-  DFT_LOGGER_START_ALWAYS();
-  DFT_LOGGER_END();
   DFTRACER_LOG_INFO("Calling finalize from _exit", "");
   dft_finalize(true);
   __real__exit(status);
 }
-
