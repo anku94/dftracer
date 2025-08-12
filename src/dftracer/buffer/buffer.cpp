@@ -12,7 +12,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
       dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
   enable_compression = conf->compression;
   buffer_size = conf->write_buffer_size;
-  buffer = (char*)malloc(buffer_size + 4096);
+  buffer = (char*)malloc(buffer_size + 16*1024);
   if (!buffer) {
     DFTRACER_LOG_ERROR("BufferManager.BufferManager Failed to allocate buffer",
                        "");
@@ -40,15 +40,15 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
 }
 
 int BufferManager::finalize() {
-  std::unique_lock lock(mtx);
+  std::unique_lock<std::shared_mutex> lock(mtx);
   if (buffer) {
     size_t size = this->serializer->finalize(buffer + buffer_pos);
     if (enable_compression && size > 0) {
       size = this->compressor->compress(buffer + buffer_pos, size);
     }
     if (size > 0) {
-      size = this->writer->write(buffer + buffer_pos, size, true);
       buffer_pos += size;
+      size = this->writer->write(buffer, buffer_pos, true);
     }
     if (enable_compression) this->compressor->finalize();
     this->writer->finalize();
@@ -65,7 +65,7 @@ void BufferManager::log_data_event(
     TimeResolution start_time, TimeResolution duration,
     std::unordered_map<std::string, std::any>* metadata, ProcessID process_id,
     ThreadID tid) {
-  std::unique_lock lock(mtx);
+  std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_data_event %s", buffer);
   size_t size = 0;
   if (this->serializer) {
@@ -90,7 +90,7 @@ void BufferManager::log_metadata_event(int index, ConstEventNameType name,
                                        ConstEventNameType ph,
                                        ProcessID process_id, ThreadID tid,
                                        bool is_string) {
-  std::unique_lock lock(mtx);
+  std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_metadata_event %d", index);
   size_t size = 0;
   if (this->serializer) {

@@ -209,6 +209,11 @@ class POSIXDFTracer : public POSIX {
   int fork() override;
 
   void exit(int status) override;
+  
+  void _exit(int status) override;
+
+  void _fini(void) override;
+
 };
 
 }  // namespace brahma

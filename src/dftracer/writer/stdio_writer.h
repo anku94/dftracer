@@ -20,7 +20,7 @@ class STDIOWriter {
       DFTRACER_LOG_ERROR("unable to create log file %s",
                          filename);  // GCOVR_EXCL_LINE
     } else {
-      setvbuf(fh_, NULL, _IOLBF, max_size_ + 4096);
+      setvbuf(fh_, NULL, _IOLBF, max_size_ + 16*1024);
       DFTRACER_LOG_INFO("created log file %s", filename);
     }
   }

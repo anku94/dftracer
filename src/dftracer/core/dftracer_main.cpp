@@ -9,11 +9,11 @@ std::shared_ptr<dftracer::DFTracerCore>
 template <>
 bool dftracer::Singleton<dftracer::DFTracerCore>::stop_creating_instances =
     false;
-void dft_finalize() {
+void dft_finalize(bool force) {
   DFTRACER_LOG_DEBUG("DFTracerCore.dft_finalize", "");
   auto conf =
       dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-  if (conf->init_type == ProfileInitType::PROFILER_INIT_FUNCTION) {
+  if (force || conf->init_type == ProfileInitType::PROFILER_INIT_FUNCTION) {
     auto dftracer = DFTRACER_MAIN_SINGLETON(ProfilerStage::PROFILER_FINI,
                                             ProfileType::PROFILER_ANY);
     if (dftracer != nullptr) {

@@ -50,16 +50,16 @@ int main(int argc, char *argv[]) {
     // if the current process is a child of the main process
     char *arr[] = {"ls", "-l", NULL};
     execv("/bin/ls", arr);
-    if (init) {
-      DFTRACER_C_FINI();
-    }
-    exit(1);
+    // if (init) {
+    //   DFTRACER_C_FINI();
+    // }
+    return 0;
   }
   int status = -1;
   waitpid(child_pid, &status, WEXITED);
   fclose(fh);
   if (init) {
-    DFTRACER_C_FINI();
+    //DFTRACER_C_FINI();
   }
   return 0;
 }

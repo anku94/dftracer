@@ -9,6 +9,7 @@
 
 #include <any>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 namespace dftracer {
 class BufferManager {
@@ -41,7 +42,7 @@ class BufferManager {
   char* buffer;
   size_t buffer_size;
   size_t buffer_pos;
-  std::mutex mtx;
+  std::shared_mutex mtx;
 
   std::shared_ptr<dftracer::JsonLines> serializer;
   std::shared_ptr<dftracer::ZlibCompression> compressor;
