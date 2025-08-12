@@ -26,19 +26,18 @@ class STDIOWriter {
   }
 
   ~STDIOWriter() {}
-  void finalize() {
+  void finalize(int index) {
     if (fh_ != nullptr) {
       DFTRACER_LOG_INFO("Finalizing STDIOWriter", "");
       fflush(fh_);
       long file_size = 0;
       if (fh_ != nullptr) {
-        fflush(fh_);
         fseek(fh_, 0, SEEK_END);
         file_size = ftell(fh_);
         fseek(fh_, 0, SEEK_SET);
       }
       int status = fclose(fh_);
-      if (file_size == 0 && filename != nullptr) {
+      if ((index < 5 || file_size == 0) && filename != nullptr) {
         unlink(filename);
       }
       if (status != 0) {
@@ -51,7 +50,7 @@ class STDIOWriter {
 
   // Write data to buffer, flush if necessary
   size_t write(const char* data, size_t len, bool force = false) {
-    if (force || len >= max_size_) {
+    if (fh_ != nullptr && (force || len >= max_size_)) {
       // Use stdio file locking (flockfile/funlockfile) for FILE*
       // needed for fork and spawn cases to maintain consistency
       // Note this may not work with nfs and should typically either create a

@@ -400,7 +400,7 @@ class DFTLogger {
       this->enter_event();
       this->log("end", "dftracer", this->get_time(), 0, &meta);
       this->exit_event();
-      this->buffer_manager->finalize();
+      this->buffer_manager->finalize(index.load());
       DFTRACER_LOG_INFO("Released Logger", "");
       this->buffer_manager.reset();
       clean_stack();

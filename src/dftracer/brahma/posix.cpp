@@ -749,9 +749,3 @@ void brahma::POSIXDFTracer::_exit(int status) {
   __real__exit(status);
 }
 
-void brahma::POSIXDFTracer::_fini() {
-  DFT_LOGGER_START_ALWAYS();
-  DFT_LOGGER_END();
-  DFTRACER_LOG_INFO("Calling finalize from _fini", "");
-  dft_finalize(true);
-}

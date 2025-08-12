@@ -24,7 +24,7 @@ class BufferManager {
 
   int initialize(const char* filename, HashType hostname_hash);
 
-  int finalize();
+  int finalize(int index);
 
   void log_data_event(int index, ConstEventNameType event_name,
                       ConstEventNameType category, TimeResolution start_time,

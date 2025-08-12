@@ -23,7 +23,6 @@ if [[ "$num_posix_lines" -lt "$expected_lines" ]]; then
   for file in $(ls $files); do
     get_file_content "$file" 
   done
-  rm -r $1 2> /dev/null
   exit 1
 else
   for file in $(ls $files); do

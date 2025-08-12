@@ -80,6 +80,7 @@
             "program": "${workspaceFolder}/build/bin/test_c",
             "args": [
                 "${workspaceFolder}/build/test/data",
+                "1"
             ],
             "cwd": "${workspaceFolder}/build",
             "env": {
@@ -87,11 +88,10 @@
                 "DFTRACER_TRACE_COMPRESSION": "1",
                 "LD_LIBRARY_PATH": "${workspaceFolder}/build/lib",
                 "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
-                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_c_basic_only",
                 "DFTRACER_ENABLE": "1",
                 "DFTRACER_INC_METADATA": "1",
                 "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
-                "DFTRACER_INIT": "PRELOAD",
             }
         },
     ]
