@@ -38,5 +38,5 @@ else
   done
   
 fi
-#rm -r $1 2> /dev/null
+rm -r $1 2> /dev/null
 exit 0

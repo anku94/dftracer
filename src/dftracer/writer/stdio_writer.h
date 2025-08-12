@@ -20,7 +20,7 @@ class STDIOWriter {
       DFTRACER_LOG_ERROR("unable to create log file %s",
                          filename);  // GCOVR_EXCL_LINE
     } else {
-      setvbuf(fh_, NULL, _IOLBF, max_size_ + 16*1024);
+      setvbuf(fh_, NULL, _IOLBF, max_size_ + 16 * 1024);
       DFTRACER_LOG_INFO("created log file %s", filename);
     }
   }
@@ -30,7 +30,17 @@ class STDIOWriter {
     if (fh_ != nullptr) {
       DFTRACER_LOG_INFO("Finalizing STDIOWriter", "");
       fflush(fh_);
+      long file_size = 0;
+      if (fh_ != nullptr) {
+        fflush(fh_);
+        fseek(fh_, 0, SEEK_END);
+        file_size = ftell(fh_);
+        fseek(fh_, 0, SEEK_SET);
+      }
       int status = fclose(fh_);
+      if (file_size == 0 && filename != nullptr) {
+        unlink(filename);
+      }
       if (status != 0) {
         DFTRACER_LOG_ERROR("unable to close log file %s",
                            this->filename);  // GCOVR_EXCL_LINE
