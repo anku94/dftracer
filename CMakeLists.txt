@@ -354,7 +354,7 @@ target_sources(${PROJECT_NAME}_preload_dbg
         )
 target_sources(${PROJECT_NAME}_service
         PRIVATE
-        ${DFTRACER_PRELOAD_SRC}
+        ${DFTRACER_SERVER_SRC}
         )
 target_include_directories(${PROJECT_NAME}
         PRIVATE
