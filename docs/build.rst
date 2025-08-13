@@ -39,7 +39,7 @@ From PyPI (Recommended)
 
 .. code-block:: Bash
 
-    pip install pydftracer
+    pip install dftracer
 
 .. attention::
 
