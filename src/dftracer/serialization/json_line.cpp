@@ -21,6 +21,77 @@ size_t JsonLines::initialize(char *buffer, HashType hostname_hash) {
   buffer[1] = '\n';
   return 2;
 }
+
+bool JsonLines::convert_metadata(
+    std::unordered_map<std::string, std::any> *metadata,
+    std::stringstream &meta_stream) {
+  auto meta_size = metadata->size();
+  long unsigned int i = 0;
+  bool has_meta = false;
+  for (const auto &item : *metadata) {
+    has_meta = true;
+    if (item.second.type() == typeid(unsigned long long)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<unsigned long long>(item.second);
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(unsigned int)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<unsigned int>(item.second);
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(double)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<double>(item.second);
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(int)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<int>(item.second);
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(const char *)) {
+      meta_stream << "\"" << item.first << "\":\""
+                  << std::any_cast<const char *>(item.second) << "\"";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(std::string)) {
+      meta_stream << "\"" << item.first << "\":\""
+                  << std::any_cast<std::string>(item.second) << "\"";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(size_t)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<size_t>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(uint16_t)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<uint16_t>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+
+    } else if (item.second.type() == typeid(HashType)) {
+      meta_stream << "\"" << item.first << "\":\""
+                  << std::any_cast<HashType>(item.second) << "\"";
+      if (i < meta_size - 1) meta_stream << ",";
+
+    } else if (item.second.type() == typeid(long)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<long>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(ssize_t)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<ssize_t>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(off_t)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<off_t>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else if (item.second.type() == typeid(off64_t)) {
+      meta_stream << "\"" << item.first
+                  << "\":" << std::any_cast<off64_t>(item.second) << "";
+      if (i < meta_size - 1) meta_stream << ",";
+    } else {
+      DFTRACER_LOG_INFO("No conversion for type %s", item.first.c_str());
+    }
+    i++;
+  }
+  return has_meta;
+}
+
 size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
                        ConstEventNameType category, TimeResolution start_time,
                        TimeResolution duration,
@@ -29,63 +100,9 @@ size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
   size_t written_size = 0;
   if (include_metadata && metadata != nullptr) {
     std::stringstream all_stream;
-    bool has_meta = false;
     std::stringstream meta_stream;
-    auto meta_size = metadata->size();
-    long unsigned int i = 0;
-    for (const auto &item : *metadata) {
-      has_meta = true;
-      if (item.second.type() == typeid(unsigned int)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<unsigned int>(item.second);
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(int)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<int>(item.second);
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(const char *)) {
-        meta_stream << "\"" << item.first << "\":\""
-                    << std::any_cast<const char *>(item.second) << "\"";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(std::string)) {
-        meta_stream << "\"" << item.first << "\":\""
-                    << std::any_cast<std::string>(item.second) << "\"";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(size_t)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<size_t>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(uint16_t)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<uint16_t>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
+    bool has_meta = convert_metadata(metadata, meta_stream);
 
-      } else if (item.second.type() == typeid(HashType)) {
-        meta_stream << "\"" << item.first << "\":\""
-                    << std::any_cast<HashType>(item.second) << "\"";
-        if (i < meta_size - 1) meta_stream << ",";
-
-      } else if (item.second.type() == typeid(long)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<long>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(ssize_t)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<ssize_t>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(off_t)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<off_t>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(off64_t)) {
-        meta_stream << "\"" << item.first
-                    << "\":" << std::any_cast<off64_t>(item.second) << "";
-        if (i < meta_size - 1) meta_stream << ",";
-      } else {
-        DFTRACER_LOG_INFO("No conversion for type %s", item.first.c_str());
-      }
-      i++;
-    }
     if (has_meta) {
       all_stream << "," << meta_stream.str();
     }
@@ -106,6 +123,35 @@ size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
     if (strcmp(event_name, "end") == 0 && strcmp(category, "dftracer") == 0) {
       buffer[written_size++] = ']';
     }
+    buffer[written_size] = '\0';
+  }
+  DFTRACER_LOG_DEBUG("JsonLines.serialize %s", buffer);
+  return written_size;
+}
+
+size_t JsonLines::counter(char *buffer, int index,
+                          ConstEventNameType event_name,
+                          TimeResolution start_time,
+                          std::unordered_map<std::string, std::any> *metadata) {
+  size_t written_size = 0;
+  if (metadata != nullptr) {
+    std::stringstream all_stream;
+    std::stringstream meta_stream;
+    bool has_meta = convert_metadata(metadata, meta_stream);
+    if (has_meta) {
+      all_stream << meta_stream.str();
+    }
+    written_size = sprintf(
+        buffer,
+        R"({"name":"%s","ts":%llu,"ph":"C","pid":0,"tid":0,"args":{%s}})",
+        event_name, start_time, all_stream.str().c_str());
+  } else {
+    written_size =
+        sprintf(buffer, R"({"name":"%s","ts":%llu,"ph":"C","pid":0,"tid":0})",
+                event_name, start_time);
+  }
+  if (written_size > 0) {
+    buffer[written_size++] = '\n';
     buffer[written_size] = '\0';
   }
   DFTRACER_LOG_DEBUG("JsonLines.serialize %s", buffer);

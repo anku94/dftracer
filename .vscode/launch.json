@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "service",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/dftracer_service",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "env": {}
+        },
+        {
             "name": "testcpp",
             "type": "lldb",
             "request": "launch",

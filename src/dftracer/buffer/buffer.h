@@ -24,7 +24,7 @@ class BufferManager {
 
   int initialize(const char* filename, HashType hostname_hash);
 
-  int finalize(int index);
+  int finalize(int index, bool end_sym = false);
 
   void log_data_event(int index, ConstEventNameType event_name,
                       ConstEventNameType category, TimeResolution start_time,
@@ -36,6 +36,10 @@ class BufferManager {
                           ConstEventNameType value, ConstEventNameType ph,
                           ProcessID process_id, ThreadID tid,
                           bool is_string = true);
+
+  void log_counter_event(int index, ConstEventNameType name,
+                         TimeResolution start_time,
+                         std::unordered_map<std::string, std::any>* metadata);
 
  private:
   bool enable_compression;

@@ -94,7 +94,8 @@
         "variant": "cpp",
         "ranges": "cpp",
         "filesystem": "cpp",
-        "*.in": "cpp"
+        "*.in": "cpp",
+        "text_encoding": "cpp"
     },
     "editor.formatOnSave": true,
     "cSpell.words": [
