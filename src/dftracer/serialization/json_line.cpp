@@ -33,7 +33,7 @@ size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
     std::stringstream meta_stream;
     auto meta_size = metadata->size();
     long unsigned int i = 0;
-    for (auto item : *metadata) {
+    for (const auto &item : *metadata) {
       has_meta = true;
       if (item.second.type() == typeid(unsigned int)) {
         meta_stream << "\"" << item.first

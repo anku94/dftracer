@@ -1,4 +1,5 @@
-#pragma once
+#ifndef DFTRACER_SERIALIZATION_JSON_LINE_H
+#define DFTRACER_SERIALIZATION_JSON_LINE_H
 
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/typedef.h>
@@ -36,3 +37,5 @@ class JsonLines {
   }
 };
 }  // namespace dftracer
+
+#endif  // DFTRACER_SERIALIZATION_JSON_LINE_H
