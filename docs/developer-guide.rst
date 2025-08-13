@@ -42,7 +42,7 @@ Then, to run the the test, you need to run commands below:
    source <your venv>
 
    pip install -r test/py/requirements.txt
-   pushd build/temp*/*pydftracer*/
+   pushd build/temp*/*dftracer*/
    ctest -E dlio -VV --debug --stop-on-failure
    popd
 
