@@ -19,8 +19,10 @@
 
 namespace dftracer {
 
+// Main service class for DFTracer server
 class DFTracerService {
  public:
+  // Constructor: initializes configuration, logger, and buffer manager
   DFTracerService() : index{0}, interval(1000), running(false) {
     auto conf =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
@@ -34,17 +36,26 @@ class DFTracerService {
           "Configuration error: Please set the log_file prefix in the "
           "configuration.");
     } else {
-      // Get hostname and append to log_file
+      // Get hostname and append to log_file for uniqueness
       char hostname[256];
       if (gethostname(hostname, sizeof(hostname)) == 0) {
         conf->log_file += std::string("_") + hostname;
       } else {
         throw std::runtime_error("Failed to get hostname for log_file.");
       }
+      // Add file extension based on compression setting
       if (conf->compression) {
         conf->log_file += ".pfw.gz";
       } else {
         conf->log_file += ".pfw";
+      }
+      // Delete the file if it exists
+      if (FILE* f = fopen(conf->log_file.c_str(), "r")) {
+        fclose(f);
+        if (remove(conf->log_file.c_str()) != 0) {
+          throw std::runtime_error("Failed to delete existing log file: " +
+                                   conf->log_file);
+        }
       }
       logger = DFT_LOGGER_INIT();
       buffer_manager =
@@ -54,21 +65,24 @@ class DFTracerService {
     }
   }
 
+  // Destructor: ensures the service is stopped and resources are cleaned up
   ~DFTracerService() { stop(); }
 
+  // Starts the background worker thread for periodic metric collection
   void start() {
     running = true;
     worker = std::thread([this]() { this->progressEngine(); });
   }
 
+  // Stops the worker thread and finalizes the buffer manager
   void stop() {
     running = false;
     if (worker.joinable()) worker.join();
     this->buffer_manager->finalize(index.load(std::memory_order_relaxed), true);
     if (auto conf =
             dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-        conf && conf->compression) {
-      // Compress the log file using gzip
+        conf) {
+      // Compress the log file using gzip if enabled
       std::string cmd = "gzip -f " + conf->log_file;
       int ret = system(cmd.c_str());
       if (ret != 0) {
@@ -79,14 +93,15 @@ class DFTracerService {
   }
 
  private:
-  std::shared_ptr<DFTLogger> logger;
-  std::atomic<int> index;
-  unsigned int interval;
-  std::atomic<bool> running;
-  std::thread worker;
-  std::mutex data_mutex;
-  std::shared_ptr<dftracer::BufferManager> buffer_manager;
+  std::shared_ptr<DFTLogger> logger;  // Logger instance
+  std::atomic<int> index;             // Event index counter
+  unsigned int interval;      // Interval between metric collections (ms)
+  std::atomic<bool> running;  // Flag to control worker thread
+  std::thread worker;         // Worker thread for metric collection
+  std::mutex data_mutex;      // Mutex for thread safety (not used here)
+  std::shared_ptr<dftracer::BufferManager> buffer_manager;  // Buffer manager
 
+  // Main loop for periodic metric collection
   void progressEngine() {
     int step = 1;
     while (running) {
@@ -94,13 +109,14 @@ class DFTracerService {
       printf("Capturing step: %d, timestep: %lld, interval: %u ms\r", step,
              static_cast<long long>(time), interval);
       fflush(stdout);
-      getCpuMetrics(time);
-      getMemMetrics(time);
+      getCpuMetrics(time);  // Collect CPU metrics
+      getMemMetrics(time);  // Collect memory metrics
       std::this_thread::sleep_for(std::chrono::milliseconds(interval));
       ++step;
     }
   }
 
+  // Collects CPU metrics from /proc/stat and logs them
   void getCpuMetrics(TimeResolution time) {
     FILE* file = fopen("/proc/stat", "r");
     if (!file) return;
@@ -125,6 +141,7 @@ class DFTracerService {
         if (total_jiffies == 0) total_jiffies = 1;  // Avoid division by zero
 
         std::unordered_map<std::string, std::any> metadata;
+        // Store each metric as a percentage of total jiffies
         metadata["user_pct"] = 100.0 * metrics.user / total_jiffies;
         metadata["nice_pct"] = 100.0 * metrics.nice / total_jiffies;
         metadata["system_pct"] = 100.0 * metrics.system / total_jiffies;
@@ -140,11 +157,10 @@ class DFTracerService {
         buffer_manager->log_counter_event(current_index, "cpu", time,
                                           &metadata);
       } else if (str.find("cpu") == 0 && isdigit(str[3])) {
-        // Per-CPU metrics
+        // Per-CPU metrics (e.g., cpu0, cpu1, ...)
         CpuMetrics cpu;
         int cpu_index = -1;
-        // The values are in units of "jiffies" (typically 1/100 or 1/250 of a
-        // second, depending on system HZ)
+        // Parse per-CPU metrics
         sscanf(str.c_str(),
                "cpu%d %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
                &cpu_index, &cpu.user, &cpu.nice, &cpu.system, &cpu.idle,
@@ -186,6 +202,7 @@ class DFTracerService {
     fclose(file);
   }
 
+  // Collects memory metrics from /proc/meminfo and logs them
   void getMemMetrics(TimeResolution time) {
     auto current_index = this->index.fetch_add(1, std::memory_order_relaxed);
     FILE* file = fopen("/proc/meminfo", "r");

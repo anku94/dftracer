@@ -17,8 +17,8 @@ class STDIOWriter {
     max_size_ = conf->write_buffer_size;
     fh_ = fopen(filename, "ab+");
     if (fh_ == nullptr) {
-      DFTRACER_LOG_ERROR("unable to create log file %s",
-                         filename);  // GCOVR_EXCL_LINE
+      DFTRACER_LOG_ERROR("unable to create log file %s: errno=%d (%s)",
+                         filename, errno, strerror(errno));  // GCOVR_EXCL_LINE
     } else {
       setvbuf(fh_, NULL, _IOLBF, max_size_ + 16 * 1024);
       DFTRACER_LOG_INFO("created log file %s", filename);

@@ -274,15 +274,15 @@ class DFTLogger {
         int rank = 0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         int current_index = this->enter_event();
-        this->log_metadata_event(current_index, "rank",
-                                 std::to_string(rank).c_str(),
-                                 METADATA_NAME_PROCESS, this->process_id, tid);
+        this->buffer_manager->log_metadata_event(
+            current_index, "rank", std::to_string(rank).c_str(),
+            METADATA_NAME_PROCESS, this->process_id, tid);
         this->exit_event();
         char process_name[1024];
         auto size = sprintf(process_name, "Rank %d", rank);
         process_name[size] = '\0';
         current_index = this->enter_event();
-        this->log_metadata_event(
+        this->buffer_manager->log_metadata_event(
             current_index, process_name, METADATA_NAME_PROCESS_NAME,
             METADATA_NAME_PROCESS_NAME, this->process_id, tid);
         this->exit_event();

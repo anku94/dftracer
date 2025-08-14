@@ -80,6 +80,7 @@ ENV Variables supported
    DFTRACER_WRITE_BUFFER_SIZE       INT     Setup the buffering size for write optimization (default 0). Note: Disabled as
                                             this won't work for AI workloads which uses ``fork`` and ``spawn`` without a clear ``exit``.
                                             Also, it does not work for workloads which uses ``exec`` and rewrite process buffer state.
+   DFTRACER_TRACE_INTERVAL_MS       INT     Setup the interval for trace collection (default 1000).
    ================================ ======  ===========================================================================
 
 ----------------------------------------
