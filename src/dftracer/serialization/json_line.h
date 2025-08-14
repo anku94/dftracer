@@ -36,9 +36,10 @@ class JsonLines {
                  TimeResolution start_time,
                  std::unordered_map<std::string, std::any> *metadata);
   size_t finalize(char *buffer, bool end_sym = false) {
-    buffer[0] = ']';
-    buffer[1] = '\n';
-    if (end_sym) return 2;
+    if (end_sym) {
+      buffer[0] = ']';
+      return 1;
+    }
     return 0;
   }
 };

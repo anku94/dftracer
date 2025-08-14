@@ -26,7 +26,8 @@ class DFTracerService {
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
     conf->metadata = true;
     conf->enable = true;
-    conf->write_buffer_size = 10;
+    conf->compression = false;
+    conf->write_buffer_size = 16 * 1024 * 1024;
     interval = conf->trace_interval_ms;
     if (conf->log_file.empty()) {
       throw std::runtime_error(
@@ -64,6 +65,17 @@ class DFTracerService {
     running = false;
     if (worker.joinable()) worker.join();
     this->buffer_manager->finalize(index.load(std::memory_order_relaxed), true);
+    if (auto conf =
+            dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
+        conf && conf->compression) {
+      // Compress the log file using gzip
+      std::string cmd = "gzip -f " + conf->log_file;
+      int ret = system(cmd.c_str());
+      if (ret != 0) {
+        fprintf(stderr, "Warning: gzip compression failed for %s\n",
+                conf->log_file.c_str());
+      }
+    }
   }
 
  private:
@@ -76,11 +88,16 @@ class DFTracerService {
   std::shared_ptr<dftracer::BufferManager> buffer_manager;
 
   void progressEngine() {
+    int step = 1;
     while (running) {
       TimeResolution time = logger->get_time();
+      printf("Capturing step: %d, timestep: %lld, interval: %u ms\r", step,
+             static_cast<long long>(time), interval);
+      fflush(stdout);
       getCpuMetrics(time);
       getMemMetrics(time);
       std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+      ++step;
     }
   }
 
