@@ -52,12 +52,12 @@ dftracer::ConfigurationManager::ConfigurationManager()
       io(true),
       posix(true),
       stdio(true),
-      compression(false),
+      compression(true),
       trace_all_files(false),
       tids(true),
       bind_signals(false),
       throw_error(false),
-      write_buffer_size(16*1024*1024) {
+      write_buffer_size(16 * 1024 * 1024) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
