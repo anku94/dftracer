@@ -11,7 +11,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pydftracer"
+name = "dftracer"
 description = "I/O profiler for deep learning python apps. Specifically for dlio_benchmark."
 readme = "README.md"
 requires-python = '>=3.7'

@@ -19,7 +19,7 @@ Installing DFTracer with model tracing
 Install DFTracer with model tracing
 
 .. code-block:: bash
-    pip install pydftracer[dynamo]
+    pip install dftracer[dynamo]
 
 Function decorator style profiling
 ****************************************

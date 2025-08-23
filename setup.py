@@ -76,6 +76,8 @@ class CMakeBuild(build_ext):
         py_cmake_dir = py.get_cmake_dir()
         # py_cmake_dir = os.popen('python3 -c " import pybind11 as py; print(py.get_cmake_dir())"').read() #python("-c", "import pybind11 as py; print(py.get_cmake_dir())", output=str).strip()
 
+        if "DFTRACER_CMAKE_ARGS" in os.environ:
+            cmake_args += [item for item in os.environ["DFTRACER_CMAKE_ARGS"].split(";") if item]
         # Using this requires trailing slash for auto-detection & inclusion of
         # auxiliary "native" libs
         build_type = os.environ.get("DFTRACER_BUILD_TYPE", "Release") # Setting this to release causes memory issues with GCC-13.
@@ -174,7 +176,7 @@ class CMakeBuild(build_ext):
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
-    name="pydftracer",
+    name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
     packages=(
         find_namespace_packages(include=["dftracer", "dftracer.dbg", "dftracer.logger", "dfanalyzer"])
