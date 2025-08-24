@@ -13,7 +13,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   enable_compression = conf->compression;
   buffer_size = conf->write_buffer_size;
   if (buffer == nullptr) {
-    buffer = (char*)malloc(buffer_size + 16*1024);
+    buffer = (char*)malloc(buffer_size + 16 * 1024);
   }
   buffer_pos = 0;
   if (!buffer) {
@@ -42,10 +42,10 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   return 0;
 }
 
-int BufferManager::finalize(int index) {
+int BufferManager::finalize(int index, bool end_sym) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   if (buffer) {
-    size_t size = this->serializer->finalize(buffer + buffer_pos);
+    size_t size = this->serializer->finalize(buffer + buffer_pos, end_sym);
     if (enable_compression && size > 0) {
       size = this->compressor->compress(buffer + buffer_pos, size);
     }
@@ -75,6 +75,28 @@ void BufferManager::log_data_event(
     size =
         this->serializer->data(buffer + buffer_pos, index, event_name, category,
                                start_time, duration, metadata, process_id, tid);
+  }
+  if (size > 0 && this->enable_compression && this->compressor) {
+    size = this->compressor->compress(buffer + buffer_pos, size);
+  }
+  if (buffer_pos + size > 0) {
+    buffer_pos += size;
+    size = this->writer->write(buffer, buffer_pos);
+    if (buffer_pos >= buffer_size) {
+      buffer_pos = 0;
+    }
+  }
+}
+
+void BufferManager::log_counter_event(
+    int index, ConstEventNameType name, TimeResolution start_time,
+    std::unordered_map<std::string, std::any>* metadata) {
+  std::unique_lock<std::shared_mutex> lock(mtx);
+  DFTRACER_LOG_DEBUG("BufferManager.log_counter_event %d", index);
+  size_t size = 0;
+  if (this->serializer) {
+    size = this->serializer->counter(buffer + buffer_pos, index, name,
+                                     start_time, metadata);
   }
   if (size > 0 && this->enable_compression && this->compressor) {
     size = this->compressor->compress(buffer + buffer_pos, size);

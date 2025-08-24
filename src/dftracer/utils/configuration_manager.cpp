@@ -17,6 +17,7 @@
 #define DFT_YAML_TRACER_DATA_DIRS "data_dirs"
 #define DFT_YAML_TRACER_LOG_LEVEL "log_level"
 #define DFT_YAML_TRACER_COMPRESSION "compression"
+#define DFT_YAML_TRACER_INTERVAL "interval"
 // GOTCHA
 #define DFT_YAML_GOTCHA "gotcha"
 #define DFT_YAML_GOTCHA_PRIORITY "priority"
@@ -57,7 +58,8 @@ dftracer::ConfigurationManager::ConfigurationManager()
       tids(true),
       bind_signals(false),
       throw_error(false),
-      write_buffer_size(16 * 1024 * 1024) {
+      write_buffer_size(16 * 1024 * 1024),
+      trace_interval_ms(1000) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
@@ -142,6 +144,12 @@ dftracer::ConfigurationManager::ConfigurationManager()
       }
       DFTRACER_LOG_DEBUG("YAML ConfigurationManager.core_affinity %d",
                          this->core_affinity);
+      if (config[DFT_YAML_FEATURES][DFT_YAML_TRACER_INTERVAL]) {
+        this->trace_interval_ms =
+            config[DFT_YAML_FEATURES][DFT_YAML_TRACER_INTERVAL].as<size_t>();
+      }
+      DFTRACER_LOG_DEBUG("YAML ConfigurationManager.trace_interval_ms %d",
+                         this->trace_interval_ms);
       if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_IO] &&
           config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_IO_ENABLE]) {
         this->io = config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_IO]
@@ -199,6 +207,12 @@ dftracer::ConfigurationManager::ConfigurationManager()
   }
   DFTRACER_LOG_DEBUG("ENV ConfigurationManager.enable %d", this->enable);
   if (this->enable) {
+    const char *env_trace_interval = getenv(DFTRACER_TRACE_INTERVAL_MS);
+    if (env_trace_interval != nullptr) {
+      this->trace_interval_ms = atoi(env_trace_interval);
+    }
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.trace_interval_ms %d",
+                       this->trace_interval_ms);
     const char *env_init_type = getenv(DFTRACER_INIT);
     if (env_init_type != nullptr) {
       convert(env_init_type, this->init_type);

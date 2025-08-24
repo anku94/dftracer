@@ -17,6 +17,8 @@ namespace dftracer {
 class JsonLines {
   bool include_metadata;
   HashType hostname_hash;
+  bool convert_metadata(std::unordered_map<std::string, std::any> *metadata,
+                        std::stringstream &meta_stream);
 
  public:
   JsonLines();
@@ -30,9 +32,14 @@ class JsonLines {
                   ConstEventNameType value, ConstEventNameType ph,
                   ProcessID process_id, ThreadID thread_id,
                   bool is_string = true);
-  size_t finalize(char *buffer) {
-    buffer[0] = ']';
-    buffer[1] = '\n';
+  size_t counter(char *buffer, int index, ConstEventNameType name,
+                 TimeResolution start_time,
+                 std::unordered_map<std::string, std::any> *metadata);
+  size_t finalize(char *buffer, bool end_sym = false) {
+    if (end_sym) {
+      buffer[0] = ']';
+      return 1;
+    }
     return 0;
   }
 };

@@ -368,6 +368,22 @@ target_link_libraries(${PROJECT_NAME}_preload_dbg ${DEPENDENCY_LIB} ${PROJECT_NA
 
 set(DFTRACER_DEBUG_TARGETS ${PROJECT_NAME}_dbg ${PROJECT_NAME}_preload_dbg)
 
+
+set(DFTRACER_SERVER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/server/server.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/posix_internal.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/md5.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/df_logger.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/utils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/serialization/json_line.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/compression/zlib_compression.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/buffer/buffer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp)
+
+add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVER_SRC} )
+target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
+target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB} -lpthread)
+
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(py${PROJECT_NAME} ${DFTRACER_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer.cpp)
     target_compile_definitions(py${PROJECT_NAME} PRIVATE VERSION_INFO=${EXAMPLE_VERSION_INFO})
@@ -395,6 +411,10 @@ target_sources(${PROJECT_NAME}_preload
 target_sources(${PROJECT_NAME}_preload_dbg
         PRIVATE
         ${DFTRACER_PRELOAD_SRC}
+        )
+target_sources(${PROJECT_NAME}_service
+        PRIVATE
+        ${DFTRACER_SERVER_SRC}
         )
 target_include_directories(${PROJECT_NAME}
         PRIVATE
@@ -440,6 +460,13 @@ install(TARGETS ${PROJECT_NAME}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(
           TARGETS ${PROJECT_NAME}_dbg
+          EXPORT ${DFTRACER_EXPORTED_TARGETS}
+          LIBRARY DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
+          ARCHIVE DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
+          RUNTIME DESTINATION ${DFTRACER_INSTALL_BIN_DIR}
+  )
+  install(
+          TARGETS ${PROJECT_NAME}_service
           EXPORT ${DFTRACER_EXPORTED_TARGETS}
           LIBRARY DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
           ARCHIVE DESTINATION ${DFTRACER_INSTALL_LIB_DIR}
