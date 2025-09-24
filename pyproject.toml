@@ -135,4 +135,4 @@ dfanalyzer = "dfanalyzer"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "dftracer/libs/_version.py"
+write_to = "dftracer/lib/_version.py"

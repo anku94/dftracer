@@ -44,9 +44,9 @@ class CMakeBuild(build_ext):
         ext_fullpath = project_dir / self.get_ext_fullpath(ext.name)
         extdir = ext_fullpath.parent.parent.resolve()
         print(f"{extdir}")
-        install_prefix = f"{get_python_lib()}/dftracer/libs"
+        install_prefix = f"{get_python_lib()}/dftracer/lib"
         if "DFT_LOGGER_USER" in os.environ:
-            install_prefix = f"{site.USER_SITE}/dftracer/libs"
+            install_prefix = f"{site.USER_SITE}/dftracer/lib"
             # cmake_args += [f"-DUSER_INSTALL=ON"]
         if "DFTRACER_INSTALL_DIR" in os.environ:
             install_prefix = os.environ["DFTRACER_INSTALL_DIR"]
@@ -54,7 +54,7 @@ class CMakeBuild(build_ext):
         python_site = extdir
 
         if is_wheel:
-            install_prefix = f"{extdir}/dftracer/libs"
+            install_prefix = f"{extdir}/dftracer/lib"
 
         if "DFTRACER_PYTHON_SITE" in os.environ:
             python_site = os.environ["DFTRACER_PYTHON_SITE"]
@@ -176,7 +176,7 @@ class CMakeBuild(build_ext):
 setup(
     name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(find_namespace_packages(include=["dftracer.libs", "dfanalyzer"])),
+    packages=(find_namespace_packages(include=["dftracer.lib", "dfanalyzer"])),
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),
