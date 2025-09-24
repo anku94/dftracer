@@ -2,10 +2,10 @@
 
 [![Build and Test](https://github.com/LLNL/dftracer/actions/workflows/ci.yml/badge.svg)](https://github.com/LLNL/dftracer/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/dftracer/badge/?version=latest)](https://dftracer.readthedocs.io/en/latest/?badge=latest)
-![PyPI - Version](https://img.shields.io/pypi/v/pydftracer?label=PyPI)
-![PyPI - Wheel](https://img.shields.io/pypi/wheel/pydftracer?label=Wheel)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pydftracer?label=Python)
-![PyPI - License](https://img.shields.io/pypi/l/pydftracer?label=License)
+![PyPI - Version](https://img.shields.io/pypi/v/dftracer?label=PyPI)
+![PyPI - Wheel](https://img.shields.io/pypi/wheel/dftracer?label=Wheel)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/dftracer?label=Python)
+![PyPI - License](https://img.shields.io/pypi/l/dftracer?label=License)
 
 ## Overview
 
@@ -41,8 +41,8 @@ This method works for both native Python and Conda environments.
 ### From PyPI
 
 ```bash
-pip install pydftracer
-pip install pydftracer[dfanalyzer]
+pip install dftracer
+pip install dftracer[dfanalyzer]
 ```
 
 ### From Github
@@ -50,7 +50,7 @@ pip install pydftracer[dfanalyzer]
 ```bash
 DFTRACER_VERSION=develop
 pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}
-pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=pydftracer[dfanalyzer]
+pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=dftracer[dfanalyzer]
 ```
 
 ### From Source

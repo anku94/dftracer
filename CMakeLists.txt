@@ -14,7 +14,7 @@ set(DFTRACER_PACKAGE_VERSION_MINOR "${DFTRACER_VERSION_PATCH}")
 set(DFTRACER_PACKAGE_STRING "${DFTRACER_PACKAGE_NAME} ${DFTRACER_PACKAGE_VERSION}")
 set(DFTRACER_PACKAGE_TARNAME "${DFTRACER_PACKAGE}")
 
-set(DFTRACER_VERSION "(1, 0, 13)")
+set(DFTRACER_VERSION "(1, 0, 15)")
 
 project(dftracer LANGUAGES C CXX)
 
@@ -252,6 +252,15 @@ if (NOT DFTRACER_DISABLE_HWLOC)
     endif ()
 endif()
 
+find_package(ZLIB REQUIRED)
+if (ZLIB_FOUND)
+        message(STATUS "[DFTRACER] found zlib at ${ZLIB_INCLUDE_DIRS}")
+        include_directories(${ZLIB_INCLUDE_DIRS})
+        set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${ZLIB_LIBRARIES})
+else ()
+        message(FATAL_ERROR "-- [DFTRACER] zlib is needed for ${PROJECT_NAME} build")
+endif ()
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DFTRACER_PRELOAD_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/dftracer_preload.cpp)
@@ -267,7 +276,11 @@ set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/brahma/posix.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/md5.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/df_logger.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/utils.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/utils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/serialization/json_line.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/compression/zlib_compression.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/buffer/buffer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp)
 set(DFTRACER_CORE_PUBLIC_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/dftracer.h
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/core/constants.h
@@ -498,6 +511,22 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/script/dftracer_validate ${EXECUTABLE
 install(
         FILES
         ${EXECUTABLE_OUTPUT_PATH}/dftracer_validate
+        DESTINATION
+        bin
+)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/script/git_sparse_clone_interactive ${EXECUTABLE_OUTPUT_PATH}/git_sparse_clone_interactive COPYONLY)
+install(
+        FILES
+        ${EXECUTABLE_OUTPUT_PATH}/git_sparse_clone_interactive
+        DESTINATION
+        bin
+)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/script/git_sparse_push_interactive ${EXECUTABLE_OUTPUT_PATH}/git_sparse_push_interactive COPYONLY)
+install(
+        FILES
+        ${EXECUTABLE_OUTPUT_PATH}/git_sparse_push_interactive
         DESTINATION
         bin
 )

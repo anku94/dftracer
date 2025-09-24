@@ -5,13 +5,12 @@ requires = [
   "wheel",
   "ninja",
   "cmake>=3.12",
-  "zindex_py==0.0.5",
   "pybind11",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pydftracer"
+name = "dftracer"
 description = "I/O profiler for deep learning python apps. Specifically for dlio_benchmark."
 readme = "README.md"
 requires-python = '>=3.7'
@@ -51,7 +50,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "pybind11",
-  "zindex_py==0.0.5",
+  "zindex_py==0.0.6",
   "setuptools>=64",
   "setuptools-scm>=8",
 ]
@@ -132,6 +131,8 @@ script-files = [
   "script/dftracer_event_count",
   "script/dftracer_validate",
   "script/dftracer_pgzip",
+  "script/git_sparse_clone_interactive",
+  "script/git_sparse_push_interactive",
 ]
 
 [tool.setuptools.package-dir]
