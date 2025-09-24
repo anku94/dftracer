@@ -48,12 +48,7 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
 ]
 dynamic = ["version"]
-dependencies = [
-  "pybind11",
-  "zindex_py==0.0.6",
-  "setuptools>=64",
-  "setuptools-scm>=8",
-]
+dependencies = ["pybind11", "setuptools>=64", "setuptools-scm>=8"]
 
 [project.urls]
 Homepage = "https://github.com/LLNL/dftracer"
