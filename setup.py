@@ -44,9 +44,9 @@ class CMakeBuild(build_ext):
         ext_fullpath = project_dir / self.get_ext_fullpath(ext.name)
         extdir = ext_fullpath.parent.parent.resolve()
         print(f"{extdir}")
-        install_prefix = f"{get_python_lib()}/dftracer_libs"
+        install_prefix = f"{get_python_lib()}/dftracer/libs"
         if "DFT_LOGGER_USER" in os.environ:
-            install_prefix = f"{site.USER_SITE}/dftracer_libs"
+            install_prefix = f"{site.USER_SITE}/dftracer/libs"
             # cmake_args += [f"-DUSER_INSTALL=ON"]
         if "DFTRACER_INSTALL_DIR" in os.environ:
             install_prefix = os.environ["DFTRACER_INSTALL_DIR"]
@@ -54,7 +54,7 @@ class CMakeBuild(build_ext):
         python_site = extdir
 
         if is_wheel:
-            install_prefix = f"{extdir}/dftracer_libs"
+            install_prefix = f"{extdir}/dftracer/libs"
 
         if "DFTRACER_PYTHON_SITE" in os.environ:
             python_site = os.environ["DFTRACER_PYTHON_SITE"]

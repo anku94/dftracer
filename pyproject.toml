@@ -136,7 +136,6 @@ script-files = [
 ]
 
 [tool.setuptools.package-dir]
-dftracer_libs = "dftracer/libs"
 dfanalyzer = "dfanalyzer"
 
 [tool.setuptools_scm]
