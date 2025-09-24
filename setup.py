@@ -170,6 +170,23 @@ class CMakeBuild(build_ext):
         )
         subprocess.run(["cmake", "--install", "."], cwd=build_temp, check=True)
 
+        # Create symlinks for Python extensions in site-packages
+        from distutils.sysconfig import get_python_lib
+        import glob
+
+        site_packages = get_python_lib()
+
+        # Find pydftracer extension files
+        for pattern in ["pydftracer.*.so", "pydftracer_dbg.*.so"]:
+            matches = glob.glob(f"{install_prefix}/lib64/{pattern}")
+            for src in matches:
+                ext_name = os.path.basename(src)
+                dst = f"{site_packages}/{ext_name}"
+                if os.path.exists(dst) or os.path.islink(dst):
+                    os.remove(dst)
+                os.symlink(src, dst)
+                print(f"Created symlink: {dst} -> {src}")
+
 
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
