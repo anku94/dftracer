@@ -44,9 +44,9 @@ class CMakeBuild(build_ext):
         ext_fullpath = project_dir / self.get_ext_fullpath(ext.name)
         extdir = ext_fullpath.parent.parent.resolve()
         print(f"{extdir}")
-        install_prefix = f"{get_python_lib()}/dftracer/lib"
+        install_prefix = f"{get_python_lib()}/dftracer/libs"
         if "DFT_LOGGER_USER" in os.environ:
-            install_prefix = f"{site.USER_SITE}/dftracer/lib"
+            install_prefix = f"{site.USER_SITE}/dftracer/libs"
             # cmake_args += [f"-DUSER_INSTALL=ON"]
         if "DFTRACER_INSTALL_DIR" in os.environ:
             install_prefix = os.environ["DFTRACER_INSTALL_DIR"]
@@ -54,7 +54,7 @@ class CMakeBuild(build_ext):
         python_site = extdir
 
         if is_wheel:
-            install_prefix = f"{extdir}/dftracer/lib"
+            install_prefix = f"{extdir}/dftracer/libs"
 
         if "DFTRACER_PYTHON_SITE" in os.environ:
             python_site = os.environ["DFTRACER_PYTHON_SITE"]
@@ -170,30 +170,14 @@ class CMakeBuild(build_ext):
         )
         subprocess.run(["cmake", "--install", "."], cwd=build_temp, check=True)
 
-        # Create symlinks for Python extensions in site-packages
-        from distutils.sysconfig import get_python_lib
-        import glob
-
-        site_packages = get_python_lib()
-
-        # Find pydftracer extension files
-        for pattern in ["pydftracer.*.so", "pydftracer_dbg.*.so"]:
-            matches = glob.glob(f"{install_prefix}/lib64/{pattern}")
-            for src in matches:
-                ext_name = os.path.basename(src)
-                dst = f"{site_packages}/{ext_name}"
-                if os.path.exists(dst) or os.path.islink(dst):
-                    os.remove(dst)
-                os.symlink(src, dst)
-                print(f"Created symlink: {dst} -> {src}")
-
 
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
     name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(find_namespace_packages(include=["dftracer.lib", "dfanalyzer"])),
+    packages=(find_namespace_packages(include=["dftracer.libs", "dfanalyzer"])),
+    package_data={"dftracer.libs": ["__init__.py"]},
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),

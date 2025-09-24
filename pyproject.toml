@@ -10,7 +10,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dftracer"
+name = "dftracer_libs"
 description = "I/O profiler for deep learning python apps. Specifically for dlio_benchmark."
 readme = "README.md"
 requires-python = '>=3.7'
@@ -135,4 +135,4 @@ dfanalyzer = "dfanalyzer"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "dftracer/lib/_version.py"
+write_to = "dftracer/libs/_version.py"

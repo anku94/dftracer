@@ -1,4 +1,4 @@
-# dftracer.lib package
+# dftracer.libs package
 from importlib.metadata import version, PackageNotFoundError
 
 try:
