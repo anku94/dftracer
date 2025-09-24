@@ -136,9 +136,9 @@ script-files = [
 ]
 
 [tool.setuptools.package-dir]
-dftracer_libs = "dftracer_libs"
+dftracer_libs = "dftracer/libs"
 dfanalyzer = "dfanalyzer"
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "dftracer_libs/_version.py"
+write_to = "dftracer/libs/_version.py"

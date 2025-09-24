@@ -176,11 +176,7 @@ class CMakeBuild(build_ext):
 setup(
     name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(
-        find_namespace_packages(
-            include=["dftracer_libs", "dftracer.dbg", "dftracer.logger", "dfanalyzer"]
-        )
-    ),
+    packages=(find_namespace_packages(include=["dftracer.libs", "dfanalyzer"])),
     ext_modules=[
         CMakeExtension("dftracer.pydftracer"),
         CMakeExtension("dftracer.pydftracer_dbg"),
