@@ -86,14 +86,14 @@ int brahma::STDIODFTracer::fseek(FILE *fp, long offset, int whence) {
   return ret;
 }
 
-void brahma::STDIODFTracer::clearerr(FILE *fp)  {
+void brahma::STDIODFTracer::clearerr(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(clearerr);
   DFT_LOGGER_START(fp);
   __real_clearerr(fp);
   DFT_LOGGER_END();
 }
 
-int brahma::STDIODFTracer::feof(FILE *fp)  {
+int brahma::STDIODFTracer::feof(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(feof);
   DFT_LOGGER_START(fp);
   int ret = __real_feof(fp);
@@ -102,7 +102,7 @@ int brahma::STDIODFTracer::feof(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::ferror(FILE *fp)  {
+int brahma::STDIODFTracer::ferror(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(ferror);
   DFT_LOGGER_START(fp);
   int ret = __real_ferror(fp);
@@ -111,16 +111,7 @@ int brahma::STDIODFTracer::ferror(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::fflush(FILE *fp)  {
-  BRAHMA_MAP_OR_FAIL(fflush);
-  DFT_LOGGER_START(fp);
-  int ret = __real_fflush(fp);
-  DFT_LOGGER_UPDATE(ret);
-  DFT_LOGGER_END();
-  return ret;
-}
-
-int brahma::STDIODFTracer::fgetc(FILE *fp)  {
+int brahma::STDIODFTracer::fgetc(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fgetc);
   DFT_LOGGER_START(fp);
   int ret = __real_fgetc(fp);
@@ -129,7 +120,7 @@ int brahma::STDIODFTracer::fgetc(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::fgetpos(FILE *fp, fpos_t *pos)  {
+int brahma::STDIODFTracer::fgetpos(FILE *fp, fpos_t *pos) {
   BRAHMA_MAP_OR_FAIL(fgetpos);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(pos);
@@ -139,7 +130,7 @@ int brahma::STDIODFTracer::fgetpos(FILE *fp, fpos_t *pos)  {
   return ret;
 }
 
-char *brahma::STDIODFTracer::fgets(char *str, int num, FILE *fp)  {
+char *brahma::STDIODFTracer::fgets(char *str, int num, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fgets);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(num);
@@ -149,14 +140,14 @@ char *brahma::STDIODFTracer::fgets(char *str, int num, FILE *fp)  {
   return ret;
 }
 
-void brahma::STDIODFTracer::flockfile(FILE *fp)  {
+void brahma::STDIODFTracer::flockfile(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(flockfile);
   DFT_LOGGER_START(fp);
   __real_flockfile(fp);
   DFT_LOGGER_END();
 }
 
-int brahma::STDIODFTracer::fputc(int c, FILE *fp)  {
+int brahma::STDIODFTracer::fputc(int c, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fputc);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(c);
@@ -166,7 +157,7 @@ int brahma::STDIODFTracer::fputc(int c, FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::fputs(const char *str, FILE *fp)  {
+int brahma::STDIODFTracer::fputs(const char *str, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fputs);
   DFT_LOGGER_START(fp);
   int ret = __real_fputs(str, fp);
@@ -176,8 +167,7 @@ int brahma::STDIODFTracer::fputs(const char *str, FILE *fp)  {
 }
 
 FILE *brahma::STDIODFTracer::freopen(const char *path, const char *mode,
-                                     FILE *fp)  {
-                                      
+                                     FILE *fp) {
   BRAHMA_MAP_OR_FAIL(freopen);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(path);
@@ -188,7 +178,7 @@ FILE *brahma::STDIODFTracer::freopen(const char *path, const char *mode,
   return ret;
 }
 
-int brahma::STDIODFTracer::fsetpos(FILE *fp, const fpos_t *pos)  {
+int brahma::STDIODFTracer::fsetpos(FILE *fp, const fpos_t *pos) {
   BRAHMA_MAP_OR_FAIL(fsetpos);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(pos);
@@ -198,7 +188,7 @@ int brahma::STDIODFTracer::fsetpos(FILE *fp, const fpos_t *pos)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::ftrylockfile(FILE *fp)  {
+int brahma::STDIODFTracer::ftrylockfile(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(ftrylockfile);
   DFT_LOGGER_START(fp);
   int ret = __real_ftrylockfile(fp);
@@ -207,14 +197,14 @@ int brahma::STDIODFTracer::ftrylockfile(FILE *fp)  {
   return ret;
 }
 
-void brahma::STDIODFTracer::funlockfile(FILE *fp)  {
+void brahma::STDIODFTracer::funlockfile(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(funlockfile);
   DFT_LOGGER_START(fp);
   __real_funlockfile(fp);
   DFT_LOGGER_END();
 }
 
-int brahma::STDIODFTracer::getc(FILE *fp)  {
+int brahma::STDIODFTracer::getc(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(getc);
   DFT_LOGGER_START(fp);
   int ret = __real_getc(fp);
@@ -223,7 +213,7 @@ int brahma::STDIODFTracer::getc(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::getc_unlocked(FILE *fp)  {
+int brahma::STDIODFTracer::getc_unlocked(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(getc_unlocked);
   DFT_LOGGER_START(fp);
   int ret = __real_getc_unlocked(fp);
@@ -232,7 +222,7 @@ int brahma::STDIODFTracer::getc_unlocked(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::getw(FILE *fp)  {
+int brahma::STDIODFTracer::getw(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(getw);
   DFT_LOGGER_START(fp);
   int ret = __real_getw(fp);
@@ -241,7 +231,7 @@ int brahma::STDIODFTracer::getw(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::pclose(FILE *fp)  {
+int brahma::STDIODFTracer::pclose(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(pclose);
   DFT_LOGGER_START(fp);
   int ret = __real_pclose(fp);
@@ -250,7 +240,7 @@ int brahma::STDIODFTracer::pclose(FILE *fp)  {
   return ret;
 }
 
-int brahma::STDIODFTracer::putw(int w, FILE *fp)  {
+int brahma::STDIODFTracer::putw(int w, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(putw);
   DFT_LOGGER_START(fp);
   int ret = __real_putw(w, fp);
@@ -259,15 +249,14 @@ int brahma::STDIODFTracer::putw(int w, FILE *fp)  {
   return ret;
 }
 
-void brahma::STDIODFTracer::rewind(FILE *fp)  {
+void brahma::STDIODFTracer::rewind(FILE *fp) {
   BRAHMA_MAP_OR_FAIL(rewind);
   DFT_LOGGER_START(fp);
   __real_rewind(fp);
   DFT_LOGGER_END();
 }
 
-int brahma::STDIODFTracer::setvbuf(FILE *fp, char *buf, int mode,
-                                   size_t size)  {
+int brahma::STDIODFTracer::setvbuf(FILE *fp, char *buf, int mode, size_t size) {
   BRAHMA_MAP_OR_FAIL(setvbuf);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(mode);
@@ -278,7 +267,7 @@ int brahma::STDIODFTracer::setvbuf(FILE *fp, char *buf, int mode,
   return ret;
 }
 
-int brahma::STDIODFTracer::ungetc(int c, FILE *fp)  {
+int brahma::STDIODFTracer::ungetc(int c, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(ungetc);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(c);

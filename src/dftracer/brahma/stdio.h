@@ -102,8 +102,6 @@ class STDIODFTracer : public STDIO {
 
   int ferror(FILE *) override;
 
-  int fflush(FILE *) override;
-
   int fgetc(FILE *) override;
 
   int fgetpos(FILE *, fpos_t *) override;
