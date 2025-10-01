@@ -79,7 +79,7 @@ void dftracer::ChromeWriter::finalize(bool has_entry) {
     if (fh != nullptr) {
       DFTRACER_LOG_INFO("Profiler finalizing writer %s", filename.c_str());
       write_buffer_op(true);
-      // fflush(fh);
+      fflush(fh);
       int status = fclose(fh);
       if (status != 0) {
         DFTRACER_LOG_ERROR("unable to close log file %s for a+",

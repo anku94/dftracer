@@ -29,7 +29,7 @@ class STDIOWriter {
   void finalize(int index) {
     if (fh_ != nullptr) {
       DFTRACER_LOG_INFO("Finalizing STDIOWriter", "");
-      // fflush(fh_);
+      fflush(fh_);
       long file_size = 0;
       if (fh_ != nullptr) {
         fseek(fh_, 0, SEEK_END);
