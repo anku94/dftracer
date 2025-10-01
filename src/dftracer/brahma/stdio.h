@@ -6,9 +6,9 @@
 #define DFTRACER_STDIO_H
 
 #include <brahma/brahma.h>
+#include <dftracer/core/constants.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/typedef.h>
-#include <dftracer/core/constants.h>
 #include <dftracer/df_logger.h>
 #include <dftracer/utils/utils.h>
 #include <fcntl.h>
@@ -95,6 +95,50 @@ class STDIODFTracer : public STDIO {
   long ftell(FILE *fp) override;
 
   int fseek(FILE *fp, long offset, int whence) override;
+
+  void clearerr(FILE *) override;
+
+  int feof(FILE *) override;
+
+  int ferror(FILE *) override;
+
+  int fflush(FILE *) override;
+
+  int fgetc(FILE *) override;
+
+  int fgetpos(FILE *, fpos_t *) override;
+
+  char *fgets(char *, int, FILE *) override;
+
+  void flockfile(FILE *) override;
+
+  int fputc(int, FILE *) override;
+
+  int fputs(const char *, FILE *) override;
+
+  FILE *freopen(const char *, const char *, FILE *) override;
+
+  int fsetpos(FILE *, const fpos_t *) override;
+
+  int ftrylockfile(FILE *) override;
+
+  void funlockfile(FILE *) override;
+
+  int getc(FILE *) override;
+
+  int getc_unlocked(FILE *) override;
+
+  int getw(FILE *) override;
+
+  int pclose(FILE *) override;
+
+  int putw(int, FILE *) override;
+
+  void rewind(FILE *) override;
+
+  int setvbuf(FILE *, char *, int, size_t) override;
+
+  int ungetc(int, FILE *) override;
 };
 
 }  // namespace brahma
