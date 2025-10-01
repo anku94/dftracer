@@ -108,7 +108,7 @@ class DFTracerService {
       TimeResolution time = logger->get_time();
       printf("Capturing step: %d, timestep: %lld, interval: %u ms\r", step,
              static_cast<long long>(time), interval);
-      fflush(stdout);
+      // fflush(stdout);
       getCpuMetrics(time);  // Collect CPU metrics
       getMemMetrics(time);  // Collect memory metrics
       std::this_thread::sleep_for(std::chrono::milliseconds(interval));

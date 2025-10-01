@@ -177,6 +177,7 @@ int brahma::STDIODFTracer::fputs(const char *str, FILE *fp)  {
 
 FILE *brahma::STDIODFTracer::freopen(const char *path, const char *mode,
                                      FILE *fp)  {
+                                      
   BRAHMA_MAP_OR_FAIL(freopen);
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(path);
