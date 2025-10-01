@@ -151,7 +151,6 @@ void brahma::STDIODFTracer::flockfile(FILE *fp) {
 int brahma::STDIODFTracer::fputc(int c, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fputc);
   DFT_LOGGER_START(fp);
-  DFT_LOGGER_UPDATE(c);
   int ret = __real_fputc(c, fp);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
@@ -161,6 +160,8 @@ int brahma::STDIODFTracer::fputc(int c, FILE *fp) {
 int brahma::STDIODFTracer::fputs(const char *str, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fputs);
   DFT_LOGGER_START(fp);
+  size_t str_len = strlen(str);
+  DFT_LOGGER_UPDATE(str_len);
   int ret = __real_fputs(str, fp);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
@@ -271,7 +272,6 @@ int brahma::STDIODFTracer::setvbuf(FILE *fp, char *buf, int mode, size_t size) {
 int brahma::STDIODFTracer::ungetc(int c, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(ungetc);
   DFT_LOGGER_START(fp);
-  DFT_LOGGER_UPDATE(c);
   int ret = __real_ungetc(c, fp);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
