@@ -135,7 +135,8 @@ char *brahma::STDIODFTracer::fgets(char *str, int num, FILE *fp) {
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(num);
   char *ret = __real_fgets(str, num, fp);
-  DFT_LOGGER_UPDATE(ret);
+  size_t ret_len = strlen(ret);
+  DFT_LOGGER_UPDATE(ret_len);
   DFT_LOGGER_END();
   return ret;
 }
