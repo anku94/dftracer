@@ -135,8 +135,10 @@ char *brahma::STDIODFTracer::fgets(char *str, int num, FILE *fp) {
   DFT_LOGGER_START(fp);
   DFT_LOGGER_UPDATE(num);
   char *ret = __real_fgets(str, num, fp);
-  size_t ret_len = strlen(ret);
-  DFT_LOGGER_UPDATE(ret_len);
+  if (ret != nullptr) {
+    size_t ret_len = strlen(ret);
+    DFT_LOGGER_UPDATE(ret_len);
+  }
   DFT_LOGGER_END();
   return ret;
 }
@@ -160,8 +162,10 @@ int brahma::STDIODFTracer::fputc(int c, FILE *fp) {
 int brahma::STDIODFTracer::fputs(const char *str, FILE *fp) {
   BRAHMA_MAP_OR_FAIL(fputs);
   DFT_LOGGER_START(fp);
-  size_t str_len = strlen(str);
-  DFT_LOGGER_UPDATE(str_len);
+  if (str != nullptr) {
+    size_t str_len = strlen(str);
+    DFT_LOGGER_UPDATE(str_len);
+  }
   int ret = __real_fputs(str, fp);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
