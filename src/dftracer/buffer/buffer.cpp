@@ -16,8 +16,8 @@ void BufferManager::compress_and_write_if_needed(size_t size, bool force) {
     }
     if (size > 0) {
       size = this->writer->write(buffer, size, true);
-      buffer_pos = 0;
     }
+    buffer_pos = 0;
   } else {
     buffer_pos += size;
   }
@@ -27,6 +27,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   auto conf =
       dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
   enable_compression = conf->compression;
+  enable_aggregation = conf->enable_aggregation;
   buffer_size = conf->write_buffer_size;
   if (buffer == nullptr) {
     buffer = (char*)malloc(buffer_size + 16 * 1024);
@@ -39,6 +40,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   this->writer = dftracer::Singleton<dftracer::STDIOWriter>::get_instance();
   this->writer->initialize(filename);
   this->serializer = dftracer::Singleton<dftracer::JsonLines>::get_instance();
+  this->aggregator = dftracer::Singleton<dftracer::Aggregator>::get_instance();
   if (enable_compression) {
     this->compressor =
         dftracer::Singleton<dftracer::ZlibCompression>::get_instance();
@@ -49,11 +51,21 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   return 0;
 }
 
-int BufferManager::finalize(int index, bool end_sym) {
+int BufferManager::finalize(int index, ProcessID process_id, bool end_sym) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   if (buffer) {
-    size_t size = this->serializer->finalize(buffer + buffer_pos, end_sym);
-    compress_and_write_if_needed(size, true);
+    size_t size = 0;
+    if (enable_aggregation) {
+      auto data = dftracer::AggregatedDataType();
+      this->aggregator->get_previous_aggregations(data, true);
+      size = this->serializer->aggregated(buffer + buffer_pos, index,
+                                          process_id, data);
+      this->aggregator->finalize();
+    }
+    auto end_size =
+        this->serializer->finalize(buffer + buffer_pos + size, end_sym);
+    compress_and_write_if_needed(size + end_size, true);
+
     if (enable_compression) this->compressor->finalize();
     this->writer->finalize(index);
     free(buffer);
@@ -71,19 +83,34 @@ void BufferManager::log_data_event(
     ThreadID tid) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_data_event %d", index);
-  size_t size =
-      this->serializer->data(buffer + buffer_pos, index, event_name, category,
-                             start_time, duration, metadata, process_id, tid);
+  size_t size = 0;
+  if (enable_aggregation && strcmp(category, "dftracer") != 0) {
+    bool needs_writing =
+        this->aggregator->aggregate(index, event_name, category, start_time,
+                                    duration, metadata, process_id, tid);
+    if (needs_writing) {
+      auto data = dftracer::AggregatedDataType();
+      this->aggregator->get_previous_aggregations(data);
+      size = this->serializer->aggregated(buffer + buffer_pos, index,
+                                          process_id, data);
+    }
+  } else {
+    size =
+        this->serializer->data(buffer + buffer_pos, index, event_name, category,
+                               start_time, duration, metadata, process_id, tid);
+  }
   compress_and_write_if_needed(size);
 }
 
 void BufferManager::log_counter_event(
-    int index, ConstEventNameType name, TimeResolution start_time,
+    int index, ConstEventNameType name, ConstEventNameType category,
+    TimeResolution start_time, ProcessID process_id, ThreadID thread_id,
     std::unordered_map<std::string, std::any>* metadata) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_counter_event %d", index);
-  size_t size = this->serializer->counter(buffer + buffer_pos, index, name,
-                                          start_time, metadata);
+  size_t size =
+      this->serializer->counter(buffer + buffer_pos, index, name, category,
+                                start_time, process_id, thread_id, metadata);
   compress_and_write_if_needed(size);
 }
 

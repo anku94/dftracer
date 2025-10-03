@@ -1,6 +1,7 @@
 #ifndef DFTRACER_SERIALIZATION_JSON_LINE_H
 #define DFTRACER_SERIALIZATION_JSON_LINE_H
 
+#include <dftracer/aggregator/aggregator.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/typedef.h>
 #include <dftracer/utils/configuration_manager.h>
@@ -33,8 +34,11 @@ class JsonLines {
                   ProcessID process_id, ThreadID thread_id,
                   bool is_string = true);
   size_t counter(char *buffer, int index, ConstEventNameType name,
-                 TimeResolution start_time,
+                 ConstEventNameType category, TimeResolution start_time,
+                 ProcessID process_id, ThreadID thread_id,
                  std::unordered_map<std::string, std::any> *metadata);
+  size_t aggregated(char *buffer, int index, ProcessID process_id,
+                    dftracer::AggregatedDataType &data);
   size_t finalize(char *buffer, bool end_sym = false) {
     if (end_sym) {
       buffer[0] = ']';

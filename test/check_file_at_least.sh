@@ -5,17 +5,18 @@ files=$1
 get_file_content() {
   local file="$1"
   if [[ "${file##*.}" == "pfw" ]]; then
-    cat "$file"
+    grep cat "$file"
   elif [[ "${file##*.}" == "gz" || "${file##*.}" == "pfw.gz" ]]; then
-    gzip -dc "$file"
+    zgrep cat "$file"
   else
-    cat "$file"
+    grep cat "$file"
   fi
 }
 
-
+num_posix_lines=0
 for file in $(ls $files); do
-  num_posix_lines=$(get_file_content "$file" | wc -l 2> /dev/null)
+  num_posix_lines_local=$(get_file_content "$file" | wc -l 2> /dev/null)
+  num_posix_lines=$((num_posix_lines + num_posix_lines_local))
 done
 
 if [[ "$num_posix_lines" -lt "$expected_lines" ]]; then

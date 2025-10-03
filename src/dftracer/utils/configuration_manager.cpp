@@ -30,6 +30,7 @@
 #define DFT_YAML_FEATURES_IO_POSIX "posix"
 #define DFT_YAML_FEATURES_IO_STDIO "stdio"
 #define DFT_YAML_FEATURES_TID "tid"
+#define DFT_YAML_FEATURES_AGGREGATION "aggregation"
 // INTERNAL
 #define DFT_YAML_INTERNAL "internal"
 #define DFT_YAML_INTERNAL_SIGNALS "bind_signals"
@@ -59,7 +60,8 @@ dftracer::ConfigurationManager::ConfigurationManager()
       bind_signals(false),
       throw_error(false),
       write_buffer_size(16 * 1024 * 1024),
-      trace_interval_ms(1000) {
+      trace_interval_ms(1000),
+      enable_aggregation(false) {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
@@ -178,6 +180,10 @@ dftracer::ConfigurationManager::ConfigurationManager()
             config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_TID].as<bool>();
       }
       DFTRACER_LOG_DEBUG("YAML ConfigurationManager.tids %d", this->tids);
+      if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]) {
+        this->enable_aggregation =
+            config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION].as<bool>();
+      }
     }
     if (config[DFT_YAML_INTERNAL]) {
       if (config[DFT_YAML_INTERNAL][DFT_YAML_INTERNAL_SIGNALS]) {
@@ -284,6 +290,13 @@ dftracer::ConfigurationManager::ConfigurationManager()
       this->tids = false;
     }
     DFTRACER_LOG_DEBUG("ENV ConfigurationManager.tids %d", this->tids);
+    const char *env_enable_aggregation = getenv(DFTRACER_ENABLE_AGGREGATION);
+    if (env_enable_aggregation != nullptr &&
+        strcmp(env_enable_aggregation, "1") == 0) {
+      this->enable_aggregation = true;
+    }
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.enable_aggregation %d",
+                       this->enable_aggregation);
     const char *env_throw_error = getenv(DFTRACER_ERROR);
     if (env_throw_error != nullptr && strcmp(env_throw_error, "1") == 0) {
       this->throw_error = true;  // GCOVR_EXCL_LINE

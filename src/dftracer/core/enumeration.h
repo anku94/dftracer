@@ -23,6 +23,7 @@ enum ProfileInitType : uint8_t {
   PROFILER_INIT_LD_PRELOAD = 1,
   PROFILER_INIT_FUNCTION = 2
 };
+enum ValueType : uint8_t { VALUE_TYPE_NUMBER = 0, VALUE_TYPE_STRING = 1 };
 
 inline void convert(const std::string &s, ProfileInitType &type) {
   if (s == "PRELOAD") {

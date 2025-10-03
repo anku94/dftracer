@@ -1,6 +1,10 @@
-#pragma once
+#ifndef DFTRACER_COMPRESSION_ZLIB_COMPRESSION_H
+#define DFTRACER_COMPRESSION_ZLIB_COMPRESSION_H
 
 #include <dftracer/core/logging.h>
+//
+#include <stddef.h>  // Include this first to ensure size_t is defined
+//
 #include <zlib.h>
 
 #include <cstdint>
@@ -61,3 +65,5 @@ class ZlibCompression {
   z_stream strm_;
 };
 }  // namespace dftracer
+
+#endif  // DFTRACER_COMPRESSION_ZLIB_COMPRESSION_H
