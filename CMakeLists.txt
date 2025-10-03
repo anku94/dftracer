@@ -200,7 +200,7 @@ if (DFTRACER_INSTALL_DEPENDENCIES)
 else()
 # Required Dependencies
 # =============================================================================
-set(DEPENDENCY_LIB ${CMAKE_EXE_LINKER_FLAGS} $ENV{LDFLAGS})
+set(DEPENDENCY_LIB ${CMAKE_EXE_LINKER_FLAGS} $ENV{LDFLAGS}  -lpthread)
 set(DEPENDENCY_LIBRARY_DIRS "")
 
 find_package(cpp-logger 1.0.0 REQUIRED)
@@ -382,7 +382,7 @@ set(DFTRACER_SERVER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/server/server.c
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVER_SRC} )
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
-target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB} -lpthread)
+target_link_libraries(${PROJECT_NAME}_service ${DEPENDENCY_LIB})
 
 if (DFTRACER_BUILD_PYTHON_BINDINGS)
     pybind11_add_module(py${PROJECT_NAME} ${DFTRACER_CORE_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/pydftracer.cpp)

@@ -42,6 +42,7 @@ class BufferManager {
                          std::unordered_map<std::string, std::any>* metadata);
 
  private:
+  void compress_and_write_if_needed(size_t size, bool force = false);
   bool enable_compression;
   char* buffer;
   size_t buffer_size;
