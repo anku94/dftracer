@@ -6,6 +6,22 @@ template <>
 bool dftracer::Singleton<dftracer::BufferManager>::stop_creating_instances =
     false;
 namespace dftracer {
+
+void BufferManager::compress_and_write_if_needed(size_t size, bool force) {
+  if (force || buffer_pos + size > buffer_size) {
+    if (enable_compression) {
+      size = this->compressor->compress(buffer, buffer_pos + size);
+    } else {
+      size = buffer_pos + size;
+    }
+    if (size > 0) {
+      size = this->writer->write(buffer, size, true);
+      buffer_pos = 0;
+    }
+  } else {
+    buffer_pos += size;
+  }
+}
 int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   DFTRACER_LOG_DEBUG("BufferManager.initialize %s %d", filename, hostname_hash);
   auto conf =
@@ -29,16 +45,7 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
     this->compressor->initialize(buffer_size);
   }
   size_t size = this->serializer->initialize(buffer, hostname_hash);
-  if (enable_compression && size > 0) {
-    size = this->compressor->compress(buffer, size);
-  }
-  if (buffer_pos + size > 0) {
-    buffer_pos += size;
-    size = this->writer->write(buffer, size);
-    if (buffer_pos >= buffer_size) {
-      buffer_pos = 0;
-    }
-  }
+  compress_and_write_if_needed(size);
   return 0;
 }
 
@@ -46,13 +53,7 @@ int BufferManager::finalize(int index, bool end_sym) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   if (buffer) {
     size_t size = this->serializer->finalize(buffer + buffer_pos, end_sym);
-    if (enable_compression && size > 0) {
-      size = this->compressor->compress(buffer + buffer_pos, size);
-    }
-    if (buffer_pos + size > 0) {
-      buffer_pos += size;
-      size = this->writer->write(buffer, buffer_pos, true);
-    }
+    compress_and_write_if_needed(size, true);
     if (enable_compression) this->compressor->finalize();
     this->writer->finalize(index);
     free(buffer);
@@ -70,22 +71,10 @@ void BufferManager::log_data_event(
     ThreadID tid) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_data_event %d", index);
-  size_t size = 0;
-  if (this->serializer) {
-    size =
-        this->serializer->data(buffer + buffer_pos, index, event_name, category,
-                               start_time, duration, metadata, process_id, tid);
-  }
-  if (size > 0 && this->enable_compression && this->compressor) {
-    size = this->compressor->compress(buffer + buffer_pos, size);
-  }
-  if (buffer_pos + size > 0) {
-    buffer_pos += size;
-    size = this->writer->write(buffer, buffer_pos);
-    if (buffer_pos >= buffer_size) {
-      buffer_pos = 0;
-    }
-  }
+  size_t size =
+      this->serializer->data(buffer + buffer_pos, index, event_name, category,
+                             start_time, duration, metadata, process_id, tid);
+  compress_and_write_if_needed(size);
 }
 
 void BufferManager::log_counter_event(
@@ -93,21 +82,9 @@ void BufferManager::log_counter_event(
     std::unordered_map<std::string, std::any>* metadata) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_counter_event %d", index);
-  size_t size = 0;
-  if (this->serializer) {
-    size = this->serializer->counter(buffer + buffer_pos, index, name,
-                                     start_time, metadata);
-  }
-  if (size > 0 && this->enable_compression && this->compressor) {
-    size = this->compressor->compress(buffer + buffer_pos, size);
-  }
-  if (buffer_pos + size > 0) {
-    buffer_pos += size;
-    size = this->writer->write(buffer, buffer_pos);
-    if (buffer_pos >= buffer_size) {
-      buffer_pos = 0;
-    }
-  }
+  size_t size = this->serializer->counter(buffer + buffer_pos, index, name,
+                                          start_time, metadata);
+  compress_and_write_if_needed(size);
 }
 
 void BufferManager::log_metadata_event(int index, ConstEventNameType name,
@@ -117,20 +94,8 @@ void BufferManager::log_metadata_event(int index, ConstEventNameType name,
                                        bool is_string) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_metadata_event %d", index);
-  size_t size = 0;
-  if (this->serializer) {
-    size = this->serializer->metadata(buffer + buffer_pos, index, name, value,
-                                      ph, process_id, tid, is_string);
-  }
-  if (size > 0 && this->enable_compression && this->compressor) {
-    size = this->compressor->compress(buffer + buffer_pos, size);
-  }
-  if (buffer_pos + size > 0) {
-    buffer_pos += size;
-    size = this->writer->write(buffer, buffer_pos);
-    if (buffer_pos >= buffer_size) {
-      buffer_pos = 0;
-    }
-  }
+  size_t size = this->serializer->metadata(
+      buffer + buffer_pos, index, name, value, ph, process_id, tid, is_string);
+  compress_and_write_if_needed(size);
 }
 }  // namespace dftracer
