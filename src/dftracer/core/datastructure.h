@@ -1,6 +1,7 @@
 #ifndef DFTRACER_CORE_DATASTRUCTURE_H
 #define DFTRACER_CORE_DATASTRUCTURE_H
 
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/typedef.h>
@@ -18,7 +19,7 @@ struct AggregatedKey {
   std::string event_name;
   TimeResolution time_interval;
   ThreadID thread_id;
-  std::unordered_map<std::string, std::any> *additional_keys;
+  Metadata *additional_keys;
   AggregatedKey()
       : category(nullptr),
         event_name(nullptr),
@@ -28,7 +29,7 @@ struct AggregatedKey {
 
   AggregatedKey(ConstEventNameType category_, ConstEventNameType event_name_,
                 TimeResolution time_interval_, ThreadID thread_id_,
-                std::unordered_map<std::string, std::any> *metadata_)
+                Metadata *metadata_)
       : category(category_),
         event_name(event_name_),
         time_interval(time_interval_),

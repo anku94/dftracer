@@ -1,6 +1,7 @@
 #ifndef DFTRACER_SERVER
 #define DFTRACER_SERVER
 
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/singleton.h>
 #include <dftracer/df_logger.h>
@@ -140,7 +141,7 @@ class DFTracerService {
 
         if (total_jiffies == 0) total_jiffies = 1;  // Avoid division by zero
 
-        std::unordered_map<std::string, std::any> metadata;
+        Metadata metadata;
         // Store each metric as a percentage of total jiffies
         metadata["user_pct"] = 100.0 * metrics.user / total_jiffies;
         metadata["nice_pct"] = 100.0 * metrics.nice / total_jiffies;
@@ -184,7 +185,7 @@ class DFTracerService {
         double softirq_pct = 100.0 * cpu.softirq / total_jiffies;
         double steal_pct = 100.0 * cpu.steal / total_jiffies;
 
-        auto metadata = std::unordered_map<std::string, std::any>();
+        auto metadata = Metadata();
         metadata.emplace("user_pct", user_pct);
         metadata.emplace("system_pct", system_pct);
         metadata.emplace("idle_pct", idle_pct);
@@ -208,7 +209,7 @@ class DFTracerService {
     FILE* file = fopen("/proc/meminfo", "r");
     if (!file) return;
     char line[256];
-    auto metadata = std::unordered_map<std::string, std::any>();
+    auto metadata = Metadata();
     while (fgets(line, sizeof(line), file)) {
       char key[64];
       unsigned long long value = 0;

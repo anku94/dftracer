@@ -10,8 +10,8 @@ namespace dftracer {
 bool Aggregator::aggregate(int index, ConstEventNameType event_name,
                            ConstEventNameType category,
                            TimeResolution start_time, TimeResolution duration,
-                           std::unordered_map<std::string, std::any>* metadata,
-                           ProcessID process_id, ThreadID tid) {
+                           Metadata* metadata, ProcessID process_id,
+                           ThreadID tid) {
   bool is_first_local = is_first;
   is_first = false;
   std::unique_lock<std::shared_mutex> lock(mtx);

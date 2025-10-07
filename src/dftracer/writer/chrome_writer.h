@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <dftracer/core/constants.h>
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/typedef.h>
 #include <dftracer/utils/configuration_manager.h>
 #include <dftracer/utils/posix_internal.h>
@@ -44,8 +45,7 @@ class ChromeWriter {
   std::vector<char> buffer;
   void convert_json(int index, ConstEventNameType event_name,
                     ConstEventNameType category, TimeResolution start_time,
-                    TimeResolution duration,
-                    std::unordered_map<std::string, std::any> *metadata,
+                    TimeResolution duration, Metadata *metadata,
                     ProcessID process_id, ThreadID thread_id);
 
   void convert_json_metadata(int index, ConstEventNameType name,
@@ -105,9 +105,8 @@ class ChromeWriter {
 
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
-           TimeResolution duration,
-           std::unordered_map<std::string, std::any> *metadata,
-           ProcessID process_id, ThreadID tid);
+           TimeResolution duration, Metadata *metadata, ProcessID process_id,
+           ThreadID tid);
 
   void log_metadata(int index, ConstEventNameType name,
                     ConstEventNameType value, ConstEventNameType ph,

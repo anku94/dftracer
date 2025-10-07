@@ -28,7 +28,7 @@ void log_event(std::string name, std::string cat, TimeResolution start_time,
                std::unordered_map<std::string, std::string> &string_args,
                std::unordered_map<std::string, float> &float_args) {
   DFTRACER_LOG_DEBUG("py.log_event", "");
-  auto args = new std::unordered_map<std::string, std::any>();
+  auto args = new Metadata();
   for (auto item : int_args) args->insert_or_assign(item.first, item.second);
   for (auto item : string_args) args->insert_or_assign(item.first, item.second);
   for (auto item : float_args) args->insert_or_assign(item.first, item.second);

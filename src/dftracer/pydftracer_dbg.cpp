@@ -1,5 +1,6 @@
 
 #include <dftracer/core/constants.h>
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/dftracer_main.h>
 #include <dftracer/df_logger.h>
 #include <dftracer/utils/configuration_manager.h>

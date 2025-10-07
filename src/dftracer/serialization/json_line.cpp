@@ -22,9 +22,8 @@ size_t JsonLines::initialize(char *buffer, HashType hostname_hash) {
   return 2;
 }
 
-bool JsonLines::convert_metadata(
-    std::unordered_map<std::string, std::any> *metadata,
-    std::stringstream &meta_stream) {
+bool JsonLines::convert_metadata(Metadata *metadata,
+                                 std::stringstream &meta_stream) {
   auto meta_size = metadata->size();
   long unsigned int i = 0;
   bool has_meta = false;
@@ -95,8 +94,7 @@ bool JsonLines::convert_metadata(
 
 size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
                        ConstEventNameType category, TimeResolution start_time,
-                       TimeResolution duration,
-                       std::unordered_map<std::string, std::any> *metadata,
+                       TimeResolution duration, Metadata *metadata,
                        ProcessID process_id, ThreadID thread_id) {
   size_t written_size = 0;
   if (include_metadata && metadata != nullptr) {
@@ -131,8 +129,7 @@ size_t JsonLines::counter(char *buffer, int index,
                           ConstEventNameType event_name,
                           ConstEventNameType category,
                           TimeResolution start_time, ProcessID process_id,
-                          ThreadID thread_id,
-                          std::unordered_map<std::string, std::any> *metadata) {
+                          ThreadID thread_id, Metadata *metadata) {
   size_t written_size = 0;
   if (metadata != nullptr && !metadata->empty()) {
     std::stringstream all_stream;

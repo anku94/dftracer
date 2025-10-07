@@ -28,11 +28,9 @@ void finalize();
 /**
  * CPP Only
  */
+#include <dftracer/core/cpp_typedefs.h>
 
 // External Headers
-#include <any>
-#include <string>
-#include <unordered_map>
 
 // constants defined
 __attribute__((unused)) static ConstEventNameType CPP_LOG_CATEGORY = "CPP_APP";
@@ -43,7 +41,7 @@ class DFTracer {
   ConstEventNameType name;
   ConstEventNameType cat;
   TimeResolution start_time;
-  std::unordered_map<std::string, std::any> *metadata;
+  Metadata *metadata;
 
  public:
   DFTracer(ConstEventNameType _name, ConstEventNameType _cat,

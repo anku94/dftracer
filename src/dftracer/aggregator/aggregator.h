@@ -2,6 +2,7 @@
 #define DFTRACER_AGGREGATOR_H
 #include <dftracer/core/logging.h>
 //
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/datastructure.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/singleton.h>
@@ -47,8 +48,7 @@ class Aggregator {
   }
   bool aggregate(int index, ConstEventNameType event_name,
                  ConstEventNameType category, TimeResolution start_time,
-                 TimeResolution duration,
-                 std::unordered_map<std::string, std::any> *metadata,
+                 TimeResolution duration, Metadata *metadata,
                  ProcessID process_id, ThreadID tid);
   int get_previous_aggregations(AggregatedDataType &data, bool all = false);
 };

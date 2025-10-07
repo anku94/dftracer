@@ -3,6 +3,7 @@
 #include <dftracer/core/dftracer_main.h>
 #include <dftracer/df_logger.h>
 #include <dftracer/utils/configuration_manager.h>
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/utils/utils.h>
 #include <execinfo.h>
 #include <pybind11/pybind11.h>

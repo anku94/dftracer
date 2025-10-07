@@ -40,11 +40,11 @@ void dftracer::ChromeWriter::initialize(char *filename, bool throw_error,
   DFTRACER_LOG_DEBUG("ChromeWriter.initialize %s", this->filename.c_str());
 }
 
-void dftracer::ChromeWriter::log(
-    int index, ConstEventNameType event_name, ConstEventNameType category,
-    TimeResolution start_time, TimeResolution duration,
-    std::unordered_map<std::string, std::any> *metadata, ProcessID process_id,
-    ThreadID thread_id) {
+void dftracer::ChromeWriter::log(int index, ConstEventNameType event_name,
+                                 ConstEventNameType category,
+                                 TimeResolution start_time,
+                                 TimeResolution duration, Metadata *metadata,
+                                 ProcessID process_id, ThreadID thread_id) {
   DFTRACER_LOG_DEBUG("ChromeWriter.log", "");
 
   if (fh != nullptr) {
@@ -153,9 +153,8 @@ void dftracer::ChromeWriter::finalize(bool has_entry) {
 
 void dftracer::ChromeWriter::convert_json(
     int index, ConstEventNameType event_name, ConstEventNameType category,
-    TimeResolution start_time, TimeResolution duration,
-    std::unordered_map<std::string, std::any> *metadata, ProcessID process_id,
-    ThreadID thread_id) {
+    TimeResolution start_time, TimeResolution duration, Metadata *metadata,
+    ProcessID process_id, ThreadID thread_id) {
   size_t previous_index = 0;
   (void)previous_index;
   char is_first_char[3] = "  ";
