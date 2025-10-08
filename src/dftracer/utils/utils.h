@@ -11,8 +11,10 @@
 #include <execinfo.h>
 #include <limits.h>
 
+#include <any>
 #include <cstring>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -235,6 +237,14 @@ inline const char* is_traced_common(const char* filename, const char* func) {
   DFTRACER_LOG_WARN("Profiler Intercepted POSIX tracing file %s for func %s",
                     filename, func);
   return filename;
+}
+
+template <typename T>
+auto any_cast_and_apply(const std::any& value) -> std::optional<T> {
+  if (value.type() == typeid(T)) {
+    return std::any_cast<T>(value);
+  }
+  return std::nullopt;
 }
 
 #endif  // DFTRACER_UTILS_H

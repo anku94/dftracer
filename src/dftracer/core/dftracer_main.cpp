@@ -78,7 +78,8 @@ dftracer::DFTracerCore::DFTracerCore(ProfilerStage stage, ProfileType type,
 void dftracer::DFTracerCore::log(ConstEventNameType event_name,
                                  ConstEventNameType category,
                                  TimeResolution start_time,
-                                 TimeResolution duration, Metadata *metadata) {
+                                 TimeResolution duration,
+                                 dftracer::Metadata *metadata) {
   DFTRACER_LOG_DEBUG("DFTracerCore::log", "");
   if (this->is_initialized && conf->enable) {
     if (logger != nullptr) {

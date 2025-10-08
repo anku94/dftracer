@@ -79,7 +79,8 @@ int BufferManager::finalize(int index, ProcessID process_id, bool end_sym) {
 void BufferManager::log_data_event(int index, ConstEventNameType event_name,
                                    ConstEventNameType category,
                                    TimeResolution start_time,
-                                   TimeResolution duration, Metadata* metadata,
+                                   TimeResolution duration,
+                                   dftracer::Metadata* metadata,
                                    ProcessID process_id, ThreadID tid) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_data_event %d", index);
@@ -106,7 +107,7 @@ void BufferManager::log_counter_event(int index, ConstEventNameType name,
                                       ConstEventNameType category,
                                       TimeResolution start_time,
                                       ProcessID process_id, ThreadID thread_id,
-                                      Metadata* metadata) {
+                                      dftracer::Metadata* metadata) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_counter_event %d", index);
   size_t size =

@@ -1,6 +1,8 @@
+#include <dftracer/core/datastructure.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/singleton.h>
 #include <dftracer/serialization/json_line.h>
+#include <dftracer/utils/utils.h>
 
 #include <cstring>
 #include <memory>
@@ -29,72 +31,35 @@ bool JsonLines::convert_metadata(Metadata *metadata,
   bool has_meta = false;
   for (const auto &item : *metadata) {
     has_meta = true;
-    if (item.second.type() == typeid(unsigned long long)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<unsigned long long>(item.second);
+    DFTRACER_FOR_EACH_NUMERIC_TYPE(
+        DFTRACER_ANY_CAST_MACRO, item.second.second, {
+          meta_stream << "\"" << item.first << "\":" << res.value();
+          if (i < meta_size - 1) meta_stream << ",";
+          i++;
+          continue;
+        });
+    DFTRACER_FOR_EACH_STRING_TYPE(DFTRACER_ANY_CAST_MACRO, item.second.second, {
+      meta_stream << "\"" << item.first << "\":\"" << res.value() << "\"";
       if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(unsigned int)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<unsigned int>(item.second);
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(double)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<double>(item.second);
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(int)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<int>(item.second);
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(const char *)) {
-      meta_stream << "\"" << item.first << "\":\""
-                  << std::any_cast<const char *>(item.second) << "\"";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(std::string)) {
-      meta_stream << "\"" << item.first << "\":\""
-                  << std::any_cast<std::string>(item.second) << "\"";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(size_t)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<size_t>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(uint16_t)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<uint16_t>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-
-    } else if (item.second.type() == typeid(HashType)) {
-      meta_stream << "\"" << item.first << "\":\""
-                  << std::any_cast<HashType>(item.second) << "\"";
-      if (i < meta_size - 1) meta_stream << ",";
-
-    } else if (item.second.type() == typeid(long)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<long>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(ssize_t)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<ssize_t>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(off_t)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<off_t>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else if (item.second.type() == typeid(off64_t)) {
-      meta_stream << "\"" << item.first
-                  << "\":" << std::any_cast<off64_t>(item.second) << "";
-      if (i < meta_size - 1) meta_stream << ",";
-    } else {
-      DFTRACER_LOG_INFO("No conversion for type %s", item.first.c_str());
-    }
+      i++;
+      continue;
+    });
     i++;
   }
-  if (has_meta && metadata && metadata->size() > 0) delete (metadata);
+  if (meta_stream.str().size() > 0 && meta_stream.str().back() == ',') {
+    std::string temp = meta_stream.str();
+    temp.pop_back();
+    meta_stream.str("");
+    meta_stream.clear();
+    meta_stream << temp;
+  }
+  if (has_meta && metadata && meta_size > 0) delete (metadata);
   return has_meta;
 }
 
 size_t JsonLines::data(char *buffer, int index, ConstEventNameType event_name,
                        ConstEventNameType category, TimeResolution start_time,
-                       TimeResolution duration, Metadata *metadata,
+                       TimeResolution duration, dftracer::Metadata *metadata,
                        ProcessID process_id, ThreadID thread_id) {
   size_t written_size = 0;
   if (include_metadata && metadata != nullptr) {
@@ -129,7 +94,7 @@ size_t JsonLines::counter(char *buffer, int index,
                           ConstEventNameType event_name,
                           ConstEventNameType category,
                           TimeResolution start_time, ProcessID process_id,
-                          ThreadID thread_id, Metadata *metadata) {
+                          ThreadID thread_id, dftracer::Metadata *metadata) {
   size_t written_size = 0;
   if (metadata != nullptr && !metadata->empty()) {
     std::stringstream all_stream;
@@ -179,6 +144,11 @@ size_t JsonLines::metadata(char *buffer, int index, ConstEventNameType name,
   return written_size;
 }
 
+#define BASE_ANY_ID_MACRO(TYPE, VALUE, BLOCK) \
+  if (_id == typeid(TYPE)) {                  \
+    BLOCK;                                    \
+  }
+
 size_t JsonLines::aggregated(char *buffer, int index, ProcessID process_id,
                              dftracer::AggregatedDataType &data) {
   size_t total_written = 0;
@@ -196,36 +166,12 @@ size_t JsonLines::aggregated(char *buffer, int index, ProcessID process_id,
         const std::string &base_key = value_entry.first;
         BaseAggregatedValue *base_value = value_entry.second;
         if (!base_value) continue;
-        if (base_value->_id == typeid(double)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, double);
-        } else if (base_value->_id == typeid(unsigned long long)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, unsigned long long);
-        } else if (base_value->_id == typeid(unsigned int)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, unsigned int);
-        } else if (base_value->_id == typeid(int)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, int);
-        } else if (base_value->_id == typeid(size_t)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, size_t);
-        } else if (base_value->_id == typeid(uint16_t)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, uint16_t);
-        } else if (base_value->_id == typeid(HashType)) {
-          EXTRACT_AGGREGATOR_SIMPLE(base_value, HashType);
-        } else if (base_value->_id == typeid(long)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, long);
-        } else if (base_value->_id == typeid(ssize_t)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, ssize_t);
-        } else if (base_value->_id == typeid(off_t)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, off_t);
-        } else if (base_value->_id == typeid(off64_t)) {
-          EXTRACT_NUM_AGGREGATOR(base_value, off64_t);
-        } else if (base_value->_id == typeid(std::string)) {
-          EXTRACT_AGGREGATOR_SIMPLE(base_value, std::string);
-        } else if (base_value->_id == typeid(const char *)) {
-          EXTRACT_AGGREGATOR_SIMPLE(base_value, const char *);
-        } else {
-          DFTRACER_LOG_INFO("No conversion for type %s",
-                            base_value->_id.name());
-        }
+        // metadata->erase(base_key);
+        auto id = base_value->_id;
+        DFTRACER_FOR_EACH_NUMERIC_TYPE(DFTRACER_ANY_NUM_AGGREGATE_MACRO,
+                                       base_value, { continue; });
+        DFTRACER_FOR_EACH_STRING_TYPE(DFTRACER_ANY_GENERAL_AGGREGATE_MACRO,
+                                      base_value, { continue; });
       }
       total_written += counter(buffer + total_written, index,
                                key.event_name.c_str(), key.category.c_str(),

@@ -19,13 +19,12 @@ int brahma::POSIXDFTracer::open(const char *pathname, int flags, ...) {
     va_start(args, flags);
     int mode = va_arg(args, int);
     va_end(args);
-    DFT_LOGGER_UPDATE(mode)
+    DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
     ret = __real_open(pathname, flags, mode);
   } else {
     ret = __real_open(pathname, flags);
   }
-  DFT_LOGGER_UPDATE(flags)
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(flags, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   if (trace) this->trace(ret, fhash);
   return ret;
@@ -35,8 +34,7 @@ int brahma::POSIXDFTracer::close(int fd) {
   BRAHMA_MAP_OR_FAIL(close);
   DFT_LOGGER_START(fd);
   int ret = __real_close(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   if (trace) this->remove_trace(fd);
   return ret;
@@ -45,10 +43,9 @@ int brahma::POSIXDFTracer::close(int fd) {
 ssize_t brahma::POSIXDFTracer::write(int fd, const void *buf, size_t count) {
   BRAHMA_MAP_OR_FAIL(write);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
   ssize_t ret = __real_write(fd, buf, count);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -56,10 +53,9 @@ ssize_t brahma::POSIXDFTracer::write(int fd, const void *buf, size_t count) {
 ssize_t brahma::POSIXDFTracer::read(int fd, void *buf, size_t count) {
   BRAHMA_MAP_OR_FAIL(read);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
   ssize_t ret = __real_read(fd, buf, count);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -67,11 +63,10 @@ ssize_t brahma::POSIXDFTracer::read(int fd, void *buf, size_t count) {
 off_t brahma::POSIXDFTracer::lseek(int fd, off_t offset, int whence) {
   BRAHMA_MAP_OR_FAIL(lseek);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(offset);
-  DFT_LOGGER_UPDATE(whence);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(whence, MetadataType::MT_VALUE);
   ssize_t ret = __real_lseek(fd, offset, whence);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -79,9 +74,8 @@ off_t brahma::POSIXDFTracer::lseek(int fd, off_t offset, int whence) {
 int brahma::POSIXDFTracer::creat64(const char *path, mode_t mode) {
   BRAHMA_MAP_OR_FAIL(creat64);
   DFT_LOGGER_START(path);
-  DFT_LOGGER_UPDATE(mode);
+  DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
   int ret = __real_creat64(path, mode);
-  DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
   if (trace) this->trace(ret, fhash);
   return ret;
@@ -96,13 +90,12 @@ int brahma::POSIXDFTracer::open64(const char *path, int flags, ...) {
     va_start(args, flags);
     int mode = va_arg(args, int);
     va_end(args);
-    DFT_LOGGER_UPDATE(mode)
+    DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
     ret = __real_open64(path, flags, mode);
   } else {
     ret = __real_open64(path, flags);
   }
-  DFT_LOGGER_UPDATE(flags)
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(flags, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   if (trace) this->trace(ret, fhash);
   return ret;
@@ -111,11 +104,10 @@ int brahma::POSIXDFTracer::open64(const char *path, int flags, ...) {
 off64_t brahma::POSIXDFTracer::lseek64(int fd, off64_t offset, int whence) {
   BRAHMA_MAP_OR_FAIL(lseek64);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(offset);
-  DFT_LOGGER_UPDATE(whence);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(whence, MetadataType::MT_VALUE);
   off64_t ret = __real_lseek64(fd, offset, whence);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -124,11 +116,10 @@ ssize_t brahma::POSIXDFTracer::pread(int fd, void *buf, size_t count,
                                      off_t offset) {
   BRAHMA_MAP_OR_FAIL(pread);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
-  DFT_LOGGER_UPDATE(offset);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   ssize_t ret = __real_pread(fd, buf, count, offset);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -137,11 +128,10 @@ ssize_t brahma::POSIXDFTracer::pread64(int fd, void *buf, size_t count,
                                        off64_t offset) {
   BRAHMA_MAP_OR_FAIL(pread64);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
-  DFT_LOGGER_UPDATE(offset);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   ssize_t ret = __real_pread64(fd, buf, count, offset);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -150,11 +140,10 @@ ssize_t brahma::POSIXDFTracer::pwrite(int fd, const void *buf, size_t count,
                                       off64_t offset) {
   BRAHMA_MAP_OR_FAIL(pwrite);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
-  DFT_LOGGER_UPDATE(offset);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   ssize_t ret = __real_pwrite(fd, buf, count, offset);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -163,11 +152,10 @@ ssize_t brahma::POSIXDFTracer::pwrite64(int fd, const void *buf, size_t count,
                                         off64_t offset) {
   BRAHMA_MAP_OR_FAIL(pwrite64);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(count);
-  DFT_LOGGER_UPDATE(offset);
+  DFT_LOGGER_UPDATE_TYPE(count, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   ssize_t ret = __real_pwrite64(fd, buf, count, offset);
-  DFT_LOGGER_UPDATE(ret);
+  DFT_LOGGER_UPDATE_TYPE(ret, MetadataType::MT_VALUE);
   DFT_LOGGER_END();
   return ret;
 }
@@ -175,7 +163,6 @@ ssize_t brahma::POSIXDFTracer::pwrite64(int fd, const void *buf, size_t count,
 int brahma::POSIXDFTracer::fsync(int fd) {
   BRAHMA_MAP_OR_FAIL(fsync);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
   int ret = __real_fsync(fd);
   DFT_LOGGER_END();
   return ret;
@@ -184,7 +171,6 @@ int brahma::POSIXDFTracer::fsync(int fd) {
 int brahma::POSIXDFTracer::fdatasync(int fd) {
   BRAHMA_MAP_OR_FAIL(fdatasync);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
   int ret = __real_fdatasync(fd);
   DFT_LOGGER_END();
   return ret;
@@ -195,7 +181,7 @@ int brahma::POSIXDFTracer::openat(int dirfd, const char *pathname, int flags,
   BRAHMA_MAP_OR_FAIL(openat);
   DFT_LOGGER_START(dirfd);
   DFT_LOGGER_UPDATE(dirfd);
-  DFT_LOGGER_UPDATE(flags);
+  DFT_LOGGER_UPDATE_TYPE(flags, MetadataType::MT_VALUE);
   DFT_LOGGER_UPDATE_HASH(pathname);
   int ret = -1;
   if (flags & O_CREAT) {
@@ -203,12 +189,11 @@ int brahma::POSIXDFTracer::openat(int dirfd, const char *pathname, int flags,
     va_start(args, flags);
     int mode = va_arg(args, int);
     va_end(args);
-    DFT_LOGGER_UPDATE(mode);
+    DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
     ret = __real_openat(dirfd, pathname, flags, mode);
   } else {
     ret = __real_openat(dirfd, pathname, flags);
   }
-  DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
   if (trace) this->trace(ret, fhash);
   return ret;
@@ -218,10 +203,9 @@ void *brahma::POSIXDFTracer::mmap(void *addr, size_t length, int prot,
                                   int flags, int fd, off_t offset) {
   BRAHMA_MAP_OR_FAIL(mmap);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(length);
-  DFT_LOGGER_UPDATE(flags);
-  DFT_LOGGER_UPDATE(offset);
-  DFT_LOGGER_UPDATE(fd);
+  DFT_LOGGER_UPDATE_TYPE(length, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(flags, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   void *ret = __real_mmap(addr, length, prot, flags, fd, offset);
   DFT_LOGGER_END();
   return ret;
@@ -231,10 +215,9 @@ void *brahma::POSIXDFTracer::mmap64(void *addr, size_t length, int prot,
                                     int flags, int fd, off64_t offset) {
   BRAHMA_MAP_OR_FAIL(mmap64);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(length);
-  DFT_LOGGER_UPDATE(flags);
-  DFT_LOGGER_UPDATE(offset);
-  DFT_LOGGER_UPDATE(fd);
+  DFT_LOGGER_UPDATE_TYPE(length, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(flags, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(offset, MetadataType::MT_VALUE);
   void *ret = __real_mmap64(addr, length, prot, flags, fd, offset);
   DFT_LOGGER_END();
   return ret;
@@ -279,7 +262,6 @@ int brahma::POSIXDFTracer::__lxstat64(int vers, const char *path,
 int brahma::POSIXDFTracer::__fxstat(int vers, int fd, struct stat *buf) {
   BRAHMA_MAP_OR_FAIL(__fxstat);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
   int ret = __real___fxstat(vers, fd, buf);
   DFT_LOGGER_END();
   return ret;
@@ -288,7 +270,6 @@ int brahma::POSIXDFTracer::__fxstat(int vers, int fd, struct stat *buf) {
 int brahma::POSIXDFTracer::__fxstat64(int vers, int fd, struct stat64 *buf) {
   BRAHMA_MAP_OR_FAIL(__fxstat64);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
   int ret = __real___fxstat64(vers, fd, buf);
   DFT_LOGGER_END();
   return ret;
@@ -297,7 +278,7 @@ int brahma::POSIXDFTracer::__fxstat64(int vers, int fd, struct stat64 *buf) {
 int brahma::POSIXDFTracer::mkdir(const char *pathname, mode_t mode) {
   BRAHMA_MAP_OR_FAIL(mkdir);
   DFT_LOGGER_START(pathname);
-  DFT_LOGGER_UPDATE(mode);
+  DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
   int ret = __real_mkdir(pathname, mode);
   DFT_LOGGER_END();
   return ret;
@@ -335,7 +316,7 @@ int brahma::POSIXDFTracer::linkat(int fd1, const char *path1, int fd2,
   DFT_LOGGER_UPDATE(fd1);
   DFT_LOGGER_UPDATE(fd2);
   DFT_LOGGER_UPDATE_HASH(path2);
-  DFT_LOGGER_UPDATE(flag);
+  DFT_LOGGER_UPDATE_TYPE(flag, MetadataType::MT_VALUE);
   int ret = __real_linkat(fd1, path1, fd2, path2, flag);
   DFT_LOGGER_UPDATE(ret);
   DFT_LOGGER_END();
@@ -374,7 +355,7 @@ ssize_t brahma::POSIXDFTracer::readlink(const char *path, char *buf,
                                         size_t bufsize) {
   BRAHMA_MAP_OR_FAIL(readlink);
   DFT_LOGGER_START(path);
-  DFT_LOGGER_UPDATE(bufsize);
+  DFT_LOGGER_UPDATE_TYPE(bufsize, MetadataType::MT_VALUE);
   ssize_t ret = __real_readlink(path, buf, bufsize);
   DFT_LOGGER_END();
   return ret;
@@ -386,15 +367,13 @@ ssize_t brahma::POSIXDFTracer::readlinkat(int fd, const char *path, char *buf,
   ssize_t ret;
   if (fd != AT_FDCWD) {
     DFT_LOGGER_START(fd);
-    DFT_LOGGER_UPDATE(fd);
     DFT_LOGGER_UPDATE(path);
-    DFT_LOGGER_UPDATE(bufsize);
+    DFT_LOGGER_UPDATE_TYPE(bufsize, MetadataType::MT_VALUE);
     ret = __real_readlinkat(fd, path, buf, bufsize);
     DFT_LOGGER_END();
   } else {
     DFT_LOGGER_START(path);
-    DFT_LOGGER_UPDATE(fd);
-    DFT_LOGGER_UPDATE(bufsize);
+    DFT_LOGGER_UPDATE_TYPE(bufsize, MetadataType::MT_VALUE);
     ret = __real_readlinkat(fd, path, buf, bufsize);
     DFT_LOGGER_END();
   }
@@ -413,7 +392,7 @@ int brahma::POSIXDFTracer::rename(const char *oldpath, const char *newpath) {
 int brahma::POSIXDFTracer::chmod(const char *path, mode_t mode) {
   BRAHMA_MAP_OR_FAIL(chmod);
   DFT_LOGGER_START(path);
-  DFT_LOGGER_UPDATE(mode);
+  DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
   int ret = __real_chmod(path, mode);
   DFT_LOGGER_END();
   return ret;
@@ -422,8 +401,8 @@ int brahma::POSIXDFTracer::chmod(const char *path, mode_t mode) {
 int brahma::POSIXDFTracer::chown(const char *path, uid_t owner, gid_t group) {
   BRAHMA_MAP_OR_FAIL(chown);
   DFT_LOGGER_START(path);
-  DFT_LOGGER_UPDATE(owner);
-  DFT_LOGGER_UPDATE(group);
+  DFT_LOGGER_UPDATE_TYPE(owner, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(group, MetadataType::MT_VALUE);
   int ret = __real_chown(path, owner, group);
   DFT_LOGGER_END();
   return ret;
@@ -432,8 +411,8 @@ int brahma::POSIXDFTracer::chown(const char *path, uid_t owner, gid_t group) {
 int brahma::POSIXDFTracer::lchown(const char *path, uid_t owner, gid_t group) {
   BRAHMA_MAP_OR_FAIL(lchown);
   DFT_LOGGER_START(path);
-  DFT_LOGGER_UPDATE(owner);
-  DFT_LOGGER_UPDATE(group);
+  DFT_LOGGER_UPDATE_TYPE(owner, MetadataType::MT_VALUE);
+  DFT_LOGGER_UPDATE_TYPE(group, MetadataType::MT_VALUE);
   int ret = __real_lchown(path, owner, group);
   DFT_LOGGER_END();
   return ret;
@@ -464,15 +443,13 @@ int brahma::POSIXDFTracer::fcntl(int fd, int cmd, ...) {
     int val = va_arg(arg, int);
     va_end(arg);
     DFT_LOGGER_START(fd);
-    DFT_LOGGER_UPDATE(fd);
-    DFT_LOGGER_UPDATE(cmd);
+    DFT_LOGGER_UPDATE_TYPE(cmd, MetadataType::MT_VALUE);
     int ret = __real_fcntl(fd, cmd, val);
     DFT_LOGGER_END();
     return ret;
   } else if (cmd == F_GETFD || cmd == F_GETFL || cmd == F_GETOWN) {
     DFT_LOGGER_START(fd);
-    DFT_LOGGER_UPDATE(fd);
-    DFT_LOGGER_UPDATE(cmd);
+    DFT_LOGGER_UPDATE_TYPE(cmd, MetadataType::MT_VALUE);
     int ret = __real_fcntl(fd, cmd);
     DFT_LOGGER_END();
     return ret;
@@ -482,16 +459,14 @@ int brahma::POSIXDFTracer::fcntl(int fd, int cmd, ...) {
     struct flock *lk = va_arg(arg, struct flock *);
     va_end(arg);
     DFT_LOGGER_START(fd);
-    DFT_LOGGER_UPDATE(fd);
-    DFT_LOGGER_UPDATE(cmd);
+    DFT_LOGGER_UPDATE_TYPE(cmd, MetadataType::MT_VALUE);
     int ret = __real_fcntl(fd, cmd, lk);
     DFT_LOGGER_END();
     return ret;
   } else {  // assume arg: void, cmd==F_GETOWN_EX || cmd==F_SETOWN_EX
             // ||cmd==F_GETSIG || cmd==F_SETSIG)
     DFT_LOGGER_START(fd);
-    DFT_LOGGER_UPDATE(fd);
-    DFT_LOGGER_UPDATE(cmd);
+    DFT_LOGGER_UPDATE_TYPE(cmd, MetadataType::MT_VALUE);
     int ret = __real_fcntl(fd, cmd);
     DFT_LOGGER_END();
     return ret;
@@ -517,7 +492,7 @@ int brahma::POSIXDFTracer::dup2(int oldfd, int newfd) {
 int brahma::POSIXDFTracer::mkfifo(const char *pathname, mode_t mode) {
   BRAHMA_MAP_OR_FAIL(mkfifo);
   DFT_LOGGER_START(pathname);
-  DFT_LOGGER_UPDATE(mode);
+  DFT_LOGGER_UPDATE_TYPE(mode, MetadataType::MT_VALUE);
   int ret = __real_mkfifo(pathname, mode);
   DFT_LOGGER_END();
   return ret;
@@ -543,7 +518,6 @@ int brahma::POSIXDFTracer::faccessat(int fd, const char *path, int amode,
                                      int flag) {
   BRAHMA_MAP_OR_FAIL(faccessat);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
   int ret = __real_faccessat(fd, path, amode, flag);
   DFT_LOGGER_END();
   return ret;
@@ -560,7 +534,7 @@ int brahma::POSIXDFTracer::remove(const char *pathname) {
 int brahma::POSIXDFTracer::truncate(const char *pathname, off_t length) {
   BRAHMA_MAP_OR_FAIL(truncate);
   DFT_LOGGER_START(pathname);
-  DFT_LOGGER_UPDATE(length);
+  DFT_LOGGER_UPDATE_TYPE(length, MetadataType::MT_VALUE);
   int ret = __real_truncate(pathname, length);
   DFT_LOGGER_END();
   return ret;
@@ -569,8 +543,7 @@ int brahma::POSIXDFTracer::truncate(const char *pathname, off_t length) {
 int brahma::POSIXDFTracer::ftruncate(int fd, off_t length) {
   BRAHMA_MAP_OR_FAIL(ftruncate);
   DFT_LOGGER_START(fd);
-  DFT_LOGGER_UPDATE(fd);
-  DFT_LOGGER_UPDATE(length);
+  DFT_LOGGER_UPDATE_TYPE(length, MetadataType::MT_VALUE);
   int ret = __real_ftruncate(fd, length);
   DFT_LOGGER_END();
   return ret;
@@ -579,8 +552,8 @@ int brahma::POSIXDFTracer::ftruncate(int fd, off_t length) {
 int brahma::POSIXDFTracer::execl(const char *pathname, const char *arg, ...) {
   BRAHMA_MAP_OR_FAIL(execl);
   DFT_LOGGER_START_ALWAYS();
-  DFT_LOGGER_UPDATE(pathname);
-  DFT_LOGGER_UPDATE(arg);
+  DFT_LOGGER_UPDATE_HASH(pathname);
+  DFT_LOGGER_UPDATE_HASH(arg);
   va_list args;
   va_start(args, arg);
   int ret = __real_execl(pathname, arg, args);
@@ -593,7 +566,7 @@ int brahma::POSIXDFTracer::execlp(const char *pathname, const char *arg, ...) {
   BRAHMA_MAP_OR_FAIL(execlp);
   DFT_LOGGER_START_ALWAYS();
   DFT_LOGGER_UPDATE_HASH(pathname);
-  DFT_LOGGER_UPDATE(arg);
+  DFT_LOGGER_UPDATE_HASH(arg);
   va_list args;
   va_start(args, arg);
   int ret = __real_execlp(pathname, arg, args);
@@ -612,22 +585,22 @@ int brahma::POSIXDFTracer::execv(const char *pathname, char *const argv[]) {
   while (val != NULL) {
     if (i == 0) {
       const char *arg0 = argv[i];
-      DFT_LOGGER_UPDATE(arg0);
+      DFT_LOGGER_UPDATE_HASH(arg0);
     } else if (i == 1) {
       const char *arg1 = argv[i];
-      DFT_LOGGER_UPDATE(arg1);
+      DFT_LOGGER_UPDATE_HASH(arg1);
     } else if (i == 2) {
       const char *arg2 = argv[i];
-      DFT_LOGGER_UPDATE(arg2);
+      DFT_LOGGER_UPDATE_HASH(arg2);
     } else if (i == 3) {
       const char *arg3 = argv[i];
-      DFT_LOGGER_UPDATE(arg3);
+      DFT_LOGGER_UPDATE_HASH(arg3);
     } else if (i == 4) {
       const char *arg4 = argv[i];
-      DFT_LOGGER_UPDATE(arg4);
+      DFT_LOGGER_UPDATE_HASH(arg4);
     } else if (i == 5) {
       const char *arg5 = argv[i];
-      DFT_LOGGER_UPDATE(arg5);
+      DFT_LOGGER_UPDATE_HASH(arg5);
     } else {
       break;
     }
@@ -650,22 +623,22 @@ int brahma::POSIXDFTracer::execvp(const char *pathname, char *const argv[]) {
   while (val != NULL) {
     if (i == 0) {
       const char *arg0 = argv[i];
-      DFT_LOGGER_UPDATE(arg0);
+      DFT_LOGGER_UPDATE_HASH(arg0);
     } else if (i == 1) {
       const char *arg1 = argv[i];
-      DFT_LOGGER_UPDATE(arg1);
+      DFT_LOGGER_UPDATE_HASH(arg1);
     } else if (i == 2) {
       const char *arg2 = argv[i];
-      DFT_LOGGER_UPDATE(arg2);
+      DFT_LOGGER_UPDATE_HASH(arg2);
     } else if (i == 3) {
       const char *arg3 = argv[i];
-      DFT_LOGGER_UPDATE(arg3);
+      DFT_LOGGER_UPDATE_HASH(arg3);
     } else if (i == 4) {
       const char *arg4 = argv[i];
-      DFT_LOGGER_UPDATE(arg4);
+      DFT_LOGGER_UPDATE_HASH(arg4);
     } else if (i == 5) {
       const char *arg5 = argv[i];
-      DFT_LOGGER_UPDATE(arg5);
+      DFT_LOGGER_UPDATE_HASH(arg5);
     } else {
       break;
     }
@@ -688,22 +661,22 @@ int brahma::POSIXDFTracer::execvpe(const char *pathname, char *const argv[],
   while (val != NULL) {
     if (i == 0) {
       const char *arg0 = argv[i];
-      DFT_LOGGER_UPDATE(arg0);
+      DFT_LOGGER_UPDATE_HASH(arg0);
     } else if (i == 1) {
       const char *arg1 = argv[i];
-      DFT_LOGGER_UPDATE(arg1);
+      DFT_LOGGER_UPDATE_HASH(arg1);
     } else if (i == 2) {
       const char *arg2 = argv[i];
-      DFT_LOGGER_UPDATE(arg2);
+      DFT_LOGGER_UPDATE_HASH(arg2);
     } else if (i == 3) {
       const char *arg3 = argv[i];
-      DFT_LOGGER_UPDATE(arg3);
+      DFT_LOGGER_UPDATE_HASH(arg3);
     } else if (i == 4) {
       const char *arg4 = argv[i];
-      DFT_LOGGER_UPDATE(arg4);
+      DFT_LOGGER_UPDATE_HASH(arg4);
     } else if (i == 5) {
       const char *arg5 = argv[i];
-      DFT_LOGGER_UPDATE(arg5);
+      DFT_LOGGER_UPDATE_HASH(arg5);
     } else {
       break;
     }

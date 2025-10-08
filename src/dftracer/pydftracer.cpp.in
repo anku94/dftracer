@@ -22,16 +22,23 @@ TimeResolution get_time() {
   return 0;
 }
 
-void log_event(std::string name, std::string cat, TimeResolution start_time,
-               TimeResolution duration,
-               std::unordered_map<std::string, int> &int_args,
-               std::unordered_map<std::string, std::string> &string_args,
-               std::unordered_map<std::string, float> &float_args) {
+void log_event(
+    std::string name, std::string cat, TimeResolution start_time,
+    TimeResolution duration,
+    std::unordered_map<std::string, std::tuple<int, int>> &int_args,
+    std::unordered_map<std::string, std::tuple<int, std::string>> &string_args,
+    std::unordered_map<std::string, std::tuple<int, float>> &float_args) {
   DFTRACER_LOG_DEBUG("py.log_event", "");
   auto args = new Metadata();
-  for (auto item : int_args) args->insert_or_assign(item.first, item.second);
-  for (auto item : string_args) args->insert_or_assign(item.first, item.second);
-  for (auto item : float_args) args->insert_or_assign(item.first, item.second);
+  for (auto item : int_args)
+    args->insert_or_assign(item.first, std::get<1>(item.second),
+                           convert(std::get<0>(item.second)));
+  for (auto item : string_args)
+    args->insert_or_assign(item.first, std::get<1>(item.second),
+                           convert(std::get<0>(item.second)));
+  for (auto item : float_args)
+    args->insert_or_assign(item.first, std::get<1>(item.second),
+                           convert(std::get<0>(item.second)));
   auto dftracer_inst =
       dftracer::Singleton<dftracer::DFTracerCore>::get_instance(
           ProfilerStage::PROFILER_OTHER, ProfileType::PROFILER_PY_APP);

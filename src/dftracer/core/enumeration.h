@@ -24,6 +24,31 @@ enum ProfileInitType : uint8_t {
   PROFILER_INIT_FUNCTION = 2
 };
 enum ValueType : uint8_t { VALUE_TYPE_NUMBER = 0, VALUE_TYPE_STRING = 1 };
+enum MetadataType : uint8_t { MT_KEY = 0, MT_VALUE = 1, MT_IGNORE = 2 };
+
+inline MetadataType convert(const int &s) {
+  if (s == 0) {
+    return MetadataType::MT_KEY;
+  } else if (s == 1) {
+    return MetadataType::MT_VALUE;
+  } else if (s == 2) {
+    return MetadataType::MT_IGNORE;
+  } else {
+    return MetadataType::MT_KEY;
+  }
+}
+
+inline void convert(const int &s, MetadataType &type) {
+  if (s == 0) {
+    type = MetadataType::MT_KEY;
+  } else if (s == 1) {
+    type = MetadataType::MT_VALUE;
+  } else if (s == 2) {
+    type = MetadataType::MT_IGNORE;
+  } else {
+    type = MetadataType::MT_KEY;
+  }
+}
 
 inline void convert(const std::string &s, ProfileInitType &type) {
   if (s == "PRELOAD") {
