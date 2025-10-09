@@ -15,7 +15,7 @@ class ZlibCompression {
   ZlibCompression() : chunk_size_(0) {}
 
   int initialize(size_t chunk_size) {
-    chunk_size_ = chunk_size + 16*1024;
+    chunk_size_ = chunk_size + 16 * 1024;
     strm_.zalloc = Z_NULL;
     strm_.zfree = Z_NULL;
     strm_.opaque = Z_NULL;
