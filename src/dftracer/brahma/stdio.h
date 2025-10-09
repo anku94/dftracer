@@ -71,7 +71,7 @@ class STDIODFTracer : public STDIO {
     DFTRACER_LOG_DEBUG("Finalizing STDIODFTracer", "");
     stop_trace = true;
   }
-  ~STDIODFTracer(){};
+  ~STDIODFTracer() {};
 
   static std::shared_ptr<STDIODFTracer> get_instance(bool trace_all = false) {
     DFTRACER_LOG_DEBUG("STDIO class get_instance", "");
