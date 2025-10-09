@@ -1,0 +1,131 @@
+name: Benchmark PR with IOR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - develop
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      IOR_REPO: "https://github.com/hpc/ior.git"
+      IOR_VERSION: "4.0.0"
+      PYTHON_VERSION: "3.10"
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+
+      - name: Get PR branch and repo URL
+        id: pr_info
+        run: |
+          echo "==> Get PR branch and repo URL"
+          echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+          echo "url=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create virtual environment
+        run: |
+          echo "==> Create virtual environment"
+          python -m venv venv
+
+      - name: Install dftracer from PR branch
+        run: |
+          echo "==> Install dftracer from PR branch"
+          source venv/bin/activate
+          pip install --upgrade pip
+          git clone -b ${{ steps.pr_info.outputs.branch }} ${{ steps.pr_info.outputs.url }} dftracer-src
+          cd dftracer-src
+          pip install .
+
+      - name: Install IOR
+        run: |
+          echo "==> Install IOR"
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+          git clone $IOR_REPO
+          cd ior
+          git checkout tags/$IOR_VERSION -b $IOR_VERSION
+          ./bootstrap
+          ./configure
+          make -j
+          cd ..
+
+      - name: Find libdftracer_preload_dbg.so
+        id: dftracer_lib
+        run: |
+          echo "==> Find libdftracer_preload.so"
+          source venv/bin/activate
+          LIB_PATH=$(find venv -name 'libdftracer_preload.so' | head -n 1)
+          echo "lib_path=$LIB_PATH" >> $GITHUB_OUTPUT
+
+      - name: Run IOR baseline
+        run: |
+          echo "==> Run IOR baseline"
+          ./ior/src/ior -w -r -o testfile > ior_baseline.txt
+
+      - name: Run IOR with dftracer
+        run: |
+          echo "==> Run IOR with dftracer"
+          source venv/bin/activate
+          for ts in 4 1024; do
+            cmd=(./ior/src/ior -w -r -i 5 -t ${ts}k -b $((ts * 16))k -o testfile.dftracer -O summaryFormat=CSV)
+            echo "${cmd[@]}"
+            LD_PRELOAD=${{ steps.dftracer_lib.outputs.lib_path }} "${cmd[@]}"  -O summaryFile=dftracer-${ts}.csv
+            "${cmd[@]}" -O summaryFile=baseline-${ts}.csv
+          done
+          echo "==> Combine all baseline-*.csv files"
+          head -n 1 baseline-4.csv > baseline.csv
+          for f in baseline-*.csv; do
+            tail -n +2 "$f" >> baseline.csv
+          done
+          head -n 1 dftracer-4.csv > dftracer.csv
+          for f in dftracer-*.csv; do
+            tail -n +2 "$f" >> dftracer.csv
+          done
+          echo "==> Show contents of both CSVs"
+          echo "==> baseline.csv:"
+          cat baseline.csv
+          echo "==> dftracer.csv:"
+          cat dftracer.csv
+      - name: Parse and compare results
+        run: |
+          echo "==> Parse and compare results"
+          source venv/bin/activate
+          pip install pandas numpy          
+          python dftracer-src/test/analysis_ior.py > overhead.csv
+          echo "==> All values in overhead.csv:"
+          cat overhead.csv
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            baseline.csv
+            dftracer.csv
+            overhead.csv
+
+  store-results:
+    if: github.event_name == 'push'
+    needs: benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
+      - name: Store latest results
+        run: |
+          echo "==> Store latest results"
+          mkdir -p benchmarks
+          cp overhead.csv benchmarks/latest_overhead.csv
+          cp baseline.csv benchmarks/latest_baseline.csv
+          cp dftracer.csv benchmarks/latest_dftracer.csv
+          # Optionally, commit to a results branch or upload to a storage service
