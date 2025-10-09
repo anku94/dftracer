@@ -1,5 +1,6 @@
-import warnings 
-warnings.filterwarnings('ignore')
+import warnings
+
+warnings.filterwarnings("ignore")
 from glob import glob
 import pandas as pd
 import argparse
@@ -7,11 +8,8 @@ import dask
 import dask.dataframe as dd
 import pyarrow as pa
 import numpy as np
-from itertools import chain
 
-from dask.distributed import Client, LocalCluster, progress, wait, get_client
-from dask.distributed import Future, get_client
-from typing import Tuple, Union
+from dask.distributed import Client, LocalCluster, wait
 import os
 import intervals as I
 import math
@@ -20,23 +18,24 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
-import subprocess
 import json
 import logging
 
-import zindex_py as zindex
+from dftracer.utils import Indexer, Reader
 
 from dfanalyzer.plots import DFAnalyzerPlots
+
 
 def get_conditions_default(json_obj):
     io_cond = "POSIX" == json_obj["cat"]
     return False, False, io_cond
 
+
 class DFTConfiguration:
     def __init__(self):
-        self.host_pattern = r'corona(\d+)'
+        self.host_pattern = r"corona(\d+)"
         self.rebuild_index = False
-        self.batch_size = 1024*16
+        self.batch_size = 1024 * 16
         self.debug = False
         self.verbose = False
         self.workers = 4
@@ -49,11 +48,14 @@ class DFTConfiguration:
         self.skip_hostname = True
         self.conditions = None
 
+
 dft_configuration = DFTConfiguration()
+
 
 def get_dft_configuration():
     global dft_configuration
     return dft_configuration
+
 
 def update_dft_configuration(
     host_pattern=None,
@@ -104,136 +106,166 @@ def update_dft_configuration(
 
 
 def create_index(filename):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    if not os.path.exists(index_file) or conf.rebuild_index:
-        status = zindex.create_index(filename, index_file=f"file:{index_file}",
-                                     regex="id:\b([0-9]+)", numeric=True, unique=True, debug=conf.debug, verbose=conf.verbose)
-        logging.debug(f"Creating Index for {filename} returned {status}")
+    index_file = f"{filename}.idx"
+    if not os.path.exists(index_file):
+        indexer = Indexer(filename, index_file, checkpoint_size=32 * 1024 * 1024)
+        indexer.build()
+        logging.debug("Creating index", filename=filename)
     return filename
 
-def get_linenumber(filename):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    line_number = zindex.get_max_line(filename, index_file=index_file,debug=conf.debug, verbose=conf.verbose)
-    logging.debug(f" The {filename} has {line_number} lines")
-    return (filename, line_number)
 
-def get_size(filename):
-    conf = get_dft_configuration()
-    if filename.endswith('.pfw'):
-        size = os.stat(filename).st_size
-    elif filename.endswith('.pfw.gz'):
-        if not conf.index_dir:
-            index_file = f"{filename}.zindex"
-        else:
-            index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-        line_number = zindex.get_max_line(filename, index_file=index_file,debug=conf.debug, verbose=conf.verbose)
-        size = line_number * 256
-    logging.debug(f" The {filename} has {size/1024**3} GB size")
-    return int(size)
-
-
-def generate_line_batches(filename, max_line):
-    conf = get_dft_configuration()
-    for start in range(0, max_line, conf.batch_size):
-        end =  min((start + conf.batch_size - 1) , (max_line))
-        logging.debug(f"Created a batch for {filename} from [{start}, {end}] lines")
+def generate_batches(filename, max_bytes):
+    batch_size = 1024 * 16
+    for start in range(0, max_bytes, batch_size):
+        # this range is intended since DFTracerJsonLinesBytesReader do
+        # line boundary algorithm internally to chop incomplete line
+        end = min(start + batch_size, max_bytes)
+        logging.debug("Created batch", filename=filename, start=start, end=end)
         yield filename, start, end
 
+
+def get_size(filename):
+    size = 0
+    if filename.endswith(".pfw"):
+        size = os.stat(filename).st_size
+    elif filename.endswith(".pfw.gz"):
+        index_file = f"{filename}.idx"
+        indexer = Indexer(filename, index_file)
+        size = indexer.get_max_bytes()
+    logging.debug("File has size", filename=filename, size=size / 1024**3)
+    return filename, int(size)
+
+
 def load_indexed_gzip_files(filename, start, end):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    json_lines = zindex.zquery(filename, index_file=index_file,
-                          raw=f"select a.line from LineOffsets a where a.line >= {start} AND a.line <= {end};", debug=conf.debug, verbose=conf.verbose)
-    logging.debug(f"Read {len(json_lines)} json lines for [{start}, {end}]")
+    index_file = f"{filename}.idx"
+    reader = Reader(filename, index_file)
+    json_lines = reader.read_line_bytes_json(start, end)
+    logging.debug(
+        "Read json lines",
+        filename=filename,
+        start=start,
+        end=end,
+        num_lines=len(json_lines),
+    )
     return json_lines
 
-def load_objects(line, fn, time_granularity, time_approximate, condition_fn, load_data):
+
+def load_objects_dict(json_dict, fn, time_approximate, condition_fn, load_data):
     d = {}
-    if line is not None and line !="" and len(line) > 0 and "[" != line[0] and "]" != line[0] and line != "\n" :
-        val = {}
+    if json_dict is not None:
         try:
-            unicode_line = ''.join([i if ord(i) < 128 else '#' for i in line])
-            val = json.loads(unicode_line, strict=False)
-            logging.debug(f"Loading dict {val}")
-            if "name" in val:
-                d["name"] = val["name"]
-            if "cat" in val:
-                d["cat"] = val["cat"]
-            if "pid" in val:
-                d["pid"] = val["pid"]
-            if "tid" in val:
-                d["tid"] = val["tid"]
-            if "args" in val and "hhash" in val["args"]:
-                d["hhash"] = str(val["args"]["hhash"])
-            if "M" == val["ph"]:
+            logging.debug(f"Loading dict {json_dict}")
+            if "name" in json_dict:
+                d["name"] = json_dict["name"]
+            if "cat" in json_dict:
+                d["cat"] = json_dict["cat"]
+            if "pid" in json_dict:
+                d["pid"] = json_dict["pid"]
+            if "tid" in json_dict:
+                d["tid"] = json_dict["tid"]
+            if "args" in json_dict and "hhash" in json_dict["args"]:
+                d["hhash"] = str(json_dict["args"]["hhash"])
+            if "M" == json_dict["ph"]:
                 if d["name"] == "FH":
-                    d["type"] = 1 # 1-> file hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 1  # 1-> file hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "HH":
-                    d["type"] = 2 # 2-> hostname hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 2  # 2-> hostname hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "SH":
-                    d["type"] = 3 # 3-> string hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 3  # 3-> string hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "PR":
-                    d["type"] = 5 # 5-> process metadata
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = val["args"]["value"]
+                    d["type"] = 5  # 5-> process metadata
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = json_dict["args"]["value"]
                 else:
-                    d["type"] = 4 # 4-> others
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["value"] = str(val["args"]["value"])
+                    d["type"] = 4  # 4-> others
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["value"] = str(json_dict["args"]["value"])
             else:
-                d["type"] = 0 # 0->regular event
-                if "dur" in val:
-                    val["dur"] = int(val["dur"])
-                    val["ts"] = int(val["ts"])
-                    d["ts"] = val["ts"]
-                    d["dur"] = val["dur"]
+                d["type"] = 0  # 0->regular event
+                if "dur" in json_dict:
+                    json_dict["dur"] = int(json_dict["dur"])
+                    json_dict["ts"] = int(json_dict["ts"])
+                    d["ts"] = json_dict["ts"]
+                    d["dur"] = json_dict["dur"]
                     d["te"] = d["ts"] + d["dur"]
                     if not time_approximate:
-                        d["tinterval"] = I.to_string(I.closed(val["ts"] , val["ts"] + val["dur"]))
-                    d["trange"] = int(((val["ts"] + val["dur"])/2.0) / time_granularity)
-                d.update(io_function(val, d, time_approximate,condition_fn))
+                        d["tinterval"] = I.to_string(
+                            I.closed(
+                                json_dict["ts"], json_dict["ts"] + json_dict["dur"]
+                            )
+                        )
+                d.update(io_function(json_dict, d, time_approximate, condition_fn))
             if fn:
-                user_d = fn(val, d, time_approximate,condition_fn, load_data)
+                user_d = fn(json_dict, d, time_approximate, condition_fn, load_data)
                 if type(user_d) is list:
-                    for user_dict in user_d[1:]:
-                        yield user_dict
+                    yield from user_d[1:]
                     d.update(user_d[0])
                 else:
                     d.update(user_d)
             logging.debug(f"built an dictionary for line {d}")
             yield d
         except ValueError as error:
+            logging.error(f"Processing {json_dict} failed with {error}")
+    return {}
+
+
+def load_objects_str(line, fn, time_approximate, condition_fn, load_data):
+    if (
+        line is not None
+        and line != ""
+        and len(line) > 0
+        and "[" != line[0]
+        and "]" != line[0]
+        and line != "\n"
+    ):
+        try:
+            unicode_line = "".join([i if ord(i) < 128 else "#" for i in line])
+            json_dict = json.loads(unicode_line, strict=False)
+            yield from load_objects_dict(
+                json_dict, fn, time_approximate, condition_fn, load_data
+            )
+        except ValueError as error:
             logging.error(f"Processing {line} failed with {error}")
     return {}
-  
-def io_function(json_object, current_dict, time_approximate,condition_fn):
+
+
+def io_function(json_object, current_dict, time_approximate, condition_fn):
     d = {}
     d["phase"] = 0
     if not condition_fn:
         condition_fn = get_conditions_default
-    app_io_cond , compute_cond, io_cond = condition_fn(json_object)
+    app_io_cond, compute_cond, io_cond = condition_fn(json_object)
     if time_approximate:
         d["total_time"] = 0
         if compute_cond:
@@ -268,15 +300,18 @@ def io_function(json_object, current_dict, time_approximate,condition_fn):
     if "args" in json_object:
         if "fhash" in json_object["args"]:
             if type(json_object["args"]["fhash"]) is str:
-                d["fhash"] = int(json_object["args"]["fhash"],16)
-            else: 
+                d["fhash"] = int(json_object["args"]["fhash"], 16)
+            else:
                 d["fhash"] = json_object["args"]["fhash"]
         if "POSIX" == json_object["cat"] and "ret" in json_object["args"]:
             size = int(json_object["args"]["ret"])
             if size > 0:
                 if "write" in json_object["name"]:
                     d["size"] = size
-                elif "read" in json_object["name"] and "readdir" not in json_object["name"]:
+                elif (
+                    "read" in json_object["name"]
+                    and "readdir" not in json_object["name"]
+                ):
                     d["size"] = size
         else:
             if "image_size" in json_object["args"]:
@@ -285,42 +320,59 @@ def io_function(json_object, current_dict, time_approximate,condition_fn):
                     d["size"] = size
     return d
 
+
 def io_columns():
     conf = get_dft_configuration()
     return {
-        'compute_time': "string[pyarrow]" if not conf.time_approximate else "uint64[pyarrow]",
-        'io_time': "string[pyarrow]" if not conf.time_approximate else "uint64[pyarrow]",
-        'app_io_time': "string[pyarrow]" if not conf.time_approximate else "uint64[pyarrow]",
-        'total_time': "string[pyarrow]" if not conf.time_approximate else "uint64[pyarrow]",
-        'fhash': "string[pyarrow]",
-        'phase': "uint16[pyarrow]",
-        'size': "uint64[pyarrow]"
+        "compute_time": "string[pyarrow]"
+        if not conf.time_approximate
+        else "uint64[pyarrow]",
+        "io_time": "string[pyarrow]"
+        if not conf.time_approximate
+        else "uint64[pyarrow]",
+        "app_io_time": "string[pyarrow]"
+        if not conf.time_approximate
+        else "uint64[pyarrow]",
+        "total_time": "string[pyarrow]"
+        if not conf.time_approximate
+        else "uint64[pyarrow]",
+        "fhash": "string[pyarrow]",
+        "phase": "uint16[pyarrow]",
+        "size": "uint64[pyarrow]",
     }
+
 
 def group_func(df):
     val = I.empty()
-    for index, value in df.items():
-        if str(value) != 'NA':
+    for _, value in df.items():
+        if str(value) != "NA":
             val = val.union(I.from_string(str(value), int))
     logging.debug(f"Grouped Range into {val}")
     return I.to_string(val)
 
+
 def union_portions():
     return dd.Aggregation(
-        'union_portions',
+        "union_portions",
         chunk=lambda s: s.apply(group_func),
-        agg=lambda s: s.apply(group_func)
+        agg=lambda s: s.apply(group_func),
     )
+
+
 def difference_portion(df, a, b):
-    if str(df[a]) != 'NA' and str(df[b]) != 'NA':
-        return I.to_string(I.from_string(str(df[a]), int) - I.from_string(str(df[b]), int))
-    elif str(df[a]) != 'NA':
+    if str(df[a]) != "NA" and str(df[b]) != "NA":
+        return I.to_string(
+            I.from_string(str(df[a]), int) - I.from_string(str(df[b]), int)
+        )
+    elif str(df[a]) != "NA":
         return df[a]
     else:
         return I.to_string(I.empty())
+
+
 def size_portion(df, col):
     val = 0.0
-    if str(df[col]) == 'NA':
+    if str(df[col]) == "NA":
         return val
     ia = I.from_string(str(df[col]), int)
     for i in list(ia):
@@ -328,14 +380,18 @@ def size_portion(df, col):
             val += i.upper - i.lower
     logging.debug(f"Calculating size of Interval {val}")
     return val
+
+
 def percentile(n):
     return dd.Aggregation(
-        name='percentile_{:02.0f}'.format(n*100),
+        name=f"percentile_{n * 100:02.0f}",
         # this computes the median on each partition
         chunk=lambda s: s.quantile(n),
         # this combines results across partitions; the input should just be a list of length 1
         agg=lambda s0: s0.quantile(n),
     )
+
+
 median_fun = dd.Aggregation(
     name="median",
     # this computes the median on each partition
@@ -343,30 +399,39 @@ median_fun = dd.Aggregation(
     # this combines results across partitions; the input should just be a list of length 1
     agg=lambda s0: s0.median(),
 )
+
+
 def human_format(num):
     if num:
-        num = float('{:.3g}'.format(num))
+        num = float(f"{num:.3g}")
         magnitude = 0
         while abs(num) >= 1024:
             magnitude += 1
             num /= 1024.0
-        return '{}{}'.format('{:.0f}'.format(num).rstrip('.'), ['', 'KB', 'MB', 'GB', 'TB'][magnitude])
+        return "{}{}".format(
+            f"{num:.0f}".rstrip("."), ["", "KB", "MB", "GB", "TB"][magnitude]
+        )
     else:
         return "NA"
+
+
 def human_format_count(num):
     if num:
-        num = float('{:.3g}'.format(num))
+        num = float(f"{num:.3g}")
         magnitude = 0
         while abs(num) >= 1000:
             magnitude += 1
             num /= 1000.0
-        return '{}{}'.format('{:.0f}'.format(num).rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+        return "{}{}".format(
+            f"{num:.0f}".rstrip("."), ["", "K", "M", "B", "T"][magnitude]
+        )
     else:
         return "NA"
 
+
 def human_format_time(num):
     if num:
-        num = float('{:.3g}'.format(num))
+        num = float(f"{num:.3g}")
         magnitude = 0
         while abs(num) >= 1000:
             if magnitude < 3:
@@ -379,73 +444,106 @@ def human_format_time(num):
                 magnitude += 1
                 num /= 24
                 break
-                
-        return '{}{}'.format('{:.0f}'.format(num).rstrip('.'), ['us', 'ms', 's','m','hr'][magnitude])
+
+        return "{}{}".format(
+            f"{num:.0f}".rstrip("."), ["us", "ms", "s", "m", "hr"][magnitude]
+        )
     else:
         return "NA"
 
+
 class DFAnalyzer:
-
-    def __init__(self, file_pattern, load_fn=None, load_cols={}, load_data = {}, metadata_cols = {}):
-
+    def __init__(
+        self,
+        file_pattern,
+        load_fn=None,
+        load_cols=None,
+        load_data=None,
+        metadata_cols=None,
+    ):
+        if load_cols is None:
+            load_cols = {}
+        if load_data is None:
+            load_data = {}
+        if metadata_cols is None:
+            metadata_cols = {}
         self.conf = get_dft_configuration()
         if self.conf.dask_scheduler:
             client = Client.current()
-            if len(load_data)>0:
+            if len(load_data) > 0:
                 client.scatter(load_data)
         file_pattern = glob(file_pattern)
         all_files = []
         pfw_pattern = []
         pfw_gz_pattern = []
         for file in file_pattern:
-            if file.endswith('.pfw'):
+            if file.endswith(".pfw"):
                 pfw_pattern.append(file)
                 all_files.append(file)
-            elif file.endswith('.pfw.gz'):
+            elif file.endswith(".pfw.gz"):
                 pfw_gz_pattern.append(file)
                 all_files.append(file)
             else:
                 logging.warn(f"Ignoring unsuported file {file}")
         if len(all_files) == 0:
-            logging.error(f"No files selected for .pfw and .pfw.gz")
+            logging.error("No files selected for .pfw and .pfw.gz")
             exit(1)
         logging.debug(f"Processing files {all_files}")
-        delayed_indices = []
         if len(pfw_gz_pattern) > 0:
             dask.bag.from_sequence(pfw_gz_pattern).map(create_index).compute()
         logging.info(f"Created index for {len(pfw_gz_pattern)} files")
         total_size = dask.bag.from_sequence(all_files).map(get_size).sum()
         logging.info(f"Total size of all files are {total_size} bytes")
+        sizes = dask.bag.from_sequence(all_files).map(get_size).compute()
+        total_size = sum(size for _, size in sizes)
+        logging.info("Total size of all files", total_size=total_size)
         gz_bag = None
         pfw_bag = None
         if len(pfw_gz_pattern) > 0:
-            max_line_numbers = dask.bag.from_sequence(pfw_gz_pattern).map(get_linenumber).compute()
-            logging.debug(f"Max lines per file are {max_line_numbers}")
+            logging.debug(f"Max bytes per file sizes={sizes}")
             json_line_delayed = []
             total_lines = 0
-            for filename, max_line in max_line_numbers:
-                total_lines += max_line
-                for _, start, end in generate_line_batches(filename, max_line):
+            for filename, max_bytes in sizes:
+                total_lines += max_bytes
+                for _, start, end in generate_batches(filename, max_bytes):
                     json_line_delayed.append((filename, start, end))
 
-            logging.info(f"Loading {len(json_line_delayed)} batches out of {len(pfw_gz_pattern)} files and has {total_lines} lines overall")
+            logging.info(
+                f"Loading batches, num batches={len(json_line_delayed)}, num files={len(pfw_gz_pattern)}, total lines={total_lines}",
+            )
             json_line_bags = []
             for filename, start, end in json_line_delayed:
-                num_lines = end - start + 1
-                json_line_bags.append(dask.delayed(load_indexed_gzip_files, nout=num_lines)(filename, start, end))
+                json_line_bags.append(
+                    dask.delayed(load_indexed_gzip_files)(filename, start, end)
+                )
             json_lines = dask.bag.concat(json_line_bags)
-            gz_bag = json_lines.map(load_objects, fn=load_fn,
-                                    time_granularity=self.conf.time_granularity,
-                                    time_approximate=self.conf.time_approximate,
-                                    condition_fn=self.conf.conditions,
-                                    load_data=load_data).flatten().filter(lambda x: "name" in x)
+            gz_bag = (
+                json_lines.map(
+                    load_objects_dict,
+                    fn=load_fn,
+                    time_granularity=self.conf.time_granularity,
+                    time_approximate=self.conf.time_approximate,
+                    condition_fn=self.conf.conditions,
+                    load_data=load_data,
+                )
+                .flatten()
+                .filter(lambda x: "name" in x)
+            )
         main_bag = None
         if len(pfw_pattern) > 0:
-            pfw_bag = dask.bag.read_text(pfw_pattern).map(load_objects, fn=load_fn,
-                                                          time_granularity=self.conf.time_granularity,
-                                                          time_approximate=self.conf.time_approximate,
-                                                          condition_fn=self.conf.conditions,
-                                                          load_data=load_data).flatten().filter(lambda x: "name" in x)
+            pfw_bag = (
+                dask.bag.read_text(pfw_pattern)
+                .map(
+                    load_objects_str,
+                    fn=load_fn,
+                    time_granularity=self.conf.time_granularity,
+                    time_approximate=self.conf.time_approximate,
+                    condition_fn=self.conf.conditions,
+                    load_data=load_data,
+                )
+                .flatten()
+                .filter(lambda x: "name" in x)
+            )
         if len(pfw_gz_pattern) > 0 and len(pfw_pattern) > 0:
             main_bag = dask.bag.concat([pfw_bag, gz_bag])
         elif len(pfw_gz_pattern) > 0:
@@ -453,16 +551,51 @@ class DFAnalyzer:
         elif len(pfw_pattern) > 0:
             main_bag = pfw_bag
         if main_bag:
-            columns = {'name': "string[pyarrow]", 'cat': "string[pyarrow]",'type': "uint8[pyarrow]", 
-                       'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]",
-                       'ts': "uint64[pyarrow]", 'te': "uint64[pyarrow]", 'dur': "uint64[pyarrow]",
-                       'tinterval': "string[pyarrow]" if not self.conf.time_approximate else "uint64[pyarrow]", 'trange': "uint64[pyarrow]"}
+            columns = {
+                "name": "string[pyarrow]",
+                "cat": "string[pyarrow]",
+                "type": "uint8[pyarrow]",
+                "pid": "uint64[pyarrow]",
+                "tid": "uint64[pyarrow]",
+                "hhash": "string[pyarrow]",
+                "ts": "uint64[pyarrow]",
+                "te": "uint64[pyarrow]",
+                "dur": "uint64[pyarrow]",
+                "tinterval": "string[pyarrow]"
+                if not self.conf.time_approximate
+                else "uint64[pyarrow]",
+                "trange": "uint64[pyarrow]",
+            }
             columns.update(io_columns())
             columns.update(load_cols)
-            file_hash_columns = {'name': "string[pyarrow]", 'hash':"string[pyarrow]",'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]"}
-            hostname_hash_columns = {'name': "string[pyarrow]", 'hash':"string[pyarrow]",'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]"}
-            string_hash_columns = {'name': "string[pyarrow]", 'hash':"string[pyarrow]",'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]"}
-            other_metadata_columns = { 'name':"string[pyarrow]" ,'value':"string[pyarrow]",'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]"}
+            file_hash_columns = {
+                "name": "string[pyarrow]",
+                "hash": "string[pyarrow]",
+                "pid": "uint64[pyarrow]",
+                "tid": "uint64[pyarrow]",
+                "hhash": "string[pyarrow]",
+            }
+            hostname_hash_columns = {
+                "name": "string[pyarrow]",
+                "hash": "string[pyarrow]",
+                "pid": "uint64[pyarrow]",
+                "tid": "uint64[pyarrow]",
+                "hhash": "string[pyarrow]",
+            }
+            string_hash_columns = {
+                "name": "string[pyarrow]",
+                "hash": "string[pyarrow]",
+                "pid": "uint64[pyarrow]",
+                "tid": "uint64[pyarrow]",
+                "hhash": "string[pyarrow]",
+            }
+            other_metadata_columns = {
+                "name": "string[pyarrow]",
+                "value": "string[pyarrow]",
+                "pid": "uint64[pyarrow]",
+                "tid": "uint64[pyarrow]",
+                "hhash": "string[pyarrow]",
+            }
             if "FH" in metadata_cols:
                 file_hash_columns.update(metadata_cols["FH"])
             if "HH" in metadata_cols:
@@ -475,27 +608,58 @@ class DFAnalyzer:
             columns.update(hostname_hash_columns)
             columns.update(string_hash_columns)
             columns.update(other_metadata_columns)
-            
+
             self.all_events = main_bag.to_dataframe(meta=columns)
             events = self.all_events.query("type == 0")
-            self.file_hash = self.all_events.query("type == 1")[list(file_hash_columns.keys())].groupby('hash').first().persist()
-            self.host_hash = self.all_events.query("type == 2")[list(hostname_hash_columns.keys())].groupby('hash').first().persist()
-            self.string_hash = self.all_events.query("type == 3")[list(string_hash_columns.keys())].groupby('hash').first().persist()
-            self.metadata = self.all_events.query("type == 4")[list(other_metadata_columns.keys())].persist()
-            self.n_partition = math.ceil(total_size.compute() / (128 * 1024 ** 2))
+            self.file_hash = (
+                self.all_events.query("type == 1")[list(file_hash_columns.keys())]
+                .groupby("hash")
+                .first()
+                .persist()
+            )
+            self.host_hash = (
+                self.all_events.query("type == 2")[list(hostname_hash_columns.keys())]
+                .groupby("hash")
+                .first()
+                .persist()
+            )
+            self.string_hash = (
+                self.all_events.query("type == 3")[list(string_hash_columns.keys())]
+                .groupby("hash")
+                .first()
+                .persist()
+            )
+            self.metadata = self.all_events.query("type == 4")[
+                list(other_metadata_columns.keys())
+            ].persist()
+            self.n_partition = math.ceil(total_size.compute() / (128 * 1024**2))
             logging.debug(f"Number of partitions used are {self.n_partition}")
             self.events = events.repartition(npartitions=self.n_partition).persist()
             _ = wait(self.events)
-            self.events['ts'] = (self.events['ts'] - self.events['ts'].min()).astype('uint64[pyarrow]')
-            self.events['te'] = (self.events['ts'] + self.events['dur']).astype('uint64[pyarrow]')
-            self.events['trange'] = (self.events['ts'] // self.conf.time_granularity).astype('uint16[pyarrow]')
+            self.events["ts"] = (self.events["ts"] - self.events["ts"].min()).astype(
+                "uint64[pyarrow]"
+            )
+            self.events["te"] = (self.events["ts"] + self.events["dur"]).astype(
+                "uint64[pyarrow]"
+            )
+            self.events["trange"] = (
+                self.events["ts"] // self.conf.time_granularity
+            ).astype("uint16[pyarrow]")
             self.events = self.events.persist()
-     
-            _ = wait([self.file_hash, self.host_hash, self.string_hash, self.metadata, self.events])
+
+            _ = wait(
+                [
+                    self.file_hash,
+                    self.host_hash,
+                    self.string_hash,
+                    self.metadata,
+                    self.events,
+                ]
+            )
         else:
-            logging.error(f"Unable to load Traces")
+            logging.error("Unable to load Traces")
             exit(1)
-        logging.info(f"Loaded events")
+        logging.info("Loaded events")
         self.plots = DFAnalyzerPlots(
             events=self.events,
             slope_threshold=self.conf.slope_threshold,
@@ -504,59 +668,149 @@ class DFAnalyzer:
         logging.info(f"Loaded plots with slope threshold: {self.conf.slope_threshold}")
 
     def _calculate_time(self):
-        ts_min, te_max = dask.compute(self.events['ts'].min(), self.events['te'].max())
+        ts_min, te_max = dask.compute(self.events["ts"].min(), self.events["te"].max())
         total_time = te_max - ts_min
 
         if self.conf.time_approximate:
-            grouped_df = self.events.groupby(["trange", "pid", "tid"]) \
-                            .agg({"compute_time": sum, "io_time": sum, "app_io_time": sum}) \
-                            .groupby(["trange"]).max()
+            grouped_df = (
+                self.events.groupby(["trange", "pid", "tid"])
+                .agg({"compute_time": sum, "io_time": sum, "app_io_time": sum})
+                .groupby(["trange"])
+                .max()
+            )
             # check if the max io_time > time_granularity
-            max_io_time = grouped_df.max().compute()['io_time']
+            max_io_time = grouped_df.max().compute()["io_time"]
             if max_io_time > self.conf.time_granularity:
                 # throw a warning, running with large granuality
-                logging.warn(f"The max io_time {max_io_time} exceeds the time_granularity {self.conf.time_granularity}. " \
-                             f"Please adjust the time_granularity to {int(2 * max_io_time /1e6)}e6 and rerun the analyzer.")
+                logging.warn(
+                    f"The max io_time {max_io_time} exceeds the time_granularity {self.conf.time_granularity}. "
+                    f"Please adjust the time_granularity to {int(2 * max_io_time / 1e6)}e6 and rerun the analyzer."
+                )
             grouped_df["io_time"] = grouped_df["io_time"].fillna(0)
             grouped_df["compute_time"] = grouped_df["compute_time"].fillna(0)
             grouped_df["app_io_time"] = grouped_df["app_io_time"].fillna(0)
-            grouped_df["only_compute"] =  grouped_df[["compute_time","io_time"]].apply(lambda s: s["compute_time"] - s["io_time"] if s["compute_time"] > s["io_time"] else 0, axis=1)
-            grouped_df["only_io"] =  grouped_df[["compute_time","io_time"]].apply(lambda s: s["io_time"] - s["compute_time"] if s["io_time"] > s["compute_time"] else 0, axis=1)
-            grouped_df["only_app_io"] =  grouped_df[["compute_time","app_io_time"]].apply(lambda s: s["app_io_time"] - s["compute_time"] if s["app_io_time"] > s["compute_time"] else 0, axis=1)
-            grouped_df["only_app_compute"] =  grouped_df[["compute_time","app_io_time"]].apply(lambda s: s["compute_time"] - s["app_io_time"] if s["compute_time"] > s["app_io_time"] else 0, axis=1)
-            final_df = grouped_df.sum().compute()
-            total_io_time, total_compute_time, total_app_io_time, \
-            only_io, only_compute, only_app_io, only_app_compute = final_df["io_time"], final_df["compute_time"], final_df["app_io_time"], \
-                                                                   final_df["only_io"], final_df["only_compute"], final_df["only_app_io"], final_df["only_app_compute"]
-        else:
-            agg = {"compute_time": union_portions(),
-                   "io_time": union_portions(),
-                   "app_io_time": union_portions()}
-            grouped_df = self.events.groupby("trange").agg(agg, split_out=self.n_partition)
-            grouped_df["only_io"] = grouped_df[["io_time", "compute_time"]].apply(difference_portion, a="io_time",
-                                                                                  b="compute_time", axis=1,
-                                                                                  meta=("string[pyarrow]"))
-            grouped_df["only_compute"] = grouped_df[["io_time", "compute_time"]].apply(difference_portion, a="compute_time",
-                                                                                       b="io_time", axis=1)
-            grouped_df["only_app_io"] = grouped_df[["app_io_time", "compute_time"]].apply(difference_portion, a="app_io_time",
-                                                                                  b="compute_time", axis=1,
-                                                                                  meta=("string[pyarrow]"))
-            grouped_df["only_app_compute"] = grouped_df[["app_io_time", "compute_time"]].apply(difference_portion, a="compute_time",
-                                                                                       b="app_io_time", axis=1)
-            total_io_time, total_compute_time, total_app_io_time,\
-            only_io, only_compute, only_app_io, only_app_compute = dask.compute(
-                grouped_df[["io_time"]].apply(size_portion, col="io_time", axis=1).sum(),
-                grouped_df[["compute_time"]].apply(size_portion, col="compute_time", axis=1).sum(),
-                grouped_df[["app_io_time"]].apply(size_portion, col="app_io_time", axis=1).sum(),
-                grouped_df[["only_io"]].apply(size_portion, col="only_io", axis=1).sum(),
-                grouped_df[["only_compute"]].apply(size_portion, col="only_compute", axis=1).sum(),
-                grouped_df[["only_app_io"]].apply(size_portion, col="only_app_io", axis=1).sum(),
-                grouped_df[["only_app_compute"]].apply(size_portion, col="only_app_compute", axis=1).sum(),
+            grouped_df["only_compute"] = grouped_df[["compute_time", "io_time"]].apply(
+                lambda s: s["compute_time"] - s["io_time"]
+                if s["compute_time"] > s["io_time"]
+                else 0,
+                axis=1,
             )
-        logging.debug(f"Approximate {self.conf.time_approximate} total_time:{total_time}, {total_io_time}, {total_compute_time}, {total_app_io_time}, \
-               {only_io}, {only_compute}, {only_app_io}, {only_app_compute}")
-        return total_time, total_io_time, total_compute_time, total_app_io_time, \
-               only_io, only_compute, only_app_io, only_app_compute
+            grouped_df["only_io"] = grouped_df[["compute_time", "io_time"]].apply(
+                lambda s: s["io_time"] - s["compute_time"]
+                if s["io_time"] > s["compute_time"]
+                else 0,
+                axis=1,
+            )
+            grouped_df["only_app_io"] = grouped_df[
+                ["compute_time", "app_io_time"]
+            ].apply(
+                lambda s: s["app_io_time"] - s["compute_time"]
+                if s["app_io_time"] > s["compute_time"]
+                else 0,
+                axis=1,
+            )
+            grouped_df["only_app_compute"] = grouped_df[
+                ["compute_time", "app_io_time"]
+            ].apply(
+                lambda s: s["compute_time"] - s["app_io_time"]
+                if s["compute_time"] > s["app_io_time"]
+                else 0,
+                axis=1,
+            )
+            final_df = grouped_df.sum().compute()
+            (
+                total_io_time,
+                total_compute_time,
+                total_app_io_time,
+                only_io,
+                only_compute,
+                only_app_io,
+                only_app_compute,
+            ) = (
+                final_df["io_time"],
+                final_df["compute_time"],
+                final_df["app_io_time"],
+                final_df["only_io"],
+                final_df["only_compute"],
+                final_df["only_app_io"],
+                final_df["only_app_compute"],
+            )
+        else:
+            agg = {
+                "compute_time": union_portions(),
+                "io_time": union_portions(),
+                "app_io_time": union_portions(),
+            }
+            grouped_df = self.events.groupby("trange").agg(
+                agg, split_out=self.n_partition
+            )
+            grouped_df["only_io"] = grouped_df[["io_time", "compute_time"]].apply(
+                difference_portion,
+                a="io_time",
+                b="compute_time",
+                axis=1,
+                meta=("string[pyarrow]"),
+            )
+            grouped_df["only_compute"] = grouped_df[["io_time", "compute_time"]].apply(
+                difference_portion, a="compute_time", b="io_time", axis=1
+            )
+            grouped_df["only_app_io"] = grouped_df[
+                ["app_io_time", "compute_time"]
+            ].apply(
+                difference_portion,
+                a="app_io_time",
+                b="compute_time",
+                axis=1,
+                meta=("string[pyarrow]"),
+            )
+            grouped_df["only_app_compute"] = grouped_df[
+                ["app_io_time", "compute_time"]
+            ].apply(difference_portion, a="compute_time", b="app_io_time", axis=1)
+            (
+                total_io_time,
+                total_compute_time,
+                total_app_io_time,
+                only_io,
+                only_compute,
+                only_app_io,
+                only_app_compute,
+            ) = dask.compute(
+                grouped_df[["io_time"]]
+                .apply(size_portion, col="io_time", axis=1)
+                .sum(),
+                grouped_df[["compute_time"]]
+                .apply(size_portion, col="compute_time", axis=1)
+                .sum(),
+                grouped_df[["app_io_time"]]
+                .apply(size_portion, col="app_io_time", axis=1)
+                .sum(),
+                grouped_df[["only_io"]]
+                .apply(size_portion, col="only_io", axis=1)
+                .sum(),
+                grouped_df[["only_compute"]]
+                .apply(size_portion, col="only_compute", axis=1)
+                .sum(),
+                grouped_df[["only_app_io"]]
+                .apply(size_portion, col="only_app_io", axis=1)
+                .sum(),
+                grouped_df[["only_app_compute"]]
+                .apply(size_portion, col="only_app_compute", axis=1)
+                .sum(),
+            )
+        logging.debug(
+            f"Approximate {self.conf.time_approximate} total_time:{total_time}, {total_io_time}, {total_compute_time}, {total_app_io_time}, \
+               {only_io}, {only_compute}, {only_app_io}, {only_app_compute}"
+        )
+        return (
+            total_time,
+            total_io_time,
+            total_compute_time,
+            total_app_io_time,
+            only_io,
+            only_compute,
+            only_app_io,
+            only_app_compute,
+        )
 
     def _create_interval(self, list_items):
         logging.debug(f"Creating interval from {list_items}")
@@ -593,44 +847,74 @@ class DFAnalyzer:
         logging.debug(f"Removing numbers from {string_items}")
         item_sets = set()
         for file in string_items:
-            item_sets.add(re.sub(r'\d', 'X', str(file)))
+            item_sets.add(re.sub(r"\d", "X", str(file)))
         logging.info(f"List after removing numbers {list(item_sets)}")
         return list(item_sets)
 
     def _check_hosts_time_skew(self):
         # check if there is time skew across nodes
-        hosts_ts_df = self.events.groupby('hhash').agg({'ts': 'min'}).compute()
+        hosts_ts_df = self.events.groupby("hhash").agg({"ts": "min"}).compute()
         # filter the hosts if time skew exceeds 30 seconds
         max_time_skew = 30e6
-        if np.std(hosts_ts_df['ts']) > max_time_skew:
-           logging.warn(f"The time skew exceeds {max_time_skew // 1e6} sec across hosts {hosts_ts_df.index.tolist()}")
+        if np.std(hosts_ts_df["ts"]) > max_time_skew:
+            logging.warn(
+                f"The time skew exceeds {max_time_skew // 1e6} sec across hosts {hosts_ts_df.index.tolist()}"
+            )
 
     def summary(self):
         num_events = len(self.events)
         logging.info(f"Total number of events in the workload are {num_events}")
-        total_time, total_io_time, total_compute_time, total_app_io_time, \
-        only_io, only_compute, only_app_io, only_app_compute = self._calculate_time() #(0, 0, 0, 0, 0, 0, 0, 0, 0)
-        hosts_used, filenames_accessed, num_procs, compute_tid, posix_tid, io_by_operations = dask.compute(
+        (
+            total_time,
+            total_io_time,
+            total_compute_time,
+            total_app_io_time,
+            only_io,
+            only_compute,
+            only_app_io,
+            only_app_compute,
+        ) = self._calculate_time()  # (0, 0, 0, 0, 0, 0, 0, 0, 0)
+        (
+            hosts_used,
+            filenames_accessed,
+            num_procs,
+            compute_tid,
+            posix_tid,
+            io_by_operations,
+        ) = dask.compute(
             self.host_hash["name"].unique(),
             self.file_hash["name"].unique(),
             self.events["pid"].unique(),
             self.events.query("phase == 1")["tid"].unique(),
             self.events.query("phase == 2")["tid"].unique(),
-            self.events.query("phase == 2").groupby(["name"]).agg(
-                {"dur": [sum, "count"], "size": [sum, "mean", median_fun, min, max, percentile(.25), percentile(.75)]})
+            self.events.query("phase == 2")
+            .groupby(["name"])
+            .agg(
+                {
+                    "dur": [sum, "count"],
+                    "size": [
+                        sum,
+                        "mean",
+                        median_fun,
+                        min,
+                        max,
+                        percentile(0.25),
+                        percentile(0.75),
+                    ],
+                }
+            ),
         )
 
-
         hosts_used = hosts_used.to_list()
-        #hosts_used_regex_str = self._create_host_intervals(hosts_used)
+        # hosts_used_regex_str = self._create_host_intervals(hosts_used)
         if len(hosts_used) > 1:
             self._check_hosts_time_skew()
 
         filenames_accessed = filenames_accessed.to_list()
-        #filename_basename_regex_str = self._remove_numbers(filenames_accessed)
+        # filename_basename_regex_str = self._remove_numbers(filenames_accessed)
 
         num_procs = num_procs.to_list()
-        #proc_name_regex = self._create_interval(num_procs)
+        # proc_name_regex = self._create_interval(num_procs)
 
         io_by_ops_dict = io_by_operations.T.to_dict()
 
@@ -641,17 +925,21 @@ class DFAnalyzer:
         table.add_column(style="cyan")
         table.add_column()
         app_tree = Tree("Scheduler Allocation Details")
-        app_tree.add(f"Nodes: {str(len(hosts_used))}") # {hosts_used_regex_str}")
-        app_tree.add(f"Processes: {str(len(num_procs))}") # {str(proc_name_regex)}")
-        thread_tree = Tree("Thread allocations across nodes (includes dynamically created threads)")
-        thread_tree.add(f"Compute: {str(len(compute_tid))}")
-        thread_tree.add(f"I/O: {str(len(posix_tid))}")
+        app_tree.add(f"Nodes: {len(hosts_used)}")  # {hosts_used_regex_str}")
+        app_tree.add(f"Processes: {len(num_procs)}")  # {str(proc_name_regex)}")
+        thread_tree = Tree(
+            "Thread allocations across nodes (includes dynamically created threads)"
+        )
+        thread_tree.add(f"Compute: {len(compute_tid)}")
+        thread_tree.add(f"I/O: {len(posix_tid)}")
         app_tree.add(thread_tree)
         app_tree.add(f"Events Recorded: {human_format_count(num_events)}")
         table.add_row("Allocation", app_tree)
 
         data_tree = Tree("Description of Dataset Used")
-        data_tree.add(f"Files: {str(len(filenames_accessed))}") # {filename_basename_regex_str}")
+        data_tree.add(
+            f"Files: {len(filenames_accessed)}"
+        )  # {filename_basename_regex_str}")
         table.add_row("Dataset", data_tree)
 
         io_tree = Tree("Behavior of Application")
@@ -675,12 +963,15 @@ class DFAnalyzer:
         key_padding_size = 15
         io_ts = Tree("Metrics by function")
         io_ts.add(
-            f"{'Function':<{key_padding_size}}|{'count':<{padding_size}}|{'                  size    ':<{padding_size*6}}     |")
+            f"{'Function':<{key_padding_size}}|{'count':<{padding_size}}|{'                  size    ':<{padding_size * 6}}     |"
+        )
         io_ts.add(
-            f"{'':<{key_padding_size}}|{'':<{padding_size}}|{'min':<{padding_size}}|{'25':<{padding_size}}|{'mean':<{padding_size}}|{'median':<{padding_size}}|{'75':<{padding_size}}|{'max':<{padding_size}}|")
+            f"{'':<{key_padding_size}}|{'':<{padding_size}}|{'min':<{padding_size}}|{'25':<{padding_size}}|{'mean':<{padding_size}}|{'median':<{padding_size}}|{'75':<{padding_size}}|{'max':<{padding_size}}|"
+        )
         for key, value in io_by_ops_dict.items():
             io_ts.add(
-                f"{key.split('.')[-1]:<{key_padding_size}}|{human_format_count(value[('dur', 'count')]):<{padding_size}}|{human_format(value[('size', 'min')]):<{padding_size}}|{human_format(value[('size', 'percentile_25')]):<{padding_size}}|{human_format(value[('size', 'mean')]):<{padding_size}}|{human_format(value[('size', 'median')]):<{padding_size}}|{human_format(value[('size', 'percentile_75')]):<{padding_size}}|{human_format(value[('size', 'max')]):<{padding_size}}|")
+                f"{key.split('.')[-1]:<{key_padding_size}}|{human_format_count(value[('dur', 'count')]):<{padding_size}}|{human_format(value[('size', 'min')]):<{padding_size}}|{human_format(value[('size', 'percentile_25')]):<{padding_size}}|{human_format(value[('size', 'mean')]):<{padding_size}}|{human_format(value[('size', 'median')]):<{padding_size}}|{human_format(value[('size', 'percentile_75')]):<{padding_size}}|{human_format(value[('size', 'max')]):<{padding_size}}|"
+            )
         io_tree.add(io_ts)
         # io_ops = Tree("Event count by function")
         # for key, value in io_by_ops_dict.items():
@@ -690,24 +981,64 @@ class DFAnalyzer:
         console = Console()
 
         # Print the table with Rich formatting
-        console.print(Panel(table, title='Summary'))
-
+        console.print(Panel(table, title="Summary"))
 
 
 def parse_args():
     conf = get_dft_configuration()
-    parser = argparse.ArgumentParser(description='DFTracer Analyzer')
-    parser.add_argument("trace", type=str,
-                        help="Path to trace file from DFTracer. Can contain * for multiple files.")
-    parser.add_argument('-d', '--debug', help="Print lots of debugging statements",
-                        action="store_const", dest="loglevel", const=logging.DEBUG, default=logging.WARNING)
-    parser.add_argument('-v', '--verbose', help="Be verbose", action="store_const", dest="loglevel", const=logging.INFO)
-    parser.add_argument("-l","--log-file", default="dfanalyzer_main.log", type=str, help="Logging log file")
-    parser.add_argument("-w","--workers", default=conf.workers, type=int, help="Number of dask workers to use")
-    parser.add_argument("--dask-scheduler", default=None, type=str, help="Scheduler to use for Dask")
-    parser.add_argument("--index-dir", default=None, type=str, help="Scheduler to use for Dask")
-    parser.add_argument('-s', '--slope-threshold', default=45, type=int, help='Threshold to determine problematic I/O accesses')
-    parser.add_argument('-t', '--time-granularity', default=1e3, type=int, help='Time granularity')
+    parser = argparse.ArgumentParser(description="DFTracer Analyzer")
+    parser.add_argument(
+        "trace",
+        type=str,
+        help="Path to trace file from DFTracer. Can contain * for multiple files.",
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        help="Print lots of debugging statements",
+        action="store_const",
+        dest="loglevel",
+        const=logging.DEBUG,
+        default=logging.WARNING,
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Be verbose",
+        action="store_const",
+        dest="loglevel",
+        const=logging.INFO,
+    )
+    parser.add_argument(
+        "-l",
+        "--log-file",
+        default="dfanalyzer_main.log",
+        type=str,
+        help="Logging log file",
+    )
+    parser.add_argument(
+        "-w",
+        "--workers",
+        default=conf.workers,
+        type=int,
+        help="Number of dask workers to use",
+    )
+    parser.add_argument(
+        "--dask-scheduler", default=None, type=str, help="Scheduler to use for Dask"
+    )
+    parser.add_argument(
+        "--index-dir", default=None, type=str, help="Scheduler to use for Dask"
+    )
+    parser.add_argument(
+        "-s",
+        "--slope-threshold",
+        default=45,
+        type=int,
+        help="Threshold to determine problematic I/O accesses",
+    )
+    parser.add_argument(
+        "-t", "--time-granularity", default=1e3, type=int, help="Time granularity"
+    )
     args = parser.parse_args()
     debug = False
     verbose = False
@@ -715,9 +1046,18 @@ def parse_args():
         debug = True
     elif args.loglevel == logging.INFO:
         verbose = True
-    update_dft_configuration(debug=debug, verbose=verbose, log_file=args.log_file, workers=args.workers, dask_scheduler=args.dask_scheduler,
-                             index_dir=args.index_dir, slope_threshold=args.slope_threshold, time_granularity=args.time_granularity)
+    update_dft_configuration(
+        debug=debug,
+        verbose=verbose,
+        log_file=args.log_file,
+        workers=args.workers,
+        dask_scheduler=args.dask_scheduler,
+        index_dir=args.index_dir,
+        slope_threshold=args.slope_threshold,
+        time_granularity=args.time_granularity,
+    )
     return args
+
 
 def print_versions():
     logging.debug(f"pandas version {pd.__version__}")
@@ -733,31 +1073,40 @@ def setup_logging():
         loglevel = logging.INFO
     elif conf.debug:
         loglevel = logging.DEBUG
-    logging.basicConfig(level=loglevel,
+    logging.basicConfig(
+        level=loglevel,
         handlers=[
-            logging.FileHandler(conf.log_file, mode="a", encoding='utf-8'),
-            logging.StreamHandler()
+            logging.FileHandler(conf.log_file, mode="a", encoding="utf-8"),
+            logging.StreamHandler(),
         ],
-        format='[%(levelname)s] [%(asctime)s] %(message)s [%(pathname)s:%(lineno)d]',
-        datefmt='%H:%M:%S'
+        format="[%(levelname)s] [%(asctime)s] %(message)s [%(pathname)s:%(lineno)d]",
+        datefmt="%H:%M:%S",
     )
+
 
 def reset_dask_cluster():
     client = Client.current()
     client.restart()
     logging.info("Restarting all workers")
 
+
 def setup_dask_cluster():
     conf = get_dft_configuration()
     if conf.dask_scheduler:
         client = Client(conf.dask_scheduler)
-        nworkers = len(client.scheduler_info()['workers'])
+        nworkers = len(client.scheduler_info()["workers"])
         update_dft_configuration(workers=nworkers)
-        logging.info(f"Initialized Client with {nworkers} workers and link {client.dashboard_link}")
+        logging.info(
+            f"Initialized Client with {nworkers} workers and link {client.dashboard_link}"
+        )
     else:
-        cluster = LocalCluster(n_workers=conf.workers)  # Launches a scheduler and workers locally
+        cluster = LocalCluster(
+            n_workers=conf.workers
+        )  # Launches a scheduler and workers locally
         client = Client(cluster)  # Connect to distributed cluster and override default
-        logging.info(f"Initialized Client with {conf.workers} workers and link {client.dashboard_link}")
+        logging.info(
+            f"Initialized Client with {conf.workers} workers and link {client.dashboard_link}"
+        )
 
 
 def main():
@@ -766,9 +1115,10 @@ def main():
     setup_dask_cluster()
     analyzer = DFAnalyzer(args.trace)
     analyzer.summary()
-    #analyzer.plots.time_bw_timeline(figsize=(8, 4), time_col="io_time")
-    #analyzer.plots.xfer_size_timeline(figsize=(4, 4))
+    # analyzer.plots.time_bw_timeline(figsize=(8, 4), time_col="io_time")
+    # analyzer.plots.xfer_size_timeline(figsize=(4, 4))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
     exit(0)
