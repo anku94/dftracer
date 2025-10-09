@@ -22,8 +22,17 @@ jobs:
         id: pr_info
         run: |
           echo "==> Get PR branch and repo URL"
-          echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-          echo "url=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_OUTPUT
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          if [ -z "$branch" ]; then
+            branch="develop"
+          fi
+          url="${{ github.event.pull_request.head.repo.clone_url }}"
+          if [ -z "$url" ]; then
+            url="https://github.com/LLNL/dftracer.git"
+          fi
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+          echo "url=$url" >> $GITHUB_OUTPUT
+          
 
       - name: Set up Python
         uses: actions/setup-python@v5
