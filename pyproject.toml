@@ -70,7 +70,7 @@ dfanalyzer = [
   'rich>=13.6.0',
   'python-intervals>=1.10.0.post1',
   'matplotlib>=3.7.3',
-  "dftracer-utils @ git+https://github.com/rayandrew/dftracer-utils.git@fix-read",
+  "dftracer-utils @ git+https://github.com/LLNL/dftracer-utils.git",
 ]
 dynamo = ['torch>=2.5.1']
 
