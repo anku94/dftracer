@@ -628,7 +628,7 @@ class DFAnalyzer:
             self.metadata = self.all_events.query("type == 4")[
                 list(other_metadata_columns.keys())
             ].persist()
-            self.n_partition = math.ceil(total_size.compute() / (128 * 1024**2))
+            self.n_partition = math.ceil(total_size / (128 * 1024**2))
             logging.debug(f"Number of partitions used are {self.n_partition}")
             self.events = events.repartition(npartitions=self.n_partition).persist()
             _ = wait(self.events)
