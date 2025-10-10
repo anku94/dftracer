@@ -110,7 +110,7 @@ def create_index(filename):
     if not os.path.exists(index_file):
         indexer = Indexer(filename, index_file, checkpoint_size=32 * 1024 * 1024)
         indexer.build()
-        logging.debug("Creating index", filename=filename)
+        logging.debug(f"Creating index filename={filename}")
     return filename
 
 
@@ -120,7 +120,7 @@ def generate_batches(filename, max_bytes):
         # this range is intended since DFTracerJsonLinesBytesReader do
         # line boundary algorithm internally to chop incomplete line
         end = min(start + batch_size, max_bytes)
-        logging.debug("Created batch", filename=filename, start=start, end=end)
+        logging.debug(f"Created batch filename={filename}, start={start}, end={end}")
         yield filename, start, end
 
 
@@ -132,7 +132,7 @@ def get_size(filename):
         index_file = f"{filename}.idx"
         indexer = Indexer(filename, index_file)
         size = indexer.get_max_bytes()
-    logging.debug("File has size", filename=filename, size=size / 1024**3)
+    logging.debug(f"File has size filename={filename}, size={size / 1024**3}")
     return filename, int(size)
 
 
@@ -141,11 +141,7 @@ def load_indexed_gzip_files(filename, start, end):
     reader = Reader(filename, index_file)
     json_lines = reader.read_line_bytes_json(start, end)
     logging.debug(
-        "Read json lines",
-        filename=filename,
-        start=start,
-        end=end,
-        num_lines=len(json_lines),
+        f"Read json lines filename={filename}, start={start}, end={end}, num_lines={len(json_lines)},"
     )
     return json_lines
 
@@ -484,7 +480,7 @@ class DFAnalyzer:
                 pfw_gz_pattern.append(file)
                 all_files.append(file)
             else:
-                logging.warn(f"Ignoring unsuported file {file}")
+                logging.warning(f"Ignoring unsupported file {file}")
         if len(all_files) == 0:
             logging.error("No files selected for .pfw and .pfw.gz")
             exit(1)
@@ -496,7 +492,7 @@ class DFAnalyzer:
         logging.info(f"Total size of all files are {total_size} bytes")
         sizes = dask.bag.from_sequence(all_files).map(get_size).compute()
         total_size = sum(size for _, size in sizes)
-        logging.info("Total size of all files", total_size=total_size)
+        logging.info(f"Total size of all files {total_size=}")
         gz_bag = None
         pfw_bag = None
         if len(pfw_gz_pattern) > 0:
@@ -682,7 +678,7 @@ class DFAnalyzer:
             max_io_time = grouped_df.max().compute()["io_time"]
             if max_io_time > self.conf.time_granularity:
                 # throw a warning, running with large granuality
-                logging.warn(
+                logging.warning(
                     f"The max io_time {max_io_time} exceeds the time_granularity {self.conf.time_granularity}. "
                     f"Please adjust the time_granularity to {int(2 * max_io_time / 1e6)}e6 and rerun the analyzer."
                 )
