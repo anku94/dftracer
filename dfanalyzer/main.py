@@ -146,7 +146,9 @@ def load_indexed_gzip_files(filename, start, end):
     return json_lines
 
 
-def load_objects_dict(json_dict, fn, time_approximate, condition_fn, load_data):
+def load_objects_dict(
+    json_dict, fn, time_granularity, time_approximate, condition_fn, load_data
+):
     d = {}
     if json_dict is not None:
         try:
@@ -221,6 +223,9 @@ def load_objects_dict(json_dict, fn, time_approximate, condition_fn, load_data):
                                 json_dict["ts"], json_dict["ts"] + json_dict["dur"]
                             )
                         )
+                    d["trange"] = int(
+                        ((json_dict["ts"] + json_dict["dur"]) / 2.0) / time_granularity
+                    )
                 d.update(io_function(json_dict, d, time_approximate, condition_fn))
             if fn:
                 user_d = fn(json_dict, d, time_approximate, condition_fn, load_data)
@@ -236,7 +241,9 @@ def load_objects_dict(json_dict, fn, time_approximate, condition_fn, load_data):
     return {}
 
 
-def load_objects_str(line, fn, time_approximate, condition_fn, load_data):
+def load_objects_str(
+    line, fn, time_granularity, time_approximate, condition_fn, load_data
+):
     if (
         line is not None
         and line != ""
@@ -249,7 +256,12 @@ def load_objects_str(line, fn, time_approximate, condition_fn, load_data):
             unicode_line = "".join([i if ord(i) < 128 else "#" for i in line])
             json_dict = json.loads(unicode_line, strict=False)
             yield from load_objects_dict(
-                json_dict, fn, time_approximate, condition_fn, load_data
+                json_dict,
+                fn,
+                time_granularity,
+                time_approximate,
+                condition_fn,
+                load_data,
             )
         except ValueError as error:
             logging.error(f"Processing {line} failed with {error}")
