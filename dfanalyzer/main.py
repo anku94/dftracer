@@ -35,7 +35,7 @@ class DFTConfiguration:
     def __init__(self):
         self.host_pattern = r"corona(\d+)"
         self.rebuild_index = False
-        self.batch_size = 1024 * 16
+        self.batch_size = 1 * 1024 * 1024  # 1 MB
         self.debug = False
         self.verbose = False
         self.workers = 4
@@ -114,8 +114,7 @@ def create_index(filename):
     return filename
 
 
-def generate_batches(filename, max_bytes):
-    batch_size = 1024 * 16
+def generate_batches(filename, max_bytes, batch_size=1 * 1024 * 1024):
     for start in range(0, max_bytes, batch_size):
         # this range is intended since DFTracerJsonLinesBytesReader do
         # line boundary algorithm internally to chop incomplete line
@@ -212,10 +211,14 @@ def load_objects_dict(
             else:
                 d["type"] = 0  # 0->regular event
                 if "dur" in json_dict:
-                    json_dict["dur"] = int(json_dict["dur"])
-                    json_dict["ts"] = int(json_dict["ts"])
-                    d["ts"] = json_dict["ts"]
-                    d["dur"] = json_dict["dur"]
+                    dur = json_dict["dur"]
+                    if type(dur) is not int:
+                        dur = int(dur)
+                    ts = json_dict["ts"]
+                    if type(ts) is not int:
+                        ts = int(ts)
+                    d["ts"] = ts
+                    d["dur"] = dur
                     d["te"] = d["ts"] + d["dur"]
                     if not time_approximate:
                         d["tinterval"] = I.to_string(
@@ -513,7 +516,9 @@ class DFAnalyzer:
             total_lines = 0
             for filename, max_bytes in sizes:
                 total_lines += max_bytes
-                for _, start, end in generate_batches(filename, max_bytes):
+                for _, start, end in generate_batches(
+                    filename, max_bytes, self.conf.batch_size
+                ):
                     json_line_delayed.append((filename, start, end))
 
             logging.info(
