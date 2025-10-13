@@ -29,6 +29,7 @@ class ConfigurationManager {
   bool throw_error;
   size_t write_buffer_size;
   size_t trace_interval_ms;
+  bool enable_aggregation;
   ConfigurationManager();
   void finalize() {}
 };

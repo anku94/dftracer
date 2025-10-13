@@ -1,6 +1,9 @@
+#ifndef DFTRACER_BUFFER_H
+#define DFTRACER_BUFFER_H
 #include <dftracer/compression/zlib_compression.h>
 #include <dftracer/core/logging.h>
 //
+#include <dftracer/aggregator/aggregator.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/typedef.h>
 #include <dftracer/serialization/json_line.h>
@@ -24,7 +27,7 @@ class BufferManager {
 
   int initialize(const char* filename, HashType hostname_hash);
 
-  int finalize(int index, bool end_sym = false);
+  int finalize(int index, ProcessID process_id, bool end_sym = false);
 
   void log_data_event(int index, ConstEventNameType event_name,
                       ConstEventNameType category, TimeResolution start_time,
@@ -38,12 +41,14 @@ class BufferManager {
                           bool is_string = true);
 
   void log_counter_event(int index, ConstEventNameType name,
-                         TimeResolution start_time,
+                         ConstEventNameType category, TimeResolution start_time,
+                         ProcessID process_id, ThreadID thread_id,
                          std::unordered_map<std::string, std::any>* metadata);
 
  private:
   void compress_and_write_if_needed(size_t size, bool force = false);
   bool enable_compression;
+  bool enable_aggregation;
   char* buffer;
   size_t buffer_size;
   size_t buffer_pos;
@@ -52,5 +57,7 @@ class BufferManager {
   std::shared_ptr<dftracer::JsonLines> serializer;
   std::shared_ptr<dftracer::ZlibCompression> compressor;
   std::shared_ptr<dftracer::STDIOWriter> writer;
+  std::shared_ptr<dftracer::Aggregator> aggregator;
 };
 }  // namespace dftracer
+#endif  // DFTRACER_BUFFER_H

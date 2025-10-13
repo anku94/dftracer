@@ -8,6 +8,7 @@ import h5py
 import numpy as np
 import PIL.Image as im
 from dftracer.logger import dftracer, dft_fn
+import resource
 
 cwd = os.getcwd()
 log_file = os.getenv("LOG_FILE", f"{cwd}/test_py-app.pwf")
@@ -56,8 +57,12 @@ def posix_calls(val):
     f.close()
     if is_spawn:
         print(f"Calling spawn on {index} with pid {os.getpid()}")
+        resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
     else:
         print(f"Not calling spawn on {index} with pid {os.getpid()}")
+
+    log_inst.finalize()
+    os._exit(0)
 
 
 def npz_calls(index):

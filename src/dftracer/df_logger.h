@@ -51,6 +51,7 @@ class DFTLogger {
   std::vector<int> index_stack;
   std::unordered_map<std::string, HashType> computed_hash;
   std::atomic_int index;
+  bool is_aggregated;
   bool has_entry;
 #ifdef DFTRACER_MPI_ENABLE
   bool mpi_event;
@@ -86,6 +87,7 @@ class DFTLogger {
         index_stack(),
         computed_hash(),
         index(0),
+        is_aggregated(false),
         has_entry(false),
 #ifdef DFTRACER_MPI_ENABLE
         mpi_event(false),
@@ -99,7 +101,7 @@ class DFTLogger {
     include_metadata = conf->metadata;
     dftracer_tid = conf->tids;
     throw_error = conf->throw_error;
-
+    is_aggregated = conf->enable_aggregation;
     if (enable_core_affinity) {
 #ifdef DFTRACER_HWLOC_ENABLE
       hwloc_topology_init(&topology);  // initialization
@@ -178,9 +180,6 @@ class DFTLogger {
       this->enter_event();
       this->log("start", "dftracer", this->get_time(), 0, meta);
       this->exit_event();
-      if (include_metadata) {
-        delete (meta);
-      }
       if (enable_core_affinity) {
 #ifdef DFTRACER_HWLOC_ENABLE
         auto cores = core_affinity();
@@ -305,7 +304,7 @@ class DFTLogger {
     if (!include_metadata) {
       local_index = index.load();
     }
-    if (metadata != nullptr) {
+    if (metadata != nullptr && !is_aggregated) {
       metadata->insert_or_assign("level", level);
       int parent_index_value = get_parent();
       metadata->insert_or_assign("p_idx", parent_index_value);
@@ -395,12 +394,12 @@ class DFTLogger {
   inline void finalize() {
     DFTRACER_LOG_DEBUG("DFTLogger.finalize", "");
     if (this->buffer_manager != nullptr) {
-      auto meta = std::unordered_map<std::string, std::any>();
-      meta.insert_or_assign("num_events", index.load());
+      auto meta = new std::unordered_map<std::string, std::any>();
+      meta->insert_or_assign("num_events", index.load());
       this->enter_event();
-      this->log("end", "dftracer", this->get_time(), 0, &meta);
+      this->log("end", "dftracer", this->get_time(), 0, meta);
       this->exit_event();
-      this->buffer_manager->finalize(index.load());
+      this->buffer_manager->finalize(index.load(), this->process_id, true);
       DFTRACER_LOG_INFO("Released Logger", "");
       this->buffer_manager.reset();
       clean_stack();
@@ -457,7 +456,6 @@ class DFTLogger {
     this->logger->log((char *)__FUNCTION__, CATEGORY, start_time, \
                       end_time - start_time, metadata);           \
     this->logger->exit_event();                                   \
-    if (this->logger->include_metadata) delete (metadata);        \
   }
 
 #endif  // DFTRACER_GENERIC_LOGGER_H

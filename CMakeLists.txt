@@ -340,7 +340,9 @@ set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/brahma/posix.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/serialization/json_line.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/compression/zlib_compression.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/buffer/buffer.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/aggregator/aggregator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/datastructure.cpp)
 set(DFTRACER_CORE_PUBLIC_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/dftracer.h
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/core/constants.h
@@ -355,7 +357,9 @@ set(DFTRACER_CORE_PRIVATE_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/dftracer_main.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/logging.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/singleton.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.h)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/utils/configuration_manager.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/aggregator/aggregator.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/datastructure.h)
 add_library(${PROJECT_NAME} SHARED)
 target_compile_definitions(${PROJECT_NAME} PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)
 target_link_libraries(${PROJECT_NAME} ${DEPENDENCY_LIB})
@@ -378,7 +382,9 @@ set(DFTRACER_SERVER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/server/server.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/serialization/json_line.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/compression/zlib_compression.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/buffer/buffer.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/writer/stdio_writer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/aggregator/aggregator.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/datastructure.cpp)
 
 add_executable(${PROJECT_NAME}_service ${DFTRACER_SERVER_SRC} )
 target_compile_definitions(${PROJECT_NAME}_service PUBLIC DFTRACER_LOGGER_LEVEL_ERROR)

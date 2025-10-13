@@ -25,7 +25,8 @@
             "cwd": "${workspaceFolder}/build",
             "env": {
                 "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:/usr/workspace/haridev/dftracer-new/build/lib64",
-                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_LOG_LEVEL": "INFO",
+                "DFTRACER_ENABLE_AGGREGATION": "1",
                 "DFTRACER_TRACE_COMPRESSION": "1",
                 "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
                 "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/test_cpp_basic_only",

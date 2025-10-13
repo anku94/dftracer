@@ -63,7 +63,7 @@ void DFTracer::finalize() {
     }
 
     dftracer_core->exit_event();
-    if (dftracer_core->include_metadata) delete (metadata);
+    // if (dftracer_core->include_metadata) delete (metadata);
   }
   this->initialized = false;
 }

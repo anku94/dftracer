@@ -154,8 +154,8 @@ class DFTracerService {
         metadata["guest_nice_pct"] = 100.0 * metrics.guest_nice / total_jiffies;
 
         int current_index = index.fetch_add(1, std::memory_order_relaxed);
-        buffer_manager->log_counter_event(current_index, "cpu", time,
-                                          &metadata);
+        buffer_manager->log_counter_event(current_index, "cpu", "sys", time, 0,
+                                          0, &metadata);
       } else if (str.find("cpu") == 0 && isdigit(str[3])) {
         // Per-CPU metrics (e.g., cpu0, cpu1, ...)
         CpuMetrics cpu;
@@ -195,8 +195,8 @@ class DFTracerService {
 
         std::string cpu_name = "cpu-" + std::to_string(cpu_index);
         int current_index = index.fetch_add(1, std::memory_order_relaxed);
-        buffer_manager->log_counter_event(current_index, cpu_name.c_str(), time,
-                                          &metadata);
+        buffer_manager->log_counter_event(current_index, cpu_name.c_str(),
+                                          "sys", time, 0, 0, &metadata);
       }
     }
     fclose(file);
@@ -231,8 +231,8 @@ class DFTracerService {
       }
     }
     if (!metadata.empty()) {
-      buffer_manager->log_counter_event(current_index, "memory", time,
-                                        &metadata);
+      buffer_manager->log_counter_event(current_index, "memory", "sys", time, 0,
+                                        0, &metadata);
     }
     fclose(file);
     return;

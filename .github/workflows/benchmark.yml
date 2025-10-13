@@ -14,6 +14,9 @@ jobs:
       IOR_REPO: "https://github.com/hpc/ior.git"
       IOR_VERSION: "4.0.0"
       PYTHON_VERSION: "3.10"
+    outputs:
+      branch: ${{ steps.pr_info.outputs.branch }}
+      url: ${{ steps.pr_info.outputs.url }}
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
@@ -22,8 +25,17 @@ jobs:
         id: pr_info
         run: |
           echo "==> Get PR branch and repo URL"
-          echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-          echo "url=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_OUTPUT
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          if [ -z "$branch" ]; then
+            branch="develop"
+          fi
+          url="${{ github.event.pull_request.head.repo.clone_url }}"
+          if [ -z "$url" ]; then
+            url="https://github.com/LLNL/dftracer.git"
+          fi
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+          echo "url=$url" >> $GITHUB_OUTPUT
+          
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,7 +69,7 @@ jobs:
           make -j
           cd ..
 
-      - name: Find libdftracer_preload_dbg.so
+      - name: Find libdftracer_preload.so
         id: dftracer_lib
         run: |
           echo "==> Find libdftracer_preload.so"
@@ -65,35 +77,39 @@ jobs:
           LIB_PATH=$(find venv -name 'libdftracer_preload.so' | head -n 1)
           echo "lib_path=$LIB_PATH" >> $GITHUB_OUTPUT
 
-      - name: Run IOR baseline
-        run: |
-          echo "==> Run IOR baseline"
-          ./ior/src/ior -w -r -o testfile > ior_baseline.txt
-
       - name: Run IOR with dftracer
         run: |
           echo "==> Run IOR with dftracer"
           source venv/bin/activate
-          for ts in 4 1024; do
-            cmd=(./ior/src/ior -w -r -i 5 -t ${ts}k -b $((ts * 16))k -o testfile.dftracer -O summaryFormat=CSV)
-            echo "${cmd[@]}"
-            LD_PRELOAD=${{ steps.dftracer_lib.outputs.lib_path }} "${cmd[@]}"  -O summaryFile=dftracer-${ts}.csv
-            "${cmd[@]}" -O summaryFile=baseline-${ts}.csv
+          for mode in trace none profile; do
+            for ts in 4 1024; do
+              if [[ "$mode" == "trace" || "$mode" == "profile" ]]; then
+                export LD_PRELOAD=${{ steps.dftracer_lib.outputs.lib_path }}
+              else
+                unset LD_PRELOAD
+              fi
+              if [[ "$mode" == "profile" ]]; then
+                export DFTRACER_ENABLE_AGGREGATION=1
+              else
+                unset DFTRACER_ENABLE_AGGREGATION
+              fi
+              cmd=(./ior/src/ior -w -r -i 5 -t ${ts}k -b $((ts * 16))k -o testfile.dftracer -O summaryFormat=CSV -O summaryFile=case-${mode}-${ts}.csv)
+              echo "${cmd[@]}"
+              "${cmd[@]}"
+              unset LD_PRELOAD
+              unset DFTRACER_ENABLE_AGGREGATION
+              awk 'BEGIN{FS=OFS=","} NR==1{$(NF+1)="mode"} NR>1{$(NF+1)="'$mode'"} 1' case-${mode}-${ts}.csv > tmp && mv tmp case-${mode}-${ts}.csv
+            done
           done
-          echo "==> Combine all baseline-*.csv files"
-          head -n 1 baseline-4.csv > baseline.csv
-          for f in baseline-*.csv; do
-            tail -n +2 "$f" >> baseline.csv
-          done
-          head -n 1 dftracer-4.csv > dftracer.csv
-          for f in dftracer-*.csv; do
-            tail -n +2 "$f" >> dftracer.csv
+          echo "==> Combine all case-*.csv files"
+          head -n 1 case-trace-4.csv > cases.csv
+          for f in case-*.csv; do
+            tail -n +2 "$f" >> cases.csv
           done
           echo "==> Show contents of both CSVs"
-          echo "==> baseline.csv:"
-          cat baseline.csv
-          echo "==> dftracer.csv:"
-          cat dftracer.csv
+          echo "==> cases.csv:"
+          # touch cases.csv
+          cat cases.csv
       - name: Parse and compare results
         run: |
           echo "==> Parse and compare results"
@@ -101,31 +117,56 @@ jobs:
           pip install pandas numpy          
           python dftracer-src/test/analysis_ior.py > overhead.csv
           echo "==> All values in overhead.csv:"
+          # touch overhead.csv
           cat overhead.csv
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: |
-            baseline.csv
-            dftracer.csv
+            cases.csv
             overhead.csv
 
   store-results:
-    if: github.event_name == 'push'
     needs: benchmark
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grants write access to the repository's contents
     steps:
       - name: Download benchmark results
         uses: actions/download-artifact@v4
         with:
           name: benchmark-results
 
-      - name: Store latest results
+      - name: Set up Git
         run: |
-          echo "==> Store latest results"
-          mkdir -p benchmarks
-          cp overhead.csv benchmarks/latest_overhead.csv
-          cp baseline.csv benchmarks/latest_baseline.csv
-          cp dftracer.csv benchmarks/latest_dftracer.csv
-          # Optionally, commit to a results branch or upload to a storage service
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Clone PR branch
+        run: |
+          git clone ${{ needs.benchmark.outputs.url }} repo
+          cd repo
+          git checkout ${{ needs.benchmark.outputs.branch }}
+
+      - name: Copy results to branch
+        run: |
+          mkdir -p repo/results
+          cp cases.csv repo/results/
+          cp overhead.csv repo/results/
+
+      - name: Commit and push results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd repo
+          git add results/cases.csv results/overhead.csv
+          git commit -m "Add benchmark results"
+          git remote add ci-url https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+          if git remote get-url ci-url; then
+            echo "Remote ci-url set successfully."
+            git push ci-url ${{ needs.benchmark.outputs.branch }}
+          else
+            echo "Failed to set remote ci-url."
+            exit 1
+          fi
