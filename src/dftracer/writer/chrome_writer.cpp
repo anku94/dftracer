@@ -40,11 +40,12 @@ void dftracer::ChromeWriter::initialize(char *filename, bool throw_error,
   DFTRACER_LOG_DEBUG("ChromeWriter.initialize %s", this->filename.c_str());
 }
 
-void dftracer::ChromeWriter::log(
-    int index, ConstEventNameType event_name, ConstEventNameType category,
-    TimeResolution start_time, TimeResolution duration,
-    std::unordered_map<std::string, std::any> *metadata, ProcessID process_id,
-    ThreadID thread_id) {
+void dftracer::ChromeWriter::log(int index, ConstEventNameType event_name,
+                                 ConstEventNameType category,
+                                 TimeResolution start_time,
+                                 TimeResolution duration,
+                                 dftracer::Metadata *metadata,
+                                 ProcessID process_id, ThreadID thread_id) {
   DFTRACER_LOG_DEBUG("ChromeWriter.log", "");
 
   if (fh != nullptr) {
@@ -154,8 +155,7 @@ void dftracer::ChromeWriter::finalize(bool has_entry) {
 void dftracer::ChromeWriter::convert_json(
     int index, ConstEventNameType event_name, ConstEventNameType category,
     TimeResolution start_time, TimeResolution duration,
-    std::unordered_map<std::string, std::any> *metadata, ProcessID process_id,
-    ThreadID thread_id) {
+    dftracer::Metadata *metadata, ProcessID process_id, ThreadID thread_id) {
   size_t previous_index = 0;
   (void)previous_index;
   char is_first_char[3] = "  ";
@@ -168,49 +168,49 @@ void dftracer::ChromeWriter::convert_json(
     long unsigned int i = 0;
     for (auto item : *metadata) {
       has_meta = true;
-      if (item.second.type() == typeid(unsigned int)) {
+      if (item.second.second.type() == typeid(unsigned int)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<unsigned int>(item.second);
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(int)) {
+      } else if (item.second.second.type() == typeid(int)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<int>(item.second);
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(const char *)) {
+      } else if (item.second.second.type() == typeid(const char *)) {
         meta_stream << "\"" << item.first << "\":\""
                     << std::any_cast<const char *>(item.second) << "\"";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(std::string)) {
+      } else if (item.second.second.type() == typeid(std::string)) {
         meta_stream << "\"" << item.first << "\":\""
                     << std::any_cast<std::string>(item.second) << "\"";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(size_t)) {
+      } else if (item.second.second.type() == typeid(size_t)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<size_t>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(uint16_t)) {
+      } else if (item.second.second.type() == typeid(uint16_t)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<uint16_t>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";
 
-      } else if (item.second.type() == typeid(HashType)) {
+      } else if (item.second.second.type() == typeid(HashType)) {
         meta_stream << "\"" << item.first << "\":\""
                     << std::any_cast<HashType>(item.second) << "\"";
         if (i < meta_size - 1) meta_stream << ",";
 
-      } else if (item.second.type() == typeid(long)) {
+      } else if (item.second.second.type() == typeid(long)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<long>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(ssize_t)) {
+      } else if (item.second.second.type() == typeid(ssize_t)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<ssize_t>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(off_t)) {
+      } else if (item.second.second.type() == typeid(off_t)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<off_t>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.type() == typeid(off64_t)) {
+      } else if (item.second.second.type() == typeid(off64_t)) {
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<off64_t>(item.second) << "";
         if (i < meta_size - 1) meta_stream << ",";

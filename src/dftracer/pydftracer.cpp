@@ -1,5 +1,6 @@
 
 #include <dftracer/core/constants.h>
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/dftracer_main.h>
 #include <dftracer/df_logger.h>
 #include <dftracer/utils/configuration_manager.h>
@@ -14,6 +15,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <tuple>
 
 #include "pydftracer.cpp.in"
 
@@ -28,9 +30,12 @@ PYBIND11_MODULE(pydftracer, m) {
   m.def("log_event", &dftracer::log_event, "log event with args",
         py::arg("name"), py::arg("cat"), py::arg("start_time"),
         py::arg("duration"),
-        py::arg("int_args") = std::unordered_map<std::string, int>(),
-        py::arg("string_args") = std::unordered_map<std::string, std::string>(),
-        py::arg("float_args") = std::unordered_map<std::string, float>());
+        py::arg("int_args") =
+            std::unordered_map<std::string, std::tuple<int, int>>(),
+        py::arg("string_args") =
+            std::unordered_map<std::string, std::tuple<int, std::string>>(),
+        py::arg("float_args") =
+            std::unordered_map<std::string, std::tuple<int, float>>());
   m.def("log_metadata_event", &dftracer::log_metadata_event,
         "log metadata event", py::arg("key"), py::arg("value"));
   m.def("finalize", &dftracer::finalize, "finalize dftracer");

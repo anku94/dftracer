@@ -1,6 +1,8 @@
 #ifndef DFTRACER_SERVER
 #define DFTRACER_SERVER
 
+#include <dftracer/core/cpp_typedefs.h>
+#include <dftracer/core/datastructure.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/singleton.h>
 #include <dftracer/df_logger.h>
@@ -140,18 +142,28 @@ class DFTracerService {
 
         if (total_jiffies == 0) total_jiffies = 1;  // Avoid division by zero
 
-        std::unordered_map<std::string, std::any> metadata;
+        dftracer::Metadata metadata;
         // Store each metric as a percentage of total jiffies
-        metadata["user_pct"] = 100.0 * metrics.user / total_jiffies;
-        metadata["nice_pct"] = 100.0 * metrics.nice / total_jiffies;
-        metadata["system_pct"] = 100.0 * metrics.system / total_jiffies;
-        metadata["idle_pct"] = 100.0 * metrics.idle / total_jiffies;
-        metadata["iowait_pct"] = 100.0 * metrics.iowait / total_jiffies;
-        metadata["irq_pct"] = 100.0 * metrics.irq / total_jiffies;
-        metadata["softirq_pct"] = 100.0 * metrics.softirq / total_jiffies;
-        metadata["steal_pct"] = 100.0 * metrics.steal / total_jiffies;
-        metadata["guest_pct"] = 100.0 * metrics.guest / total_jiffies;
-        metadata["guest_nice_pct"] = 100.0 * metrics.guest_nice / total_jiffies;
+        metadata.insert_or_assign("user_pct",
+                                  100.0 * metrics.user / total_jiffies);
+        metadata.insert_or_assign("nice_pct",
+                                  100.0 * metrics.nice / total_jiffies);
+        metadata.insert_or_assign("system_pct",
+                                  100.0 * metrics.system / total_jiffies);
+        metadata.insert_or_assign("idle_pct",
+                                  100.0 * metrics.idle / total_jiffies);
+        metadata.insert_or_assign("iowait_pct",
+                                  100.0 * metrics.iowait / total_jiffies);
+        metadata.insert_or_assign("irq_pct",
+                                  100.0 * metrics.irq / total_jiffies);
+        metadata.insert_or_assign("softirq_pct",
+                                  100.0 * metrics.softirq / total_jiffies);
+        metadata.insert_or_assign("steal_pct",
+                                  100.0 * metrics.steal / total_jiffies);
+        metadata.insert_or_assign("guest_pct",
+                                  100.0 * metrics.guest / total_jiffies);
+        metadata.insert_or_assign("guest_nice_pct",
+                                  100.0 * metrics.guest_nice / total_jiffies);
 
         int current_index = index.fetch_add(1, std::memory_order_relaxed);
         buffer_manager->log_counter_event(current_index, "cpu", "sys", time, 0,
@@ -184,14 +196,14 @@ class DFTracerService {
         double softirq_pct = 100.0 * cpu.softirq / total_jiffies;
         double steal_pct = 100.0 * cpu.steal / total_jiffies;
 
-        auto metadata = std::unordered_map<std::string, std::any>();
-        metadata.emplace("user_pct", user_pct);
-        metadata.emplace("system_pct", system_pct);
-        metadata.emplace("idle_pct", idle_pct);
-        metadata.emplace("iowait_pct", iowait_pct);
-        metadata.emplace("irq_pct", irq_pct);
-        metadata.emplace("softirq_pct", softirq_pct);
-        metadata.emplace("steal_pct", steal_pct);
+        auto metadata = dftracer::Metadata();
+        metadata.insert_or_assign("user_pct", user_pct);
+        metadata.insert_or_assign("system_pct", system_pct);
+        metadata.insert_or_assign("idle_pct", idle_pct);
+        metadata.insert_or_assign("iowait_pct", iowait_pct);
+        metadata.insert_or_assign("irq_pct", irq_pct);
+        metadata.insert_or_assign("softirq_pct", softirq_pct);
+        metadata.insert_or_assign("steal_pct", steal_pct);
 
         std::string cpu_name = "cpu-" + std::to_string(cpu_index);
         int current_index = index.fetch_add(1, std::memory_order_relaxed);
@@ -208,7 +220,7 @@ class DFTracerService {
     FILE* file = fopen("/proc/meminfo", "r");
     if (!file) return;
     char line[256];
-    auto metadata = std::unordered_map<std::string, std::any>();
+    auto metadata = dftracer::Metadata();
     while (fgets(line, sizeof(line), file)) {
       char key[64];
       unsigned long long value = 0;
@@ -217,15 +229,15 @@ class DFTracerService {
         static unsigned long long mem_available = 0;
         if (k == "MemAvailable") {
           mem_available = value;
-          metadata["MemAvailable"] =
-              mem_available;  // MemAvailable is 100% of itself
+          metadata.insert_or_assign("MemAvailable", mem_available);
         } else {
           // Convert to percentage of MemAvailable if MemAvailable is known and
           // nonzero
           if (mem_available > 0) {
-            metadata[k] = 100.0 * static_cast<double>(value) / mem_available;
+            metadata.insert_or_assign(
+                k, 100.0 * static_cast<double>(value) / mem_available);
           } else {
-            metadata[k] = 0.0;
+            metadata.insert_or_assign(k, 0.0);
           }
         }
       }

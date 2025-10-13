@@ -2,6 +2,8 @@
 // Created by haridev on 10/8/23.
 //
 
+#include <dftracer/core/cpp_typedefs.h>
+#include <dftracer/core/datastructure.h>
 #include <dftracer/core/dftracer_main.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/dftracer.h>
@@ -18,14 +20,13 @@ DFTracer::DFTracer(ConstEventNameType _name, ConstEventNameType _cat,
                                                ProfileType::PROFILER_CPP_APP);
   if (dftracer_core != nullptr) {
     if (event_type == DF_DATA_EVENT) {
-      if (dftracer_core->include_metadata)
-        metadata = new std::unordered_map<std::string, std::any>();
+      if (dftracer_core->include_metadata) metadata = new dftracer::Metadata();
       start_time = dftracer_core->get_time();
     }
   }
   dftracer_core->enter_event();
 }
-void DFTracer::update(const char *key, int value) {
+void DFTracer::update(const char *key, int value, MetadataType type) {
   DFTRACER_LOG_DEBUG("DFTracer::update event %s cat %s  key %s value %d ", name,
                      cat, key, value);
   if (event_type == DF_DATA_EVENT) {
@@ -33,11 +34,11 @@ void DFTracer::update(const char *key, int value) {
                                                  ProfileType::PROFILER_CPP_APP);
     if (dftracer_core != nullptr && dftracer_core->is_active() &&
         dftracer_core->include_metadata) {
-      metadata->insert_or_assign(key, value);
+      metadata->insert_or_assign(key, value, type);
     }
   }
 }
-void DFTracer::update(const char *key, const char *value) {
+void DFTracer::update(const char *key, const char *value, MetadataType type) {
   DFTRACER_LOG_DEBUG("DFTracer::update event %s cat %s  key %s value %s ", name,
                      cat, key, value);
   if (event_type == DF_DATA_EVENT) {
@@ -45,7 +46,7 @@ void DFTracer::update(const char *key, const char *value) {
                                                  ProfileType::PROFILER_CPP_APP);
     if (dftracer_core != nullptr && dftracer_core->is_active() &&
         dftracer_core->include_metadata) {
-      metadata->insert_or_assign(key, value);
+      metadata->insert_or_assign(key, value, type);
     }
   }
 }
@@ -121,6 +122,27 @@ void update_metadata_string(struct DFTracerData *data, const char *key,
   if (data && data->profiler) {
     auto profiler = (DFTracer *)data->profiler;
     profiler->update(key, value);
+  }
+}
+
+void update_metadata_int_type(struct DFTracerData *data, const char *key,
+                              int value, int type) {
+  DFTRACER_LOG_DEBUG("dftracer.update_metadata_int_type", "");
+  if (data && data->profiler) {
+    auto profiler = (DFTracer *)data->profiler;
+    MetadataType meta_type;
+    convert(type, meta_type);
+    profiler->update(key, value, meta_type);
+  }
+}
+void update_metadata_string(struct DFTracerData *data, const char *key,
+                            const char *value, int type) {
+  DFTRACER_LOG_DEBUG("dftracer.update_metadata_string", "");
+  if (data && data->profiler) {
+    auto profiler = (DFTracer *)data->profiler;
+    MetadataType meta_type;
+    convert(type, meta_type);
+    profiler->update(key, value, meta_type);
   }
 }
 

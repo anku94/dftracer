@@ -10,6 +10,8 @@
 #include <dftracer/brahma/posix.h>
 #include <dftracer/brahma/stdio.h>
 #include <dftracer/core/constants.h>
+#include <dftracer/core/cpp_typedefs.h>
+#include <dftracer/core/datastructure.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/error.h>
 #include <dftracer/core/logging.h>
@@ -55,7 +57,7 @@ class DFTracerCore {
 
   void log(ConstEventNameType event_name, ConstEventNameType category,
            TimeResolution start_time, TimeResolution duration,
-           std::unordered_map<std::string, std::any> *metadata);
+           dftracer::Metadata *metadata);
 
   void log_metadata(ConstEventNameType key, ConstEventNameType value);
 

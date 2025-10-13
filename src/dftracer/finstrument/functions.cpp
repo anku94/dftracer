@@ -61,9 +61,9 @@ void __cyg_profile_func_exit(void *func, void *caller) {
   TimeResolution start_time;
   int status = function->exit_event(event_name, start_time);
   if (status == 0) {
-    std::unordered_map<std::string, std::any> *metadata;
+    dftracer::Metadata *metadata;
     if (function->logger->include_metadata) {
-      metadata = new std::unordered_map<std::string, std::any>();
+      metadata = new dftracer::Metadata();
       const char *so = info.dli_fname;
       metadata->insert_or_assign("so", so);
     }

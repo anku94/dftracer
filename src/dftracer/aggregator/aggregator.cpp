@@ -6,12 +6,19 @@ std::shared_ptr<dftracer::Aggregator>
 template <>
 bool dftracer::Singleton<dftracer::Aggregator>::stop_creating_instances = false;
 
+#define NUM_INSERT(TYPE)                                               \
+  insert_number_value<TYPE>(iter2, time_interval, aggregated_key, key, \
+                            std::any_cast<TYPE>(value.second));
+
+#define GENERAL_INSERT(TYPE)                                            \
+  insert_general_value<TYPE>(iter2, time_interval, aggregated_key, key, \
+                             std::any_cast<TYPE>(value.second));
 namespace dftracer {
 bool Aggregator::aggregate(int index, ConstEventNameType event_name,
                            ConstEventNameType category,
                            TimeResolution start_time, TimeResolution duration,
-                           std::unordered_map<std::string, std::any>* metadata,
-                           ProcessID process_id, ThreadID tid) {
+                           dftracer::Metadata* metadata, ProcessID process_id,
+                           ThreadID tid) {
   bool is_first_local = is_first;
   is_first = false;
   std::unique_lock<std::shared_mutex> lock(mtx);
@@ -29,19 +36,22 @@ bool Aggregator::aggregate(int index, ConstEventNameType event_name,
     last_interval = time_interval;
   }
 
-  auto key = AggregatedKey{category, event_name, time_interval, tid, metadata};
-  auto iter2 = aggregated_data_[time_interval].find(key);
-  auto num_value = new NumberAggregationValue<TimeResolution>(duration);
-  if (iter2 != aggregated_data_[time_interval].end()) {
-    iter2->second->update("dur", typeid(TimeResolution), num_value);
-    if (metadata != nullptr) delete (metadata);
-  } else {
-    auto value = new AggregatedValues();
-    value->update("dur", typeid(TimeResolution), num_value);
-    aggregated_data_[time_interval].insert_or_assign(key, value);
-    DFTRACER_LOG_INFO("Events in %llu are %d", time_interval,
-                      aggregated_data_[time_interval].size());
+  auto aggregated_key =
+      AggregatedKey{category, event_name, time_interval, tid, metadata};
+  insert_number_value(time_interval, aggregated_key, "dur", duration);
+  for (const auto& [key, value] : *metadata) {
+    if (value.first == MetadataType::MT_VALUE) {
+      DFTRACER_FOR_EACH_NUMERIC_TYPE(DFTRACER_ANY_CAST_MACRO, value.second, {
+        insert_number_value(time_interval, aggregated_key, key, res.value());
+        continue;
+      })
+      DFTRACER_FOR_EACH_STRING_TYPE(DFTRACER_ANY_CAST_MACRO, value.second, {
+        insert_general_value(time_interval, aggregated_key, key, res.value());
+        continue;
+      })
+    }
   }
+
   return !is_first_local && last_interval_ != last_interval;
 }
 int Aggregator::get_previous_aggregations(AggregatedDataType& data, bool all) {

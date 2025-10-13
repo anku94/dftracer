@@ -4,6 +4,8 @@
 #include <dftracer/core/logging.h>
 //
 #include <dftracer/aggregator/aggregator.h>
+#include <dftracer/core/cpp_typedefs.h>
+#include <dftracer/core/datastructure.h>
 #include <dftracer/core/enumeration.h>
 #include <dftracer/core/typedef.h>
 #include <dftracer/serialization/json_line.h>
@@ -31,8 +33,7 @@ class BufferManager {
 
   void log_data_event(int index, ConstEventNameType event_name,
                       ConstEventNameType category, TimeResolution start_time,
-                      TimeResolution duration,
-                      std::unordered_map<std::string, std::any>* metadata,
+                      TimeResolution duration, dftracer::Metadata* metadata,
                       ProcessID process_id, ThreadID tid);
 
   void log_metadata_event(int index, ConstEventNameType name,
@@ -43,7 +44,7 @@ class BufferManager {
   void log_counter_event(int index, ConstEventNameType name,
                          ConstEventNameType category, TimeResolution start_time,
                          ProcessID process_id, ThreadID thread_id,
-                         std::unordered_map<std::string, std::any>* metadata);
+                         dftracer::Metadata* metadata);
 
  private:
   void compress_and_write_if_needed(size_t size, bool force = false);

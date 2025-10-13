@@ -8,6 +8,7 @@
 #include <dftracer/dftracer_config.hpp>
 #ifdef DFTRACER_FTRACING_ENABLE
 /* Internal Header */
+#include <dftracer/core/cpp_typedefs.h>
 #include <dftracer/core/logging.h>
 #include <dftracer/core/typedef.h>
 #include <dftracer/df_logger.h>

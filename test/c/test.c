@@ -1,7 +1,10 @@
 //
 // Created by hariharan on 8/8/22.
 //
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
+#endif
+
 #include <dftracer/dftracer.h>
 #include <stdio.h>
 #include <stdlib.h>
