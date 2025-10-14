@@ -89,7 +89,13 @@ jobs:
                 unset LD_PRELOAD
               fi
               if [[ "$mode" == "profile" ]]; then
-                export DFTRACER_ENABLE_AGGREGATION=1
+                export DFTRACER_ENABLE_AGGREGATION=ON
+              else
+                unset DFTRACER_ENABLE_AGGREGATION
+              fi
+              if [[ "$mode" == "selective" ]]; then
+                export DFTRACER_ENABLE_AGGREGATION=SELECTIVE
+                export DFTRACER_AGGREGATION_FILE=dftracer-src/test/benchmark-rules.yaml
               else
                 unset DFTRACER_ENABLE_AGGREGATION
               fi

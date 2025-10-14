@@ -183,6 +183,7 @@ class DFTLogger {
         timestamp[size - 1] = '\0';
         meta->insert_or_assign("date", std::string(timestamp));
         meta->insert_or_assign("ppid", getppid());
+        this->buffer_manager->set_app_name(exec_name.c_str());
       }
       this->enter_event();
       this->log("start", "dftracer", this->get_time(), 0, meta);
@@ -279,6 +280,9 @@ class DFTLogger {
       if (status == MPI_SUCCESS && initialized == true) {
         int rank = 0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (this->buffer_manager != nullptr) {
+          this->buffer_manager->set_rank(rank);
+        }
         int current_index = this->enter_event();
         this->buffer_manager->log_metadata_event(
             current_index, "rank", std::to_string(rank).c_str(),

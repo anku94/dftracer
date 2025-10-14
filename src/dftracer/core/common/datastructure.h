@@ -103,33 +103,44 @@ struct AggregatedKey {
   std::string category;
   std::string event_name;
   TimeResolution time_interval;
-  TimeResolution duration;
   ThreadID thread_id;
   Metadata *additional_keys;
+  /* These attributes are just holder for rules not used in aggregation-key */
+  TimeResolution duration;
+  const char *app_name;
+  const int *rank;
+
   AggregatedKey()
       : category(nullptr),
         event_name(nullptr),
         time_interval(0),
-        duration(0),
         thread_id(0),
-        additional_keys(nullptr) {}
+        additional_keys(nullptr),
+        duration(0),
+        app_name(nullptr),
+        rank(nullptr) {}
 
   AggregatedKey(ConstEventNameType category_, ConstEventNameType event_name_,
                 TimeResolution time_interval_, TimeResolution duration_,
-                ThreadID thread_id_, Metadata *metadata_)
+                ThreadID thread_id_, Metadata *metadata_, const char *app_name_,
+                const int *rank_)
       : category(category_),
         event_name(event_name_),
         time_interval(time_interval_),
-        duration(duration_),
         thread_id(thread_id_),
-        additional_keys(metadata_) {}
+        additional_keys(metadata_),
+        duration(duration_),
+        app_name(app_name_),
+        rank(rank_) {}
   AggregatedKey(const AggregatedKey &other)
       : category(other.category),
         event_name(other.event_name),
         time_interval(other.time_interval),
-        duration(other.duration),
         thread_id(other.thread_id),
-        additional_keys(other.additional_keys) {}
+        additional_keys(other.additional_keys),
+        duration(other.duration),
+        app_name(other.app_name),
+        rank(other.rank) {}
   bool operator==(const AggregatedKey &other) const {
     return category == other.category && event_name == other.event_name &&
            time_interval == other.time_interval &&
@@ -352,13 +363,16 @@ inline std::optional<Value> getFieldValue(const AggregatedKey *key,
     return Value{key->time_interval};
   } else if (fieldName == "dur") {
     return Value{key->duration};
+  } else if (fieldName == "app" && key->app_name != nullptr) {
+    return Value{key->app_name};
+  } else if (fieldName == "rank" && *key->rank != -1) {
+    return Value{(TimeResolution)*key->rank};
   } else if (fieldName.rfind("tags.", 0) == 0 && key->additional_keys) {
     // tags.<tagname>
     std::string tagKey = fieldName.substr(5);
     std::string tagValue = key->additional_keys->getTagValue(tagKey);
     return Value{tagValue};
   }
-  return std::nullopt;
   return std::nullopt;
 }
 

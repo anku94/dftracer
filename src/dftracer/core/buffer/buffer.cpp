@@ -84,8 +84,9 @@ void BufferManager::log_data_event(int index, ConstEventNameType event_name,
   bool enable_tracing = true;
   if (this->config->aggregation_enable && strcmp(category, "dftracer") != 0) {
     enable_tracing = false;
-    auto aggregated_key = AggregatedKey{category, event_name, start_time,
-                                        duration, tid,        metadata};
+    auto aggregated_key =
+        AggregatedKey{category, event_name, start_time,     duration,
+                      tid,      metadata,   get_app_name(), &rank};
     if (this->config->aggregation_type ==
         AggregationType::AGGREGATION_TYPE_SELECTIVE) {
       enable_tracing = !this->aggregator->should_aggregate(&aggregated_key);
