@@ -7,6 +7,8 @@
 #include <dftracer/core/common/constants.h>
 #include <yaml-cpp/yaml.h>
 
+#include <filesystem>
+
 #include "utils.h"
 
 #define DFT_YAML_ENABLE "enable"
@@ -31,6 +33,12 @@
 #define DFT_YAML_FEATURES_IO_STDIO "stdio"
 #define DFT_YAML_FEATURES_TID "tid"
 #define DFT_YAML_FEATURES_AGGREGATION "aggregation"
+#define DFT_YAML_FEATURES_AGGREGATION_ENABLE "enable"
+#define DFT_YAML_FEATURES_AGGREGATION_TYPE "type"
+#define DFT_YAML_FEATURES_AGGREGATION_FILE "file"
+#define DFT_YAML_FEATURES_AGGREGATION_INCLUSION_FILTERS "inclusion"
+#define DFT_YAML_FEATURES_AGGREGATION_EXCLUSION_FILTERS "exclusion"
+
 // INTERNAL
 #define DFT_YAML_INTERNAL "internal"
 #define DFT_YAML_INTERNAL_SIGNALS "bind_signals"
@@ -61,7 +69,10 @@ dftracer::ConfigurationManager::ConfigurationManager()
       throw_error(false),
       write_buffer_size(16 * 1024 * 1024),
       trace_interval_ms(1000),
-      enable_aggregation(false) {
+      aggregation_enable(false),
+      aggregation_type(AggregationType::AGGREGATION_TYPE_FULL),
+      aggregation_inclusion_rules(),
+      aggregation_exclusion_rules() {
   const char *env_conf = getenv(DFTRACER_CONFIGURATION);
   YAML::Node config;
   if (env_conf != nullptr) {
@@ -181,9 +192,40 @@ dftracer::ConfigurationManager::ConfigurationManager()
       }
       DFTRACER_LOG_DEBUG("YAML ConfigurationManager.tids %d", this->tids);
       if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]) {
-        this->enable_aggregation =
-            config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION].as<bool>();
+        if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                  [DFT_YAML_FEATURES_AGGREGATION_ENABLE]) {
+          this->aggregation_enable =
+              config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                    [DFT_YAML_FEATURES_AGGREGATION_ENABLE]
+                        .as<bool>();
+          if (this->aggregation_enable) {
+            this->aggregation_type = AggregationType::AGGREGATION_TYPE_FULL;
+            if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                      [DFT_YAML_FEATURES_AGGREGATION_TYPE]) {
+              convert(config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                            [DFT_YAML_FEATURES_AGGREGATION_TYPE]
+                                .as<std::string>(),
+                      this->aggregation_type);
+            }
+            if (this->aggregation_type ==
+                AggregationType::AGGREGATION_TYPE_SELECTIVE) {
+              if (config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                        [DFT_YAML_FEATURES_AGGREGATION_FILE]) {
+                this->aggregation_file =
+                    config[DFT_YAML_FEATURES][DFT_YAML_FEATURES_AGGREGATION]
+                          [DFT_YAML_FEATURES_AGGREGATION_FILE]
+                              .as<std::string>();
+              }
+            }
+          }
+        }
       }
+      DFTRACER_LOG_DEBUG("YAML ConfigurationManager.aggregation_enable %d",
+                         this->aggregation_enable);
+      DFTRACER_LOG_DEBUG("YAML ConfigurationManager.aggregation_type %d",
+                         this->aggregation_type);
+      DFTRACER_LOG_DEBUG("YAML ConfigurationManager.aggregation_enable %d",
+                         this->aggregation_file);
     }
     if (config[DFT_YAML_INTERNAL]) {
       if (config[DFT_YAML_INTERNAL][DFT_YAML_INTERNAL_SIGNALS]) {
@@ -293,10 +335,28 @@ dftracer::ConfigurationManager::ConfigurationManager()
     const char *env_enable_aggregation = getenv(DFTRACER_ENABLE_AGGREGATION);
     if (env_enable_aggregation != nullptr &&
         strcmp(env_enable_aggregation, "1") == 0) {
-      this->enable_aggregation = true;
+      this->aggregation_enable = true;
+      if (this->aggregation_enable) {
+        this->aggregation_type = AggregationType::AGGREGATION_TYPE_FULL;
+        const char *env_aggregation_type = getenv(DFTRACER_AGGREGATION_TYPE);
+        if (env_aggregation_type != nullptr) {
+          convert(env_aggregation_type, this->aggregation_type);
+        }
+        if (this->aggregation_type ==
+            AggregationType::AGGREGATION_TYPE_SELECTIVE) {
+          const char *env_aggregation_file = getenv(DFTRACER_AGGREGATION_FILE);
+          if (env_aggregation_file != nullptr) {
+            this->aggregation_file = env_aggregation_file;
+          }
+        }
+      }
     }
-    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.enable_aggregation %d",
-                       this->enable_aggregation);
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.enable_aggregation %s",
+                       this->aggregation_enable ? "true" : "false");
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.aggregation_type %d",
+                       to_string(this->aggregation_type).c_str());
+    DFTRACER_LOG_DEBUG("ENV ConfigurationManager.aggregation_file %s",
+                       this->aggregation_file.c_str());
     const char *env_throw_error = getenv(DFTRACER_ERROR);
     if (env_throw_error != nullptr && strcmp(env_throw_error, "1") == 0) {
       this->throw_error = true;  // GCOVR_EXCL_LINE
@@ -319,5 +379,50 @@ dftracer::ConfigurationManager::ConfigurationManager()
     DFTRACER_LOG_DEBUG("ENV ConfigurationManager.write_buffer_size %d",
                        this->write_buffer_size);
   }
+  derive_configurations();
   DFTRACER_LOG_DEBUG("ENV ConfigurationManager finished", "");
+}
+
+void dftracer::ConfigurationManager::derive_configurations() {
+  // Derive configurations based on the current settings
+  if (this->aggregation_type == AggregationType::AGGREGATION_TYPE_SELECTIVE) {
+    if (!this->aggregation_file.empty() &&
+        std::filesystem::exists(this->aggregation_file)) {
+      // Load aggregation rules from the specified file
+      YAML::Node agg_config = YAML::LoadFile(this->aggregation_file);
+      if (agg_config[DFT_YAML_FEATURES_AGGREGATION_INCLUSION_FILTERS]) {
+        const auto &inclusion =
+            agg_config[DFT_YAML_FEATURES_AGGREGATION_INCLUSION_FILTERS];
+        if (inclusion.IsSequence()) {
+          for (const auto &item : inclusion) {
+            this->aggregation_inclusion_rules.push_back(item.as<std::string>());
+          }
+        }
+      }
+      if (agg_config[DFT_YAML_FEATURES_AGGREGATION_EXCLUSION_FILTERS]) {
+        const auto &exclusion =
+            agg_config[DFT_YAML_FEATURES_AGGREGATION_EXCLUSION_FILTERS];
+        if (exclusion.IsSequence()) {
+          for (const auto &item : exclusion) {
+            this->aggregation_exclusion_rules.push_back(item.as<std::string>());
+          }
+        }
+      }
+      DFTRACER_LOG_DEBUG("Aggregation inclusion rules", "");
+      for (const auto &rule : this->aggregation_inclusion_rules) {
+        (void)rule;
+        DFTRACER_LOG_DEBUG(" - %s", rule.c_str());
+      }
+      DFTRACER_LOG_DEBUG("Aggregation exclusion rules", "");
+      for (const auto &rule : this->aggregation_exclusion_rules) {
+        (void)rule;
+        DFTRACER_LOG_DEBUG(" - %s", rule.c_str());
+      }
+    } else {
+      DFTRACER_LOG_WARN("Aggregation configuration file %s not found",
+                        this->aggregation_file.c_str());
+    }
+  }
+  DFTRACER_LOG_DEBUG("ConfigurationManager::derive_configurations finished",
+                     "");
 }

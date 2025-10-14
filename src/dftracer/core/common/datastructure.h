@@ -1,18 +1,26 @@
 #ifndef DFTRACER_CORE_DATASTRUCTURE_H
 #define DFTRACER_CORE_DATASTRUCTURE_H
 
+// Internal
 #include <dftracer/core/common/cpp_typedefs.h>
 #include <dftracer/core/common/enumeration.h>
 #include <dftracer/core/common/logging.h>
 #include <dftracer/core/common/macros.h>
 #include <dftracer/core/common/typedef.h>
+
+// standard headers
 #include <stddef.h>
 
 #include <any>
+#include <memory>
+#include <optional>
+#include <set>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
+#include <variant>
+#include <vector>
 
 namespace dftracer {
 
@@ -79,6 +87,8 @@ class Metadata {
   DataMap::iterator end() { return data.end(); }
 
   DataMap::const_iterator end() const { return data.end(); }
+
+  std::string getTagValue(const std::string &tagKey) const;
 };
 
 inline bool compare_any(const std::any &a, const std::any &b) {
@@ -93,27 +103,31 @@ struct AggregatedKey {
   std::string category;
   std::string event_name;
   TimeResolution time_interval;
+  TimeResolution duration;
   ThreadID thread_id;
   Metadata *additional_keys;
   AggregatedKey()
       : category(nullptr),
         event_name(nullptr),
         time_interval(0),
+        duration(0),
         thread_id(0),
         additional_keys(nullptr) {}
 
   AggregatedKey(ConstEventNameType category_, ConstEventNameType event_name_,
-                TimeResolution time_interval_, ThreadID thread_id_,
-                Metadata *metadata_)
+                TimeResolution time_interval_, TimeResolution duration_,
+                ThreadID thread_id_, Metadata *metadata_)
       : category(category_),
         event_name(event_name_),
         time_interval(time_interval_),
+        duration(duration_),
         thread_id(thread_id_),
         additional_keys(metadata_) {}
   AggregatedKey(const AggregatedKey &other)
       : category(other.category),
         event_name(other.event_name),
         time_interval(other.time_interval),
+        duration(other.duration),
         thread_id(other.thread_id),
         additional_keys(other.additional_keys) {}
   bool operator==(const AggregatedKey &other) const {
@@ -268,6 +282,180 @@ class AggregatedValues {
   }
 };
 
+struct Value {
+  std::variant<std::string, TimeResolution, double, std::set<std::string>> data;
+};
+
+struct Field {
+  std::vector<std::string>
+      path;  // e.g., tags.performance -> ["tags", "performance"]
+};
+
+struct RuleAST {
+  // AST Node
+  struct Node {
+    virtual ~Node() = default;
+  };
+
+  struct BinaryOp : Node {
+    RuleOp op;
+    std::unique_ptr<Node> left;
+    std::unique_ptr<Node> right;
+    BinaryOp(RuleOp op, std::unique_ptr<Node> l, std::unique_ptr<Node> r)
+        : op(op), left(std::move(l)), right(std::move(r)) {}
+  };
+
+  struct UnaryOp : Node {
+    RuleOp op;
+    std::unique_ptr<Node> operand;
+    UnaryOp(RuleOp op, std::unique_ptr<Node> operand)
+        : op(op), operand(std::move(operand)) {}
+  };
+
+  struct Comparison : Node {
+    RuleOp op;
+    Field field;
+    Value value;
+    Comparison(RuleOp op, Field field, Value value)
+        : op(op), field(std::move(field)), value(std::move(value)) {}
+  };
+
+  struct InOp : Node {
+    Field field;
+    std::set<std::string> values;
+    InOp(Field field, std::set<std::string> values)
+        : field(std::move(field)), values(std::move(values)) {}
+  };
+
+  struct LikeOp : Node {
+    Field field;
+    std::string pattern;
+    LikeOp(Field field, std::string pattern)
+        : field(std::move(field)), pattern(std::move(pattern)) {}
+  };
+
+  std::unique_ptr<Node> root;
+};
+
+// Helper functions for field extraction and comparison
+inline std::optional<Value> getFieldValue(const AggregatedKey *key,
+                                          const Field &field) {
+  // Extract field value from AggregatedKey based on field.path
+  if (!key || field.path.empty()) return std::nullopt;
+  const std::string &fieldName = field.path[0];
+
+  if (fieldName == "cat") {
+    return Value{key->category};
+  } else if (fieldName == "name") {
+    return Value{key->event_name};
+  } else if (fieldName == "ts") {
+    return Value{key->time_interval};
+  } else if (fieldName == "dur") {
+    return Value{key->duration};
+  } else if (fieldName.rfind("tags.", 0) == 0 && key->additional_keys) {
+    // tags.<tagname>
+    std::string tagKey = fieldName.substr(5);
+    std::string tagValue = key->additional_keys->getTagValue(tagKey);
+    return Value{tagValue};
+  }
+  return std::nullopt;
+  return std::nullopt;
+}
+
+inline bool compareValues(const Value &lhs, const Value &rhs, RuleOp op) {
+  if (lhs.data.index() != rhs.data.index()) return false;
+  if (std::holds_alternative<TimeResolution>(lhs.data)) {
+    int l = std::get<TimeResolution>(lhs.data);
+    int r = std::get<TimeResolution>(rhs.data);
+    switch (op) {
+      case RuleOp::EQ:
+        return l == r;
+      case RuleOp::NEQ:
+        return l != r;
+      case RuleOp::GT:
+        return l > r;
+      case RuleOp::LT:
+        return l < r;
+      case RuleOp::GTE:
+        return l >= r;
+      case RuleOp::LTE:
+        return l <= r;
+      default:
+        return false;
+    }
+  }
+  if (std::holds_alternative<double>(lhs.data)) {
+    double l = std::get<double>(lhs.data);
+    double r = std::get<double>(rhs.data);
+    switch (op) {
+      case RuleOp::EQ:
+        return l == r;
+      case RuleOp::NEQ:
+        return l != r;
+      case RuleOp::GT:
+        return l > r;
+      case RuleOp::LT:
+        return l < r;
+      case RuleOp::GTE:
+        return l >= r;
+      case RuleOp::LTE:
+        return l <= r;
+      default:
+        return false;
+    }
+  }
+  if (std::holds_alternative<std::string>(lhs.data)) {
+    const std::string &l = std::get<std::string>(lhs.data);
+    const std::string &r = std::get<std::string>(rhs.data);
+    switch (op) {
+      case RuleOp::EQ:
+        return l == r;
+      case RuleOp::NEQ:
+        return l != r;
+      default:
+        return false;
+    }
+  }
+  return false;
+}
+
+inline bool likeMatch(const std::string &value, const std::string &pattern) {
+  // Handles patterns: "*stat", "*stat*", "stat*"
+  if (pattern == "*") return true;  // matches anything
+
+  size_t first_star = pattern.find('*');
+  size_t last_star = pattern.rfind('*');
+
+  if (first_star == std::string::npos) {
+    // No wildcard, exact match
+    return value == pattern;
+  }
+
+  if (first_star == 0 && last_star == pattern.size() - 1 &&
+      pattern.size() > 1) {
+    // Pattern: *stat*
+    std::string inner = pattern.substr(1, pattern.size() - 2);
+    return value.find(inner) != std::string::npos;
+  }
+
+  if (first_star == 0) {
+    // Pattern: *stat
+    std::string suffix = pattern.substr(1);
+    return value.size() >= suffix.size() &&
+           value.compare(value.size() - suffix.size(), suffix.size(), suffix) ==
+               0;
+  }
+
+  if (last_star == pattern.size() - 1) {
+    // Pattern: stat*
+    std::string prefix = pattern.substr(0, pattern.size() - 1);
+    return value.size() >= prefix.size() &&
+           value.compare(0, prefix.size(), prefix) == 0;
+  }
+
+  // Fallback: only support single '*' at start or end or both
+  return false;
+}
 }  // namespace dftracer
 
 #endif  // DFTRACER_CORE_DATASTRUCTURE_H

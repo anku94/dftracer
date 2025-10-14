@@ -345,7 +345,8 @@ set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/brahma/posix
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/buffer/buffer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/writer/stdio_writer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/aggregator/aggregator.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/common/datastructure.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/common/datastructure.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/aggregator/rules.cpp)
 set(DFTRACER_CORE_PUBLIC_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/dftracer.h
         ${CMAKE_CURRENT_SOURCE_DIR}/include/dftracer/core/common/constants.h

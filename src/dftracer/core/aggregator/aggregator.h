@@ -2,6 +2,7 @@
 #define DFTRACER_AGGREGATOR_H
 #include <dftracer/core/common/logging.h>
 //
+#include <dftracer/core/aggregator/rules.h>
 #include <dftracer/core/common/cpp_typedefs.h>
 #include <dftracer/core/common/datastructure.h>
 #include <dftracer/core/common/enumeration.h>
@@ -27,6 +28,9 @@ class Aggregator {
   TimeResolution last_interval;
   bool is_first;
   std::shared_mutex mtx;
+  Rules inclusion_rules;
+  Rules exclusion_rules;
+  bool always_aggregate;
   template <typename T>
   inline void insert_number_value(TimeResolution &time_interval,
                                   AggregatedKey &aggregated_key,
@@ -65,8 +69,25 @@ class Aggregator {
   Aggregator() {
     config =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
+    for (const auto &rule : config->aggregation_inclusion_rules) {
+      inclusion_rules.addRule(rule);
+    }
+    for (const auto &rule : config->aggregation_exclusion_rules) {
+      exclusion_rules.addRule(rule);
+    }
+    always_aggregate = true;
+    if (config->aggregation_inclusion_rules.size() > 0 ||
+        config->aggregation_exclusion_rules.size() > 0) {
+      always_aggregate = false;
+    }
     last_interval = 0;
     is_first = true;
+  }
+  bool should_aggregate(const AggregatedKey *key) {
+    if (always_aggregate) return true;
+    if (inclusion_rules.satisfies(key) && !exclusion_rules.satisfies(key))
+      return true;
+    return false;
   }
   ~Aggregator() {}
   void finalize() {
@@ -80,10 +101,7 @@ class Aggregator {
       }
     }
   }
-  bool aggregate(int index, ConstEventNameType event_name,
-                 ConstEventNameType category, TimeResolution start_time,
-                 TimeResolution duration, dftracer::Metadata *metadata,
-                 ProcessID process_id, ThreadID tid);
+  bool aggregate(AggregatedKey &aggregated_key);
   int get_previous_aggregations(AggregatedDataType &data, bool all = false);
 };
 }  // namespace dftracer

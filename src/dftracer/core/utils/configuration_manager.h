@@ -10,6 +10,10 @@
 #include <vector>
 namespace dftracer {
 class ConfigurationManager {
+ private:
+  void derive_configurations();
+  std::string aggregation_file;
+
  public:
   bool enable;
   ProfileInitType init_type;
@@ -29,7 +33,10 @@ class ConfigurationManager {
   bool throw_error;
   size_t write_buffer_size;
   size_t trace_interval_ms;
-  bool enable_aggregation;
+  bool aggregation_enable;
+  AggregationType aggregation_type;
+  std::vector<std::string> aggregation_inclusion_rules;
+  std::vector<std::string> aggregation_exclusion_rules;
   ConfigurationManager();
   void finalize() {}
 };

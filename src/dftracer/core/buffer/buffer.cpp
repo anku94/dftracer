@@ -8,8 +8,8 @@ bool dftracer::Singleton<dftracer::BufferManager>::stop_creating_instances =
 namespace dftracer {
 
 void BufferManager::compress_and_write_if_needed(size_t size, bool force) {
-  if (force || buffer_pos + size > buffer_size) {
-    if (enable_compression) {
+  if (force || buffer_pos + size > this->config->write_buffer_size) {
+    if (this->config->compression) {
       size = this->compressor->compress(buffer, buffer_pos + size);
     } else {
       size = buffer_pos + size;
@@ -24,13 +24,10 @@ void BufferManager::compress_and_write_if_needed(size_t size, bool force) {
 }
 int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   DFTRACER_LOG_DEBUG("BufferManager.initialize %s %d", filename, hostname_hash);
-  auto conf =
+  this->config =
       dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-  enable_compression = conf->compression;
-  enable_aggregation = conf->enable_aggregation;
-  buffer_size = conf->write_buffer_size;
   if (buffer == nullptr) {
-    buffer = (char*)malloc(buffer_size + 16 * 1024);
+    buffer = (char*)malloc(this->config->write_buffer_size + 16 * 1024);
   }
   buffer_pos = 0;
   if (!buffer) {
@@ -41,10 +38,10 @@ int BufferManager::initialize(const char* filename, HashType hostname_hash) {
   this->writer->initialize(filename);
   this->serializer = dftracer::Singleton<dftracer::JsonLines>::get_instance();
   this->aggregator = dftracer::Singleton<dftracer::Aggregator>::get_instance();
-  if (enable_compression) {
+  if (this->config->compression) {
     this->compressor =
         dftracer::Singleton<dftracer::ZlibCompression>::get_instance();
-    this->compressor->initialize(buffer_size);
+    this->compressor->initialize(this->config->write_buffer_size);
   }
   size_t size = this->serializer->initialize(buffer, hostname_hash);
   compress_and_write_if_needed(size);
@@ -55,7 +52,7 @@ int BufferManager::finalize(int index, ProcessID process_id, bool end_sym) {
   std::unique_lock<std::shared_mutex> lock(mtx);
   if (buffer) {
     size_t size = 0;
-    if (enable_aggregation) {
+    if (this->config->aggregation_enable) {
       auto data = dftracer::AggregatedDataType();
       this->aggregator->get_previous_aggregations(data, true);
       size = this->serializer->aggregated(buffer + buffer_pos, index,
@@ -66,11 +63,10 @@ int BufferManager::finalize(int index, ProcessID process_id, bool end_sym) {
         this->serializer->finalize(buffer + buffer_pos + size, end_sym);
     compress_and_write_if_needed(size + end_size, true);
 
-    if (enable_compression) this->compressor->finalize();
+    if (this->config->compression) this->compressor->finalize();
     this->writer->finalize(index);
     free(buffer);
     buffer = nullptr;
-    buffer_size = 0;
     buffer_pos = 0;
   }
   return 0;
@@ -85,17 +81,26 @@ void BufferManager::log_data_event(int index, ConstEventNameType event_name,
   std::unique_lock<std::shared_mutex> lock(mtx);
   DFTRACER_LOG_DEBUG("BufferManager.log_data_event %d", index);
   size_t size = 0;
-  if (enable_aggregation && strcmp(category, "dftracer") != 0) {
-    bool needs_writing =
-        this->aggregator->aggregate(index, event_name, category, start_time,
-                                    duration, metadata, process_id, tid);
-    if (needs_writing) {
-      auto data = dftracer::AggregatedDataType();
-      this->aggregator->get_previous_aggregations(data);
-      size = this->serializer->aggregated(buffer + buffer_pos, index,
-                                          process_id, data);
+  bool enable_tracing = true;
+  if (this->config->aggregation_enable && strcmp(category, "dftracer") != 0) {
+    enable_tracing = false;
+    auto aggregated_key = AggregatedKey{category, event_name, start_time,
+                                        duration, tid,        metadata};
+    if (this->config->aggregation_type ==
+        AggregationType::AGGREGATION_TYPE_SELECTIVE) {
+      enable_tracing = !this->aggregator->should_aggregate(&aggregated_key);
     }
-  } else {
+    if (!enable_tracing) {
+      bool needs_writing = this->aggregator->aggregate(aggregated_key);
+      if (needs_writing) {
+        auto data = dftracer::AggregatedDataType();
+        this->aggregator->get_previous_aggregations(data);
+        size = this->serializer->aggregated(buffer + buffer_pos, index,
+                                            process_id, data);
+      }
+    }
+  }
+  if (enable_tracing) {
     size =
         this->serializer->data(buffer + buffer_pos, index, event_name, category,
                                start_time, duration, metadata, process_id, tid);
