@@ -267,10 +267,7 @@ def io_function(json_object, current_dict, time_approximate,condition_fn):
             d["io_time"] = I.to_string(I.empty())
     if "args" in json_object:
         if "fhash" in json_object["args"]:
-            if type(json_object["args"]["fhash"]) is str:
-                d["fhash"] = int(json_object["args"]["fhash"],16)
-            else: 
-                d["fhash"] = json_object["args"]["fhash"]
+            d["fhash"] = str(json_object["args"]["fhash"])
         if "POSIX" == json_object["cat"] and "ret" in json_object["args"]:
             size = int(json_object["args"]["ret"])
             if size > 0:
