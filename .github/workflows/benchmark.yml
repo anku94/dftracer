@@ -129,6 +129,7 @@ jobs:
 
   store-results:
     needs: benchmark
+    if: ${{ needs.benchmark.outputs.branch != 'develop' || needs.benchmark.outputs.url != 'https://github.com/LLNL/dftracer.git' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # Grants write access to the repository's contents
@@ -155,7 +156,7 @@ jobs:
           cp cases.csv repo/results/
           cp overhead.csv repo/results/
 
-      - name: Commit and push results
+      - name: Commit and push results      
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -164,9 +165,9 @@ jobs:
           git commit -m "Add benchmark results"
           git remote add ci-url https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
           if git remote get-url ci-url; then
-            echo "Remote ci-url set successfully."
-            git push ci-url ${{ needs.benchmark.outputs.branch }}
+          echo "Remote ci-url set successfully."
+          git push ci-url ${{ needs.benchmark.outputs.branch }}
           else
-            echo "Failed to set remote ci-url."
-            exit 1
+          echo "Failed to set remote ci-url."
+          exit 1
           fi
