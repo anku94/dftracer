@@ -870,7 +870,7 @@ class DFAnalyzer:
         # filter the hosts if time skew exceeds 30 seconds
         max_time_skew = 30e6
         if np.std(hosts_ts_df["ts"]) > max_time_skew:
-            logging.warn(
+            logging.warning(
                 f"The time skew exceeds {max_time_skew // 1e6} sec across hosts {hosts_ts_df.index.tolist()}"
             )
 
