@@ -122,7 +122,6 @@ def generate_gitlab_ci_yaml(config_files):
             "create_directory",
             "generate_data",
             "train",
-            "compress_output",
             "move",
             "process_trace",
             "cleanup",
@@ -402,7 +401,6 @@ def generate_gitlab_ci_yaml(config_files):
                 [
                     "generate_data",
                     "train",
-                    "compress_output",
                     "move",
                     "process_trace",
                     "cleanup",
@@ -430,18 +428,6 @@ def generate_gitlab_ci_yaml(config_files):
                         },
                     }
 
-                elif stage == "compress_output":
-                    ci_config[f"{base_job_name}_compress_output"] = {
-                        "stage": "compress_output",
-                        "extends": f".{system_name}",
-                        "script": [
-                            "source .gitlab/scripts/variables.sh",
-                            "source .gitlab/scripts/pre.sh",
-                            "which python; which dftracer_pgzip;",
-                            f"{flux_cores_one_node_one_ppn_args} --job-name {workload}_compress dftracer_pgzip -d {output}/train",
-                        ],
-                        "needs": [f"{base_job_name}_train"],
-                    }
                 elif stage == "move":
                     ci_config[f"{base_job_name}_move"] = {
                         "stage": "move",
@@ -456,7 +442,7 @@ def generate_gitlab_ci_yaml(config_files):
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id}",
                             f"tar -czf RAW.tar.gz RAW || true",
                         ],
-                        "needs": [f"create_directory_common", f"{base_job_name}_compress_output"],
+                        "needs": [f"create_directory_common", f"{base_job_name}_train"],
                     }
                 elif stage == "process_trace":
                     ci_config[f"{base_job_name}_process_trace"] = {
