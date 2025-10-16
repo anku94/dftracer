@@ -7,7 +7,7 @@ from time import sleep
 import h5py
 import numpy as np
 import PIL.Image as im
-from dftracer.logger import dftracer, dft_fn
+from dftracer.python import dftracer, dft_fn
 import resource
 
 cwd = os.getcwd()

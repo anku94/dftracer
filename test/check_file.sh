@@ -3,13 +3,14 @@ files=$1
 get_file_content() {
   local file="$1"
   if [[ "${file##*.}" == "pfw" ]]; then
-    cat "$file"
+    grep cat "$file"
   elif [[ "${file##*.}" == "gz" || "${file##*.}" == "pfw.gz" ]]; then
-    gzip -dc "$file"
+    zgrep cat "$file"
   else
-    cat "$file"
+    grep cat "$file"
   fi
 }
+
 expected_lines=$2
 echo "get_file_content $1  | wc -l"
 for file in $(ls $files); do

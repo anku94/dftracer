@@ -9,8 +9,8 @@ variables:
   CUSTOM_CI_BUILDS_DIR: "/usr/workspace/iopp/gitlab-runner-builds"
   CUSTOM_CI_ENV_DIR: "/usr/workspace/iopp/gitlab-runner-envs"
   # Repository information
-  DLIO_BENCHMARK_REPO: https://github.com/argonne-lcf/dlio_benchmark.git
-  DLIO_BENCHMARK_TAG: feature/optional-dftracer
+  DLIO_BENCHMARK_REPO: https://github.com/rayandrew/dlio_benchmark.git
+  DLIO_BENCHMARK_TAG: feat/ai-logging
   DFTRACER_REPO: https://github.com/LLNL/dftracer.git
   # test variable
   ENV_NAME: dlio_env_2

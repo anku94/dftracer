@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from setuptools import Extension, find_namespace_packages, setup
+from setuptools import Extension, find_namespace_packages, find_packages, setup
 from setuptools.command.build_ext import build_ext
 from setuptools_scm import ScmVersion
 
@@ -178,12 +178,11 @@ class CMakeBuild(build_ext):
 setup(
     name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(
-        find_namespace_packages(include=["dftracer", "dftracer.dbg", "dftracer.logger", "dfanalyzer"])
-    ),
+    packages=find_packages(where='python') + find_packages(where='dfanalyzer'),
+    package_dir={'': 'python', 'dfanalyzer': 'dfanalyzer'},
     ext_modules=[
-        CMakeExtension("dftracer.pydftracer"),
-        CMakeExtension("dftracer.pydftracer_dbg"),
+        CMakeExtension("dftracer.dftracer"),
+        CMakeExtension("dftracer.dftracer_dbg"),
     ],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
