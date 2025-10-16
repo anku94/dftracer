@@ -313,7 +313,7 @@ class dft_fn(object):
         @wraps(init)
         def new_init(*args, **kwargs):
             if DFTRACER_ENABLE and self._enable:
-                arg_values = dict(zip(arg_names[1:], args))
+                arg_values = dict(zip(arg_names, args))
                 arg_values.update(kwargs)
                 arg_values.update(get_default_args(init))
                 if "epoch" in arg_values:
