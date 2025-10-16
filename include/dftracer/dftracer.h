@@ -8,8 +8,8 @@
 /**
  * Common to both C and CPP
  */
-#include <dftracer/core/constants.h>
-#include <dftracer/core/typedef.h>
+#include <dftracer/core/common/constants.h>
+#include <dftracer/core/common/typedef.h>
 #define DF_DATA_EVENT 0
 #define DF_METADATA_EVENT 1
 #ifdef __cplusplus
@@ -28,8 +28,8 @@ void finalize();
 /**
  * CPP Only
  */
-#include <dftracer/core/cpp_typedefs.h>
-#include <dftracer/core/datastructure.h>
+#include <dftracer/core/common/cpp_typedefs.h>
+#include <dftracer/core/common/datastructure.h>
 
 // External Headers
 

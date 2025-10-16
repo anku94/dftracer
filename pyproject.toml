@@ -5,7 +5,6 @@ requires = [
     "wheel",
     "ninja",
     "cmake>=3.12",
-    "zindex_py==0.0.5",
     "pybind11"
 ]
 build-backend = "setuptools.build_meta"
@@ -51,9 +50,10 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "pybind11", 
-  "zindex_py==0.0.5", 
   "setuptools>=64", 
-  "setuptools-scm>=8"
+  "setuptools-scm>=8",
+  "dftracer-utils @ git+https://github.com/rayandrew/dftracer-utils@integration",
+  "pydftracer @ git+https://github.com/rayandrew/pydftracer.git@integration"
 ]
 
 [project.urls]
@@ -124,25 +124,11 @@ target-version = "py38"
 
 [tool.setuptools]
 script-files = [
-  "script/dftracer_compact",
-  "script/dftracer_compact_by_pid",
-  "script/dftracer_merge",
-  "script/dftracer_sanitize",
-  "script/dftracer_anonymize",
-  "script/dftracer_split",
-  "script/dftracer_create_index",
-  "script/dftracer_event_count",
-  "script/dftracer_validate",
-  "script/dftracer_pgzip",
   "script/git_sparse_clone_interactive",
   "script/git_sparse_push_interactive",
 ]
 
-[tool.setuptools.package-dir]
-dftracer = "dftracer"
-dfanalyzer = "dfanalyzer"
-
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "dftracer/_version.py"
+write_to = "python/dftracer/_version.py"
 

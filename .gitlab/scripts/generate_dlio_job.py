@@ -80,7 +80,7 @@ def execute_dlio_benchmark_query(workload, args, key, datatype=str):
         logging.debug(f"Converted output to {datatype.__name__}: {result}")
         return result
     except ValueError as e:
-        logging.error(f"Failed to convert output to {datatype.__name__}: {e}")
+        logging.error(f"Failed to convert output {workload, args, key} to {datatype.__name__}: {e}")
         raise ValueError(f"Failed to convert output to {datatype}: {e}")
 
 def get_queue_time_for_nodes_minutes(nodes):
@@ -455,7 +455,7 @@ def generate_gitlab_ci_yaml(config_files):
                             # "source .gitlab/scripts/build.sh",
                             "which python; which dftracer_event_count;",
                             f"cd {log_dir}/{workload}/nodes-{nodes}/{unique_run_id};",
-                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload};",
+                            f"dftracer_split -d $PWD/RAW -o $PWD/COMPACT -s 1024 -n {workload} --verify;",
                             f"tar -czf COMPACT.tar.gz COMPACT || true;",
                             f"event_count=$(dftracer_event_count -d $PWD/COMPACT);",
                             f"size_bytes=$(du -b $PWD/COMPACT | cut -f1);",
