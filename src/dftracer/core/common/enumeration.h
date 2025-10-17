@@ -25,6 +25,15 @@ enum ProfileInitType : uint8_t {
 };
 enum ValueType : uint8_t { VALUE_TYPE_NUMBER = 0, VALUE_TYPE_STRING = 1 };
 enum MetadataType : uint8_t { MT_KEY = 0, MT_VALUE = 1, MT_IGNORE = 2 };
+enum AggregationEnable : uint8_t {
+  AGGREGATION_ENABLE = 0,
+  AGGREGATION_DISABLE = 1
+};
+enum AggregationType : uint8_t {
+  AGGREGATION_TYPE_FULL = 0,
+  AGGREGATION_TYPE_SELECTIVE = 1
+};
+enum class RuleOp { AND, OR, NOT, EQ, NEQ, GT, LT, GTE, LTE, IN, LIKE };
 
 inline MetadataType convert(const int &s) {
   if (s == 0) {
@@ -68,6 +77,25 @@ inline void convert(const std::string &s, cpplogger::LoggerType &type) {
     type = cpplogger::LoggerType::LOG_WARN;
   } else {
     type = cpplogger::LoggerType::LOG_ERROR;
+  }
+}
+inline void convert(const std::string &s, AggregationType &type) {
+  if (s == "FULL") {
+    type = AggregationType::AGGREGATION_TYPE_FULL;
+  } else if (s == "SELECTIVE") {
+    type = AggregationType::AGGREGATION_TYPE_SELECTIVE;
+  } else {
+    type = AggregationType::AGGREGATION_TYPE_FULL;
+  }
+}
+inline std::string to_string(const AggregationType &type) {
+  switch (type) {
+    case AggregationType::AGGREGATION_TYPE_FULL:
+      return "FULL";
+    case AggregationType::AGGREGATION_TYPE_SELECTIVE:
+      return "SELECTIVE";
+    default:
+      return "FULL";
   }
 }
 

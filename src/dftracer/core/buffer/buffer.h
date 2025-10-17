@@ -19,12 +19,7 @@
 namespace dftracer {
 class BufferManager {
  public:
-  BufferManager()
-      : enable_compression(false),
-        buffer(nullptr),
-        buffer_size(0),
-        buffer_pos(0),
-        mtx() {}
+  BufferManager() : buffer(nullptr), buffer_pos(0), mtx() {}
   ~BufferManager() {}
 
   int initialize(const char* filename, HashType hostname_hash);
@@ -48,13 +43,11 @@ class BufferManager {
 
  private:
   void compress_and_write_if_needed(size_t size, bool force = false);
-  bool enable_compression;
-  bool enable_aggregation;
   char* buffer;
-  size_t buffer_size;
   size_t buffer_pos;
   std::shared_mutex mtx;
 
+  std::shared_ptr<dftracer::ConfigurationManager> config;
   std::shared_ptr<dftracer::JsonLines> serializer;
   std::shared_ptr<dftracer::ZlibCompression> compressor;
   std::shared_ptr<dftracer::STDIOWriter> writer;

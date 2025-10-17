@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <cstring>
 #include <dftracer/core/dftracer_config.hpp>
+#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -43,6 +44,7 @@ typedef std::chrono::high_resolution_clock chrono;
 
 class DFTLogger {
  private:
+  std::shared_ptr<dftracer::ConfigurationManager> config;
   std::shared_mutex level_mtx;
   std::shared_mutex map_mtx;
   bool throw_error;
@@ -96,13 +98,12 @@ class DFTLogger {
         enable_core_affinity(false),
         include_metadata(false) {
     DFTRACER_LOG_DEBUG("DFTLogger.DFTLogger", "");
-    auto conf =
+    config =
         dftracer::Singleton<dftracer::ConfigurationManager>::get_instance();
-    enable_core_affinity = conf->core_affinity;
-    include_metadata = conf->metadata;
-    dftracer_tid = conf->tids;
-    throw_error = conf->throw_error;
-    is_aggregated = conf->enable_aggregation;
+    enable_core_affinity = config->core_affinity;
+    include_metadata = config->metadata;
+    dftracer_tid = config->tids;
+    throw_error = config->throw_error;
     if (enable_core_affinity) {
 #ifdef DFTRACER_HWLOC_ENABLE
       hwloc_topology_init(&topology);  // initialization
