@@ -369,7 +369,7 @@ Application Level Example:
 .. code-block:: python
    :linenos:
 
-    from dftracer.logger import dftracer, dft_fn
+    from dftracer.python import dftracer, dft_fn
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
     dft_fn = dft_fn("COMPUTE")
 
@@ -487,7 +487,7 @@ Hybrid Example:
 .. code-block:: python
    :linenos:
 
-    from dftracer.logger import dftracer, dft_fn
+    from dftracer.python import dftracer, dft_fn
     log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
     dft_fn = dft_fn("COMPUTE")
 
@@ -587,7 +587,7 @@ Note: dftracer python level log file location is provided inside the python code
 
      ...
      # From the preamble
-     from dftracer.logger import dftracer as logger, dft_fn as dft_event_logging
+     from dftracer.python import dftracer as logger, dft_fn as dft_event_logging
      dft_pid=os.getpid()
      log_inst=logger.initialize_log(f"./resnet50/dft_fn_py_level-{dft_pid}.pfw", "", dft_pid)
      compute_dft = dft_event_logging("Compute")

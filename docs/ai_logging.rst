@@ -28,7 +28,7 @@ Import
 
 .. code-block:: python
 
-    from dftracer.logger import ai
+    from dftracer.python import ai
 
 
 ----------------------------------------
@@ -156,7 +156,7 @@ To use these conventions, you can annotate your code as follows:
 
 .. code-block:: python
 
-    from dftracer.logger import ai, dftracer
+    from dftracer.python import ai, dftracer
 
     @ai.compute.forward
     def forward(model, x):

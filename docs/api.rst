@@ -283,7 +283,7 @@ In C application, include ``dftracer/dftracer.h``.
 
 .. code-block:: python
 
-    from dftracer.logger import dftracer
+    from dftracer.python import dftracer
 
 Initialization of DFTracer
 ****************************************
@@ -320,7 +320,7 @@ In general, the name of the event can be automatically loaded by the function du
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     @dft_fn.log
@@ -331,7 +331,7 @@ For logging ``__init__`` function within a class, applications can use ``log_ini
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     class Test:
@@ -352,7 +352,7 @@ For logging every block within a loop, we have an ``dft_fn.iter`` which takes a 
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     dft_fn = dft_fn("COMPUTE")
 
     for batch in dft_fn.iter(loader.next()):
@@ -365,7 +365,7 @@ We can also profile a block of code using Python's context managers using ``dft_
 
 .. code-block:: python
 
-    from dftracer.logger import dft_fn
+    from dftracer.python import dft_fn
     with dft_fn(cat="block", name="step") as dft:
         sleep(1)
         dft.update(step=1)
@@ -378,7 +378,7 @@ In general this should be only used when other cases cannot be applied.
 
 .. code-block:: python
 
-    from dftracer.logger import dftracer
+    from dftracer.python import dftracer
     dft_logger = dftracer.initialize_log(logfile, data_dir, process_id)
     start = dft_logger.get_time()
     sleep(1)
