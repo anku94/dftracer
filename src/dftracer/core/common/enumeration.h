@@ -25,10 +25,6 @@ enum ProfileInitType : uint8_t {
 };
 enum ValueType : uint8_t { VALUE_TYPE_NUMBER = 0, VALUE_TYPE_STRING = 1 };
 enum MetadataType : uint8_t { MT_KEY = 0, MT_VALUE = 1, MT_IGNORE = 2 };
-enum AggregationEnable : uint8_t {
-  AGGREGATION_ENABLE = 0,
-  AGGREGATION_DISABLE = 1
-};
 enum AggregationType : uint8_t {
   AGGREGATION_TYPE_FULL = 0,
   AGGREGATION_TYPE_SELECTIVE = 1

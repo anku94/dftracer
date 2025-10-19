@@ -19,8 +19,17 @@
 namespace dftracer {
 class BufferManager {
  public:
-  BufferManager() : buffer(nullptr), buffer_pos(0), mtx() {}
+  BufferManager()
+      : buffer(nullptr), buffer_pos(0), mtx(), app_name(), rank(-1) {}
   ~BufferManager() {}
+
+  void inline set_app_name(const char* name) { app_name = name; }
+
+  inline const char* get_app_name() const {
+    return app_name.empty() ? nullptr : app_name.c_str();
+  }
+
+  void inline set_rank(const int& r) { rank = r; }
 
   int initialize(const char* filename, HashType hostname_hash);
 
@@ -46,6 +55,8 @@ class BufferManager {
   char* buffer;
   size_t buffer_pos;
   std::shared_mutex mtx;
+  std::string app_name;
+  int rank;
 
   std::shared_ptr<dftracer::ConfigurationManager> config;
   std::shared_ptr<dftracer::JsonLines> serializer;
