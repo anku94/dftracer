@@ -69,7 +69,7 @@ For detailed build instructions, click [here](https://dftracer.readthedocs.io/en
 ## Usage
 
 ```python
-from dftracer.logger import dftracer, dft_fn
+from dftracer.python import dftracer, dft_fn
 log_inst = dftracer.initialize_log(logfile=None, data_dir=None, process_id=-1)
 dft_fn = dft_fn("COMPUTE")
 
