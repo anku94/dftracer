@@ -22,7 +22,10 @@ PLAT_TO_CMAKE = {
 
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
-    return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    if version.distance > 0:
+        return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    else:
+        return version.format_next_version(only_version, fmt="{tag}")
 
 
 # A CMakeExtension needs a sourcedir instead of a file list.

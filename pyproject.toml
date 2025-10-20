@@ -52,8 +52,8 @@ dependencies = [
   "pybind11", 
   "setuptools>=64", 
   "setuptools-scm>=8",
-  "dftracer-utils @ git+https://github.com/rayandrew/dftracer-utils@integration",
-  "pydftracer @ git+https://github.com/rayandrew/pydftracer.git@integration"
+  "dftracer-utils==0.0.3",
+  "pydftracer==2.0.2"
 ]
 
 [project.urls]
