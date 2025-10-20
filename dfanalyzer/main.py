@@ -1,4 +1,4 @@
-import warnings 
+import warnings
 warnings.filterwarnings('ignore')
 from glob import glob
 import pandas as pd
@@ -7,11 +7,8 @@ import dask
 import dask.dataframe as dd
 import pyarrow as pa
 import numpy as np
-from itertools import chain
 
-from dask.distributed import Client, LocalCluster, progress, wait, get_client
-from dask.distributed import Future, get_client
-from typing import Tuple, Union
+from dask.distributed import Client, LocalCluster, wait
 import os
 import intervals as I
 import math
@@ -20,11 +17,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
-import subprocess
 import json
 import logging
 
-import zindex_py as zindex
+from dftracer.utils import Indexer, Reader
 
 from dfanalyzer.plots import DFAnalyzerPlots
 
@@ -36,7 +32,7 @@ class DFTConfiguration:
     def __init__(self):
         self.host_pattern = r'corona(\d+)'
         self.rebuild_index = False
-        self.batch_size = 1024*16
+        self.batch_size = 1 * 1024 * 1024  # 1 MB
         self.debug = False
         self.verbose = False
         self.workers = 4
@@ -104,130 +100,166 @@ def update_dft_configuration(
 
 
 def create_index(filename):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    if not os.path.exists(index_file) or conf.rebuild_index:
-        status = zindex.create_index(filename, index_file=f"file:{index_file}",
-                                     regex="id:\b([0-9]+)", numeric=True, unique=True, debug=conf.debug, verbose=conf.verbose)
-        logging.debug(f"Creating Index for {filename} returned {status}")
+    index_file = f"{filename}.idx"
+    if not os.path.exists(index_file):
+        indexer = Indexer(filename, index_file, checkpoint_size=32 * 1024 * 1024)
+        indexer.build()
+        logging.debug(f"Creating index filename={filename}")
     return filename
 
-def get_linenumber(filename):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    line_number = zindex.get_max_line(filename, index_file=index_file,debug=conf.debug, verbose=conf.verbose)
-    logging.debug(f" The {filename} has {line_number} lines")
-    return (filename, line_number)
+def generate_batches(filename, max_bytes, batch_size=1 * 1024 * 1024):
+    for start in range(0, max_bytes, batch_size):
+        # this range is intended since DFTracerJsonLinesBytesReader do
+        # line boundary algorithm internally to chop incomplete line
+        end = min(start + batch_size, max_bytes)
+        logging.debug(f"Created batch filename={filename}, start={start}, end={end}")
+        yield filename, start, end
 
 def get_size(filename):
-    conf = get_dft_configuration()
+    size = 0
     if filename.endswith('.pfw'):
         size = os.stat(filename).st_size
     elif filename.endswith('.pfw.gz'):
-        if not conf.index_dir:
-            index_file = f"{filename}.zindex"
-        else:
-            index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-        line_number = zindex.get_max_line(filename, index_file=index_file,debug=conf.debug, verbose=conf.verbose)
-        size = line_number * 256
-    logging.debug(f" The {filename} has {size/1024**3} GB size")
-    return int(size)
+        index_file = f"{filename}.idx"
+        indexer = Indexer(filename, index_file)
+        size = indexer.get_max_bytes()
+    logging.debug(f"File has size filename={filename}, size={size / 1024**3}")
+    return filename, int(size)
 
-
-def generate_line_batches(filename, max_line):
-    conf = get_dft_configuration()
-    for start in range(0, max_line, conf.batch_size):
-        end =  min((start + conf.batch_size - 1) , (max_line))
-        logging.debug(f"Created a batch for {filename} from [{start}, {end}] lines")
-        yield filename, start, end
 
 def load_indexed_gzip_files(filename, start, end):
-    conf = get_dft_configuration()
-    if not conf.index_dir:
-        index_file = f"{filename}.zindex"
-    else:
-        index_file = os.path.join(conf.index_dir, os.path.basename(filename), ".zindex")
-    json_lines = zindex.zquery(filename, index_file=index_file,
-                          raw=f"select a.line from LineOffsets a where a.line >= {start} AND a.line <= {end};", debug=conf.debug, verbose=conf.verbose)
-    logging.debug(f"Read {len(json_lines)} json lines for [{start}, {end}]")
+    index_file = f"{filename}.idx"
+    reader = Reader(filename, index_file)
+    json_lines = reader.read_line_bytes_json(start, end)
+    logging.debug(
+        f"Read json lines filename={filename}, start={start}, end={end}, num_lines={len(json_lines)},"
+    )
     return json_lines
 
-def load_objects(line, fn, time_granularity, time_approximate, condition_fn, load_data):
+def load_objects_dict(
+    json_dict, fn, time_granularity, time_approximate, condition_fn, load_data
+):
     d = {}
-    if line is not None and line !="" and len(line) > 0 and "[" != line[0] and "]" != line[0] and line != "\n" :
-        val = {}
+    if json_dict is not None:
         try:
-            unicode_line = ''.join([i if ord(i) < 128 else '#' for i in line])
-            val = json.loads(unicode_line, strict=False)
-            logging.debug(f"Loading dict {val}")
-            if "name" in val:
-                d["name"] = val["name"]
-            if "cat" in val:
-                d["cat"] = val["cat"]
-            if "pid" in val:
-                d["pid"] = val["pid"]
-            if "tid" in val:
-                d["tid"] = val["tid"]
-            if "args" in val and "hhash" in val["args"]:
-                d["hhash"] = str(val["args"]["hhash"])
-            if "M" == val["ph"]:
+            logging.debug(f"Loading dict {json_dict}")
+            if "name" in json_dict:
+                d["name"] = json_dict["name"]
+            if "cat" in json_dict:
+                d["cat"] = json_dict["cat"]
+            if "pid" in json_dict:
+                d["pid"] = json_dict["pid"]
+            if "tid" in json_dict:
+                d["tid"] = json_dict["tid"]
+            if "args" in json_dict and "hhash" in json_dict["args"]:
+                d["hhash"] = str(json_dict["args"]["hhash"])
+            if "M" == json_dict["ph"]:
                 if d["name"] == "FH":
-                    d["type"] = 1 # 1-> file hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 1  # 1-> file hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "HH":
-                    d["type"] = 2 # 2-> hostname hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 2  # 2-> hostname hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "SH":
-                    d["type"] = 3 # 3-> string hash
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = str(val["args"]["value"])
+                    d["type"] = 3  # 3-> string hash
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = str(json_dict["args"]["value"])
                 elif d["name"] == "PR":
-                    d["type"] = 5 # 5-> process metadata
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["hash"] = val["args"]["value"]
+                    d["type"] = 5  # 5-> process metadata
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["hash"] = json_dict["args"]["value"]
                 else:
-                    d["type"] = 4 # 4-> others
-                    if "args" in val and "name" in val["args"] and "value" in val["args"]:
-                        d["name"] = val["args"]["name"]
-                        d["value"] = str(val["args"]["value"])
+                    d["type"] = 4  # 4-> others
+                    if (
+                        "args" in json_dict
+                        and "name" in json_dict["args"]
+                        and "value" in json_dict["args"]
+                    ):
+                        d["name"] = json_dict["args"]["name"]
+                        d["value"] = str(json_dict["args"]["value"])
             else:
-                d["type"] = 0 # 0->regular event
-                if "dur" in val:
-                    val["dur"] = int(val["dur"])
-                    val["ts"] = int(val["ts"])
-                    d["ts"] = val["ts"]
-                    d["dur"] = val["dur"]
+                d["type"] = 0  # 0->regular event
+                if "dur" in json_dict:
+                    dur = json_dict["dur"]
+                    if type(dur) is not int:
+                        dur = int(dur)
+                    ts = json_dict["ts"]
+                    if type(ts) is not int:
+                        ts = int(ts)
+                    d["ts"] = ts
+                    d["dur"] = dur
                     d["te"] = d["ts"] + d["dur"]
                     if not time_approximate:
-                        d["tinterval"] = I.to_string(I.closed(val["ts"] , val["ts"] + val["dur"]))
-                    d["trange"] = int(((val["ts"] + val["dur"])/2.0) / time_granularity)
-                d.update(io_function(val, d, time_approximate,condition_fn))
+                        d["tinterval"] = I.to_string(
+                            I.closed(
+                                json_dict["ts"], json_dict["ts"] + json_dict["dur"]
+                            )
+                        )
+                    d["trange"] = int(
+                        ((json_dict["ts"] + json_dict["dur"]) / 2.0) / time_granularity
+                    )
+                d.update(io_function(json_dict, d, time_approximate, condition_fn))
             if fn:
-                user_d = fn(val, d, time_approximate,condition_fn, load_data)
+                user_d = fn(json_dict, d, time_approximate, condition_fn, load_data)
                 if type(user_d) is list:
-                    for user_dict in user_d[1:]:
-                        yield user_dict
+                    yield from user_d[1:]
                     d.update(user_d[0])
                 else:
                     d.update(user_d)
             logging.debug(f"built an dictionary for line {d}")
             yield d
         except ValueError as error:
+            logging.error(f"Processing {json_dict} failed with {error}")
+    return {}
+
+def load_objects_str(
+    line, fn, time_granularity, time_approximate, condition_fn, load_data
+):
+    if (
+        line is not None
+        and line != ""
+        and len(line) > 0
+        and "[" != line[0]
+        and "]" != line[0]
+        and line != "\n"
+    ):
+        try:
+            unicode_line = "".join([i if ord(i) < 128 else "#" for i in line])
+            json_dict = json.loads(unicode_line, strict=False)
+            yield from load_objects_dict(
+                json_dict,
+                fn,
+                time_granularity,
+                time_approximate,
+                condition_fn,
+                load_data,
+            )
+        except ValueError as error:
             logging.error(f"Processing {line} failed with {error}")
     return {}
-  
+
 def io_function(json_object, current_dict, time_approximate,condition_fn):
     d = {}
     d["phase"] = 0
@@ -267,10 +299,7 @@ def io_function(json_object, current_dict, time_approximate,condition_fn):
             d["io_time"] = I.to_string(I.empty())
     if "args" in json_object:
         if "fhash" in json_object["args"]:
-            if type(json_object["args"]["fhash"]) is str:
-                d["fhash"] = int(json_object["args"]["fhash"],16)
-            else: 
-                d["fhash"] = json_object["args"]["fhash"]
+            d["fhash"] = str(json_object["args"]["fhash"])
         if "POSIX" == json_object["cat"] and "ret" in json_object["args"]:
             size = int(json_object["args"]["ret"])
             if size > 0:
@@ -379,7 +408,7 @@ def human_format_time(num):
                 magnitude += 1
                 num /= 24
                 break
-                
+
         return '{}{}'.format('{:.0f}'.format(num).rstrip('.'), ['us', 'ms', 's','m','hr'][magnitude])
     else:
         return "NA"
@@ -405,7 +434,7 @@ class DFAnalyzer:
                 pfw_gz_pattern.append(file)
                 all_files.append(file)
             else:
-                logging.warn(f"Ignoring unsuported file {file}")
+                logging.warning(f"Ignoring unsuported file {file}")
         if len(all_files) == 0:
             logging.error(f"No files selected for .pfw and .pfw.gz")
             exit(1)
@@ -414,34 +443,39 @@ class DFAnalyzer:
         if len(pfw_gz_pattern) > 0:
             dask.bag.from_sequence(pfw_gz_pattern).map(create_index).compute()
         logging.info(f"Created index for {len(pfw_gz_pattern)} files")
-        total_size = dask.bag.from_sequence(all_files).map(get_size).sum()
-        logging.info(f"Total size of all files are {total_size} bytes")
+        sizes = dask.bag.from_sequence(all_files).map(get_size).compute()
+        total_size = sum(size for _, size in sizes)
+        logging.info(f"Total size of all files {total_size=}")
         gz_bag = None
         pfw_bag = None
         if len(pfw_gz_pattern) > 0:
-            max_line_numbers = dask.bag.from_sequence(pfw_gz_pattern).map(get_linenumber).compute()
-            logging.debug(f"Max lines per file are {max_line_numbers}")
+            logging.debug(f"Max bytes per file sizes={sizes}")
             json_line_delayed = []
             total_lines = 0
-            for filename, max_line in max_line_numbers:
-                total_lines += max_line
-                for _, start, end in generate_line_batches(filename, max_line):
+            for filename, max_bytes in sizes:
+                total_lines += max_bytes
+                for _, start, end in generate_batches(
+                    filename, max_bytes, self.conf.batch_size
+                ):
                     json_line_delayed.append((filename, start, end))
 
-            logging.info(f"Loading {len(json_line_delayed)} batches out of {len(pfw_gz_pattern)} files and has {total_lines} lines overall")
+            logging.info(
+                f"Loading batches, num batches={len(json_line_delayed)}, num files={len(pfw_gz_pattern)}, total lines={total_lines}",
+            )
             json_line_bags = []
             for filename, start, end in json_line_delayed:
-                num_lines = end - start + 1
-                json_line_bags.append(dask.delayed(load_indexed_gzip_files, nout=num_lines)(filename, start, end))
+                json_line_bags.append(
+                    dask.delayed(load_indexed_gzip_files)(filename, start, end)
+                )
             json_lines = dask.bag.concat(json_line_bags)
-            gz_bag = json_lines.map(load_objects, fn=load_fn,
+            gz_bag = json_lines.map(load_objects_dict, fn=load_fn,
                                     time_granularity=self.conf.time_granularity,
                                     time_approximate=self.conf.time_approximate,
                                     condition_fn=self.conf.conditions,
                                     load_data=load_data).flatten().filter(lambda x: "name" in x)
         main_bag = None
         if len(pfw_pattern) > 0:
-            pfw_bag = dask.bag.read_text(pfw_pattern).map(load_objects, fn=load_fn,
+            pfw_bag = dask.bag.read_text(pfw_pattern).map(load_objects_str, fn=load_fn,
                                                           time_granularity=self.conf.time_granularity,
                                                           time_approximate=self.conf.time_approximate,
                                                           condition_fn=self.conf.conditions,
@@ -453,7 +487,7 @@ class DFAnalyzer:
         elif len(pfw_pattern) > 0:
             main_bag = pfw_bag
         if main_bag:
-            columns = {'name': "string[pyarrow]", 'cat': "string[pyarrow]",'type': "uint8[pyarrow]", 
+            columns = {'name': "string[pyarrow]", 'cat': "string[pyarrow]",'type': "uint8[pyarrow]",
                        'pid': "uint64[pyarrow]", 'tid': "uint64[pyarrow]", 'hhash': "string[pyarrow]",
                        'ts': "uint64[pyarrow]", 'te': "uint64[pyarrow]", 'dur': "uint64[pyarrow]",
                        'tinterval': "string[pyarrow]" if not self.conf.time_approximate else "uint64[pyarrow]", 'trange': "uint64[pyarrow]"}
@@ -475,14 +509,14 @@ class DFAnalyzer:
             columns.update(hostname_hash_columns)
             columns.update(string_hash_columns)
             columns.update(other_metadata_columns)
-            
+
             self.all_events = main_bag.to_dataframe(meta=columns)
             events = self.all_events.query("type == 0")
             self.file_hash = self.all_events.query("type == 1")[list(file_hash_columns.keys())].groupby('hash').first().persist()
             self.host_hash = self.all_events.query("type == 2")[list(hostname_hash_columns.keys())].groupby('hash').first().persist()
             self.string_hash = self.all_events.query("type == 3")[list(string_hash_columns.keys())].groupby('hash').first().persist()
             self.metadata = self.all_events.query("type == 4")[list(other_metadata_columns.keys())].persist()
-            self.n_partition = math.ceil(total_size.compute() / (128 * 1024 ** 2))
+            self.n_partition = math.ceil(total_size / (128 * 1024 ** 2))
             logging.debug(f"Number of partitions used are {self.n_partition}")
             self.events = events.repartition(npartitions=self.n_partition).persist()
             _ = wait(self.events)
@@ -490,7 +524,7 @@ class DFAnalyzer:
             self.events['te'] = (self.events['ts'] + self.events['dur']).astype('uint64[pyarrow]')
             self.events['trange'] = (self.events['ts'] // self.conf.time_granularity).astype('uint16[pyarrow]')
             self.events = self.events.persist()
-     
+
             _ = wait([self.file_hash, self.host_hash, self.string_hash, self.metadata, self.events])
         else:
             logging.error(f"Unable to load Traces")
@@ -515,7 +549,7 @@ class DFAnalyzer:
             max_io_time = grouped_df.max().compute()['io_time']
             if max_io_time > self.conf.time_granularity:
                 # throw a warning, running with large granuality
-                logging.warn(f"The max io_time {max_io_time} exceeds the time_granularity {self.conf.time_granularity}. " \
+                logging.warning(f"The max io_time {max_io_time} exceeds the time_granularity {self.conf.time_granularity}. " \
                              f"Please adjust the time_granularity to {int(2 * max_io_time /1e6)}e6 and rerun the analyzer.")
             grouped_df["io_time"] = grouped_df["io_time"].fillna(0)
             grouped_df["compute_time"] = grouped_df["compute_time"].fillna(0)
@@ -603,7 +637,7 @@ class DFAnalyzer:
         # filter the hosts if time skew exceeds 30 seconds
         max_time_skew = 30e6
         if np.std(hosts_ts_df['ts']) > max_time_skew:
-           logging.warn(f"The time skew exceeds {max_time_skew // 1e6} sec across hosts {hosts_ts_df.index.tolist()}")
+           logging.warning(f"The time skew exceeds {max_time_skew // 1e6} sec across hosts {hosts_ts_df.index.tolist()}")
 
     def summary(self):
         num_events = len(self.events)

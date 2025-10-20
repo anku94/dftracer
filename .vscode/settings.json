@@ -5,7 +5,8 @@
         "-DENABLE_PAPER_TESTS=OFF",
         "-DDFTRACER_ENABLE_DLIO_BENCHMARK_TESTS=OFF",
         "-DDFTRACER_DISABLE_HWLOC=OFF",
-        "-DCMAKE_INSTALL_PREFIX=/usr/workspace/haridev/dftracer/install"
+        "-DCMAKE_INSTALL_PREFIX=/usr/workspace/haridev/dftracer/install",
+        "-DDFTRACER_ENABLE_MPI=OFF"
     ],
     "cmake.configureEnvironment": {
         "DARSHAN_PRELOAD_LIB": "/usr/WS2/haridev/spack/opt/spack/linux-rhel8-zen2/gcc-10.3.1/darshan-runtime-3.4.4-vckxthkq2hzzxnwmk4owtzcnfmjwl23s/lib/libdarshan.so",
@@ -94,7 +95,8 @@
         "variant": "cpp",
         "ranges": "cpp",
         "filesystem": "cpp",
-        "*.in": "cpp"
+        "*.in": "cpp",
+        "text_encoding": "cpp"
     },
     "editor.formatOnSave": true,
     "cSpell.words": [

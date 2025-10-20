@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from setuptools import Extension, find_namespace_packages, setup
+from setuptools import Extension, find_namespace_packages, find_packages, setup
 from setuptools.command.build_ext import build_ext
 from setuptools_scm import ScmVersion
 
@@ -22,7 +22,10 @@ PLAT_TO_CMAKE = {
 
 def myversion_func(version: ScmVersion) -> str:
     from setuptools_scm.version import only_version
-    return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    if version.distance > 0:
+        return version.format_next_version(only_version, fmt="{tag}.dev{distance}")
+    else:
+        return version.format_next_version(only_version, fmt="{tag}")
 
 
 # A CMakeExtension needs a sourcedir instead of a file list.
@@ -76,6 +79,8 @@ class CMakeBuild(build_ext):
         py_cmake_dir = py.get_cmake_dir()
         # py_cmake_dir = os.popen('python3 -c " import pybind11 as py; print(py.get_cmake_dir())"').read() #python("-c", "import pybind11 as py; print(py.get_cmake_dir())", output=str).strip()
 
+        if "DFTRACER_CMAKE_ARGS" in os.environ:
+            cmake_args += [item for item in os.environ["DFTRACER_CMAKE_ARGS"].split(";") if item]
         # Using this requires trailing slash for auto-detection & inclusion of
         # auxiliary "native" libs
         build_type = os.environ.get("DFTRACER_BUILD_TYPE", "Release") # Setting this to release causes memory issues with GCC-13.
@@ -174,14 +179,13 @@ class CMakeBuild(build_ext):
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
-    name="pydftracer",
+    name="dftracer",
     use_scm_version={"version_scheme": myversion_func},
-    packages=(
-        find_namespace_packages(include=["dftracer", "dftracer.dbg", "dfanalyzer"])
-    ),
+    packages=find_packages(where='python') + find_packages(where='dfanalyzer'),
+    package_dir={'': 'python', 'dfanalyzer': 'dfanalyzer'},
     ext_modules=[
-        CMakeExtension("dftracer.pydftracer"),
-        CMakeExtension("dftracer.pydftracer_dbg"),
+        CMakeExtension("dftracer.dftracer"),
+        CMakeExtension("dftracer.dftracer_dbg"),
     ],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,

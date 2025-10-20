@@ -17,7 +17,9 @@ DFTracer: is a library for profiling I/O calls and application functions.
    build
    building_applications
    api
+   models
    trace_format
+   ai_logging
 
 .. toctree::
    :maxdepth: 2
@@ -40,6 +42,12 @@ DFTracer: is a library for profiling I/O calls and application functions.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Debugging
+
+   debugging
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
 
    examples
@@ -59,6 +67,16 @@ DFTracer: is a library for profiling I/O calls and application functions.
    developer-guide
    style-guides
    testing
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Links:
+
+   GitHub <https://github.com/LLNL/dftracer>
+   Python Binding Documentation <https://dftracer.readthedocs.io/projects/python/>
+   Python Binding GitHub <https://github.com/LLNL/pydftracer>
+   Utilities Documentation <https://dftracer.readthedocs.io/projects/utils/>
+   Utilities GitHub <https://github.com/LLNL/dftracer-utils>
 
 ==================
 Indices and tables
