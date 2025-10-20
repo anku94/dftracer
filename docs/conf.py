@@ -26,7 +26,7 @@ author = u'Hariharan Devarajan'
 # The short X.Y version
 version = u'2.0'
 # The full version, including alpha/beta/rc tags
-release = u'2.0.0'
+release = u'2.0.1'
 
 
 # -- General configuration ---------------------------------------------------
