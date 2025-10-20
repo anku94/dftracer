@@ -3,6 +3,46 @@ Developer Guide
 ======================
 
 ------------------------------------------
+Publishing package
+------------------------------------------
+
+For publishing the package we use :code:`setuptools_scm` to manage the versioning of the package based on :code:`git tags`. 
+
+Below are the common commands used for to check the right version is being generated and to create new releases locally.
+
+.. code-block:: bash
+
+    git checkout -b <branch>
+    git add <file>
+    git commit -m <message> 
+    git tag -a <tag> -m <message> # for python use v<MAJOR>.<MINOR>.<PATCH>
+    pip install setuptools-scm
+
+    python -c "
+    from setuptools_scm import get_version
+    from setuptools_scm.version import ScmVersion
+
+    def myversion_func(version: ScmVersion) -> str:
+        from setuptools_scm.version import only_version
+        print(f'Debug info:')
+        print(f'  Tag: {version.tag}')
+        print(f'  Distance: {version.distance}')
+        print(f'  Dirty: {version.dirty}')
+        print(f'  Node: {version.node}')
+        if version.distance > 0:
+            result = version.format_next_version(only_version, fmt='{tag}.dev{distance}')
+            print(f'  Result (distance > 0): {result}')
+            return result
+        else:
+            result = version.format_next_version(only_version, fmt='{tag}')
+            print(f'  Result (distance == 0): {result}')
+            return result
+
+    version = get_version(version_scheme=myversion_func)
+    print(f'\nFinal version: {version}')
+    "
+
+------------------------------------------
 ALCF Polaris
 ------------------------------------------
 
