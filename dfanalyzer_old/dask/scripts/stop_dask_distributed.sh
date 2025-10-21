@@ -9,16 +9,16 @@ DFTRACER_DASK_CONF_NAME="UNSET"
 
 case $hostname in
   *"corona"*)
-    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer/dask/conf/corona.yaml
+    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer_old/dask/conf/corona.yaml
     ;;
   *"ruby"*)
-    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer/dask/conf/ruby.yaml
+    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer_old/dask/conf/ruby.yaml
     ;;
   "quartz"*)
-    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer/dask/conf/quartz.yaml
+    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer_old/dask/conf/quartz.yaml
     ;;
   "polaris"*)
-    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer/dask/conf/polaris.yaml
+    DFTRACER_DASK_CONF_NAME=${DFTRACER_APP}/dfanalyzer_old/dask/conf/polaris.yaml
     ;;
 esac
 

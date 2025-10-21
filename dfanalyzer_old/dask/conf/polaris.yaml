@@ -1,8 +1,8 @@
 config:
-  script_dir: ${DFTRACER_APP}/dfanalyzer/dask/scripts
-  conf_dir: ${DFTRACER_APP}/dfanalyzer/dask/conf
-  run_dir: ${DFTRACER_APP}/dfanalyzer/dask/run_dir
-  log_dir: ${DFTRACER_APP}/dfanalyzer/dask/logs
+  script_dir: ${DFTRACER_APP}/dfanalyzer_old/dask/scripts
+  conf_dir: ${DFTRACER_APP}/dfanalyzer_old/dask/conf
+  run_dir: ${DFTRACER_APP}/dfanalyzer_old/dask/run_dir
+  log_dir: ${DFTRACER_APP}/dfanalyzer_old/dask/logs
 dask:
   scheduler: dask-scheduler
   worker: dask-worker

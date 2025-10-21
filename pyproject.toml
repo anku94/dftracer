@@ -52,7 +52,7 @@ dependencies = [
   "pybind11", 
   "setuptools>=64", 
   "setuptools-scm>=8",
-  "dftracer-utils==0.0.4",
+  "dftracer-utils>=0.0.4",
   "pydftracer==2.0.2"
 ]
 
@@ -65,6 +65,9 @@ Documentation = "https://dftracer.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 test = ['pytest>=6.0']
 dfanalyzer = [
+    'dfanalyzer @ git+https://github.com/LLNL/dfanalyzer.git@f102ef804a2db97219119256081a4a92cff4587e'
+]
+dfanalyzer_old = [
     'seaborn>=0.13.2', 
     'bokeh>=2.4.2', 
     'pybind11', 

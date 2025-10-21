@@ -22,7 +22,7 @@ import logging
 
 from dftracer.utils import Indexer, Reader
 
-from dfanalyzer.plots import DFAnalyzerPlots
+from dfanalyzer_old.plots import DFAnalyzerPlots
 
 def get_conditions_default(json_obj):
     io_cond = "POSIX" == json_obj["cat"]
