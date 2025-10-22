@@ -9,7 +9,7 @@ source $HOME/.dftracer/configuration.sh
 export PYTHONPATH=${DFTRACER_APP}:${PYTHONPATH}
 
 # This is start of every script.
-source ${DFTRACER_APP}/dfanalyzer/dask/scripts/utils.sh
+source ${DFTRACER_APP}/dfanalyzer_old/dask/scripts/utils.sh
 eval $(parse_yaml $DFTRACER_DASK_CONF_NAME DFTRACER_)
 DFTRACER_JOB_ID=${!DFTRACER_JOB_ENV_ID}
 

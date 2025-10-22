@@ -43,6 +43,8 @@ This method works for both native Python and Conda environments.
 ```bash
 pip install dftracer
 pip install dftracer[dfanalyzer]
+# if you want to use old version of DFAnalyzer
+# pip install dftracer[dfanalyzer_old]
 ```
 
 ### From Github
@@ -51,6 +53,8 @@ pip install dftracer[dfanalyzer]
 DFTRACER_VERSION=develop
 pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}
 pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=dftracer[dfanalyzer]
+# if you want to use old version of DFAnalyzer
+# pip install git+https://github.com/LLNL/dftracer.git@${DFTRACER_VERSION}#egg=dftracer[dfanalyzer_old]
 ```
 
 ### From Source
