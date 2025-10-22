@@ -65,7 +65,7 @@ Documentation = "https://dftracer.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 test = ['pytest>=6.0']
 dfanalyzer = [
-    'dfanalyzer @ git+https://github.com/LLNL/dfanalyzer.git@f102ef804a2db97219119256081a4a92cff4587e'
+    'dfanalyzer @ git+https://github.com/LLNL/dfanalyzer.git@feat/deprecate-zindex'
 ]
 dfanalyzer_old = [
     'seaborn>=0.13.2', 
