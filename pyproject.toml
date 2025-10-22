@@ -52,7 +52,7 @@ dependencies = [
   "pybind11", 
   "setuptools>=64", 
   "setuptools-scm>=8",
-  "dftracer-utils>=0.0.4",
+  "dftracer-utils>=0.0.5",
   "pydftracer==2.0.2"
 ]
 
