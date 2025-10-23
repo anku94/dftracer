@@ -65,7 +65,7 @@ Documentation = "https://dftracer.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 test = ['pytest>=6.0']
 dfanalyzer = [
-    'dftracer-analyzer==0.0.2'
+    'dftracer-analyzer>=0.0.4'
 ]
 dfanalyzer_old = [
     'seaborn>=0.13.2', 
