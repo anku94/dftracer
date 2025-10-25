@@ -107,8 +107,7 @@ class ChromeWriter {
 
   void log(int index, ConstEventNameType event_name,
            ConstEventNameType category, TimeResolution start_time,
-           TimeResolution duration,
-           std::unordered_map<std::string, std::any>* metadata,
+           TimeResolution duration, dftracer::Metadata* metadata,
            ProcessID process_id, ThreadID tid);
 
   void log_metadata(int index, ConstEventNameType name,

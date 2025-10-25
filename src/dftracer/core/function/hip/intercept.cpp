@@ -13,7 +13,6 @@
 #include <any>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 #define MAX_EVENT_NAME_LENGTH 15
 
@@ -151,7 +150,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
           header->payload);
 
       // Create metadata for HSA API calls
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("context", context.handle);
       metadata->insert_or_assign("buffer_id", buffer_id.handle);
       metadata->insert_or_assign("extern_cid",
@@ -178,7 +177,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
           header->payload);
 
       // Create metadata for HIP API calls
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("context", context.handle);
       metadata->insert_or_assign("buffer_id", buffer_id.handle);
       metadata->insert_or_assign("extern_cid",
@@ -206,7 +205,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
 
       // Create metadata for kernel dispatch
 
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("tid", record->thread_id);
       metadata->insert_or_assign("correlation_id",
                                  record->correlation_id.external.value);
@@ -237,7 +236,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
               header->payload);
 
       // Create metadata for memory copy
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("context", context.handle);
       metadata->insert_or_assign("buffer_id", buffer_id.handle);
       metadata->insert_or_assign("extern_cid",
@@ -266,7 +265,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
               header->payload);
 
       // Create metadata for page migration
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("kind", record->kind);
       metadata->insert_or_assign("operation", record->operation);
 
@@ -335,7 +334,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
               header->payload);
 
       // Create metadata for scratch memory
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("context", context.handle);
       metadata->insert_or_assign("buffer_id", buffer_id.handle);
       metadata->insert_or_assign("extern_cid",
@@ -360,7 +359,7 @@ void HIPFunction::tool_tracing_callback(rocprofiler_context_id_t context,
       auto* record = static_cast<rocprofiler_buffer_tracing_rccl_api_record_t*>(
           header->payload);
 
-      auto metadata = new std::unordered_map<std::string, std::any>();
+      auto metadata = new dftracer::Metadata();
       metadata->insert_or_assign("operation", record->operation);
       metadata->insert_or_assign("tid", record->thread_id);
       metadata->insert_or_assign("correlation_id",

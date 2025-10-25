@@ -31,6 +31,8 @@ class BufferManager {
 
   void inline set_rank(const int& r) { rank = r; }
 
+  void initialize() {}
+
   int initialize(const char* filename, HashType hostname_hash);
 
   int finalize(int index, ProcessID process_id, bool end_sym = false);

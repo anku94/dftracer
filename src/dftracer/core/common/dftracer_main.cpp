@@ -3,7 +3,7 @@
 //
 #include <dftracer/core/common/dftracer_main.h>
 #include <dftracer/core/finstrument/functions.h>
-#include <dftracer/function/hip/intercept.h>
+#include <dftracer/core/function/hip/intercept.h>
 
 template <>
 std::shared_ptr<dftracer::DFTracerCore>
@@ -151,66 +151,6 @@ bool dftracer::DFTracerCore::finalize() {
     DFTRACER_LOG_INFO("Already finalized on pid %d", this->process_id);
   }
   return false;
-}
-
-void dftracer::DFTracerCore::reinitialize() {
-  DFTRACER_LOG_DEBUG("DFTracerCore::reinitialize", "");
-  is_initialized = false;
-  std::string log_file_path = this->log_file;
-  size_t last_slash = log_file_path.find_last_of("/\\");
-  std::string folder = (last_slash != std::string::npos)
-                           ? log_file_path.substr(0, last_slash)
-                           : "";
-  std::string base_filename = (last_slash != std::string::npos)
-                                  ? log_file_path.substr(last_slash + 1)
-                                  : log_file_path;
-  size_t first_dash = base_filename.find('-');
-  std::string prefix = (first_dash != std::string::npos)
-                           ? base_filename.substr(0, first_dash)
-                           : base_filename;
-
-  std::string new_log_file;
-  if (!folder.empty()) {
-    new_log_file = folder + "/" + prefix;
-  } else {
-    new_log_file = prefix;
-  }
-  conf->log_file = new_log_file;
-  this->process_id = df_getpid();
-  DFTRACER_LOG_INFO(
-      "Reinitializing DFTracer with log_file %s data_dirs %s and process %d",
-      new_log_file.c_str(), this->data_dirs.c_str(), this->process_id);
-  initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
-}
-
-void dftracer::DFTracerCore::initialize() {
-  DFTRACER_LOG_DEBUG("DFTracerCore::reinitialize", "");
-  is_initialized = false;
-  std::string log_file_path = this->log_file;
-  size_t last_slash = log_file_path.find_last_of("/\\");
-  std::string folder = (last_slash != std::string::npos)
-                           ? log_file_path.substr(0, last_slash)
-                           : "";
-  std::string base_filename = (last_slash != std::string::npos)
-                                  ? log_file_path.substr(last_slash + 1)
-                                  : log_file_path;
-  size_t first_dash = base_filename.find('-');
-  std::string prefix = (first_dash != std::string::npos)
-                           ? base_filename.substr(0, first_dash)
-                           : base_filename;
-
-  std::string new_log_file;
-  if (!folder.empty()) {
-    new_log_file = folder + "/" + prefix;
-  } else {
-    new_log_file = prefix;
-  }
-  conf->log_file = new_log_file;
-  this->process_id = df_getpid();
-  DFTRACER_LOG_INFO(
-      "Reinitializing DFTracer with log_file %s data_dirs %s and process %d",
-      new_log_file.c_str(), this->data_dirs.c_str(), this->process_id);
-  initialize(false, nullptr, this->data_dirs.c_str(), nullptr);
 }
 
 void dftracer::DFTracerCore::reinitialize() {

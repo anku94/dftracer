@@ -21,7 +21,7 @@ std::shared_ptr<dftracer::ChromeWriter>
 template <>
 bool dftracer::Singleton<dftracer::ChromeWriter>::stop_creating_instances =
     false;
-void dftracer::ChromeWriter::initialize(char *filename, bool throw_error,
+void dftracer::ChromeWriter::initialize(char* filename, bool throw_error,
                                         HashType hostname_hash) {
   this->hostname_hash = hostname_hash;
   this->throw_error = throw_error;
@@ -44,7 +44,7 @@ void dftracer::ChromeWriter::log(int index, ConstEventNameType event_name,
                                  ConstEventNameType category,
                                  TimeResolution start_time,
                                  TimeResolution duration,
-                                 dftracer::Metadata *metadata,
+                                 dftracer::Metadata* metadata,
                                  ProcessID process_id, ThreadID thread_id) {
   DFTRACER_LOG_DEBUG("ChromeWriter.log", "");
 
@@ -155,7 +155,7 @@ void dftracer::ChromeWriter::finalize(bool has_entry) {
 void dftracer::ChromeWriter::convert_json(
     int index, ConstEventNameType event_name, ConstEventNameType category,
     TimeResolution start_time, TimeResolution duration,
-    dftracer::Metadata *metadata, ProcessID process_id, ThreadID thread_id) {
+    dftracer::Metadata* metadata, ProcessID process_id, ThreadID thread_id) {
   size_t previous_index = 0;
   (void)previous_index;
   char is_first_char[3] = "  ";
@@ -176,9 +176,9 @@ void dftracer::ChromeWriter::convert_json(
         meta_stream << "\"" << item.first
                     << "\":" << std::any_cast<int>(item.second);
         if (i < meta_size - 1) meta_stream << ",";
-      } else if (item.second.second.type() == typeid(const char *)) {
+      } else if (item.second.second.type() == typeid(const char*)) {
         meta_stream << "\"" << item.first << "\":\""
-                    << std::any_cast<const char *>(item.second) << "\"";
+                    << std::any_cast<const char*>(item.second) << "\"";
         if (i < meta_size - 1) meta_stream << ",";
       } else if (item.second.second.type() == typeid(std::string)) {
         meta_stream << "\"" << item.first << "\":\""

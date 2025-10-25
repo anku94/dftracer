@@ -28,12 +28,8 @@ class Singleton {
   template <typename... Args>
   static std::shared_ptr<T> get_instance(Args... args) {
     if (stop_creating_instances) return nullptr;
-    if (instance == nullptr) {
-      DFTRACER_LOG_DEBUG("Creating new instance of %s", typeid(T).name());
+    if (instance == nullptr)
       instance = std::make_shared<T>(std::forward<Args>(args)...);
-      instance->initialize();
-    }
-
     return instance;
   }
 

@@ -318,7 +318,7 @@ class DFTLogger {
         auto iter = metadata->find("tid");
         if (iter != metadata->end()) {
           tid = std::any_cast<ThreadID>(iter->second);
-          metadata->erase(iter);
+          metadata->erase("tid");
         }
       }
 #endif
@@ -471,10 +471,10 @@ class DFTLogger {
   DFTRACER_LOG_DEBUG("Calling function %s", __FUNCTION__);        \
   bool trace = true;                                              \
   TimeResolution start_time = 0;                                  \
-  std::unordered_map<std::string, std::any>* metadata = nullptr;  \
+  dftracer::Metadata* metadata = nullptr;                         \
   if (trace) {                                                    \
     if (this->logger->include_metadata) {                         \
-      metadata = new std::unordered_map<std::string, std::any>(); \
+      metadata = new dftracer::Metadata();                        \
     }                                                             \
     this->logger->enter_event();                                  \
     start_time = this->logger->get_time();                        \
