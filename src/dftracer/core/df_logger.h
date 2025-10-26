@@ -307,11 +307,23 @@ class DFTLogger {
                   TimeResolution start_time, TimeResolution duration,
                   dftracer::Metadata *metadata) {
     DFTRACER_LOG_DEBUG("DFTLogger.log", "");
+
+    // Get thread id and process id from metadata if it exists
     ThreadID tid = 0;
     if (dftracer_tid) {
       tid = df_gettid();
+#ifndef DFTRACER_MPI_ENABLE
+      // WARN: Not tested with MPI enabled
+      if (metadata != nullptr) {
+        auto iter = metadata->find("tid");
+        if (iter != metadata->end()) {
+          tid = std::any_cast<ThreadID>(iter->second.second);
+          metadata->erase("tid");
+        }
+      }
+#endif
     }
-    int local_index;
+    int local_index = 0;
     if (!include_metadata) {
       local_index = index.load();
     }

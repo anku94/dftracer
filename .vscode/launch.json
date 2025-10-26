@@ -24,7 +24,7 @@
             ],
             "cwd": "${workspaceFolder}/build",
             "env": {
-                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:/usr/workspace/haridev/dftracer-new/build/lib64",
+                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:${workspaceFolder}/build/lib64",
                 "DFTRACER_LOG_LEVEL": "INFO",
                 "DFTRACER_ENABLE_AGGREGATION": "ON",
                 "DFTRACER_TRACE_COMPRESSION": "1",
@@ -47,7 +47,7 @@
             ],
             "cwd": "${workspaceFolder}/build",
             "env": {
-                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:/usr/workspace/haridev/dftracer-new/build/lib64",
+                "LD_LIBRARY_PATH": "/usr/tce/packages/mvapich2/mvapich2-2.3.7-gcc-11.2.1/lib:/usr/tce/packages/texlive/texlive-20220321/lib:${workspaceFolder}/build/lib64",
                 "DFTRACER_LOG_LEVEL": "INFO",
                 "DFTRACER_ENABLE_AGGREGATION": "SELECTIVE",
                 "DFTRACER_AGGREGATION_FILE": "${workspaceFolder}/test/rules.yaml",
@@ -91,7 +91,7 @@
             "args": [
                 "${workspaceFolder}/test/py/ai_logging.py",
                 "--data_dir",
-                "/usr/workspace/haridev/dftracer-new/build/test/data",
+                "${workspaceFolder}/build/test/data",
                 "--niter",
                 "3",
                 "--num_files",
@@ -108,6 +108,25 @@
                 "DFTRACER_INC_METADATA": "1",
                 "LD_PRELOAD": "${workspaceFolder}/build/lib64/libdftracer_preload_dbg.so",
                 "DFTRACER_INIT": "FUNCTION",
+            }
+        },
+        {
+            "name": "hip",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/venv-tuo/bin/python",
+            "args": [
+                "${workspaceFolder}/test/py/hip_test.py"
+            ],
+            "cwd": "${workspaceFolder}/build",
+            "env": {
+                "DFTRACER_LOG_LEVEL": "DEBUG",
+                "DFTRACER_TRACE_COMPRESSION": "0",
+                "LD_LIBRARY_PATH": "${workspaceFolder}/venv-tuo/lib/python3.11/site-packages/torch/lib/:/opt/rocm-6.3.1/lib:/opt/rocm-6.3.1/hip/lib:/opt/rocm-6.3.1/hsa/lib:/opt/cray/pe/lib64:/opt/cray/lib64:/opt/cray/pe/papi/7.2.0.2/lib64:/opt/cray/libfabric/2.1/lib64",
+                "DFTRACER_DATA_DIR": "${workspaceFolder}/build/test/data",
+                "DFTRACER_LOG_FILE": "${workspaceFolder}/build/test/hip",
+                "DFTRACER_ENABLE": "1",
+                "DFTRACER_INC_METADATA": "1"
             }
         },
         {

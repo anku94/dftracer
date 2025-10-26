@@ -119,6 +119,12 @@ else()
     set(DFTRACER_FUNCTION_FLAGS )
 endif()
 
+# Options
+option (DFTRACER_ENABLE_HIP_TRACING "Enable HIP Tracing" OFF)
+if (DFTRACER_ENABLE_HIP_TRACING)
+    set(DFTRACER_HIP_TRACING_ENABLE 1)
+endif()
+
 option (DFTRACER_ENABLE_MPI "Enable MPI" OFF)
 if (DFTRACER_ENABLE_MPI)
     set(DFTRACER_MPI_ENABLE 1)
@@ -316,6 +322,17 @@ else ()
                 message(FATAL_ERROR "-- [DFTRACER] zlib is needed for ${PROJECT_NAME} build")
 endif ()
 
+if (DFTRACER_ENABLE_HIP_TRACING)
+  find_package(rocprofiler-sdk REQUIRED)
+  if (rocprofiler-sdk_FOUND)
+        message(STATUS "[DFTRACER] found rocprofiler-sdk at ${ROCPROFILER_SDK_INCLUDE_DIRS}")
+        set(HIP_TRACING_LIBRARIES rocprofiler-sdk::rocprofiler-sdk)
+        set(DEPENDENCY_LIB ${DEPENDENCY_LIB} ${HIP_TRACING_LIBRARIES})
+  else()
+        message(FATAL_ERROR "-- [DFTRACER] rocprofiler-sdk is needed for ${PROJECT_NAME} build")
+  endif()
+endif()
+
 # Set RPATH to all dependency library dirs
 list(REMOVE_DUPLICATES DEPENDENCY_LIBRARY_DIRS)
 set(CMAKE_INSTALL_RPATH "${DEPENDENCY_LIBRARY_DIRS}")
@@ -332,6 +349,7 @@ set(DFTRACER_PRELOAD_PRIVATE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/co
 set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/brahma/posix.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/brahma/stdio.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/finstrument/functions.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/function/hip/intercept.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/writer/chrome_writer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/utils/posix_internal.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/dftracer.cpp
@@ -360,6 +378,8 @@ set(DFTRACER_CORE_PRIVATE_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/brahma/stdio.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/common/dftracer_main.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/common/logging.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/function/generic_function.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/function/hip/intercept.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/common/singleton.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/utils/configuration_manager.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/aggregator/aggregator.h
@@ -777,6 +797,7 @@ append_str_tf(_str
   DFTRACER_GNU_LINUX
   DFTRACER_LIBDIR_AS_LIB
   DFTRACER_ENABLE_FTRACING
+  DFTRACER_ENABLE_HIP_TRACING
   DFTRACER_ENABLE_MPI
   DFTRACER_DISABLE_HWLOC
   DFTRACER_USE_CLANG_LIBCXX

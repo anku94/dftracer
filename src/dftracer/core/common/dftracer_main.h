@@ -66,6 +66,8 @@ class DFTracerCore {
   inline void exit_event() { logger->exit_event(); }
 
   bool finalize();
+
+  void initialize() {}
   ~DFTracerCore() { DFTRACER_LOG_DEBUG("Destructing DFTracerCore", ""); }
 };
 }  // namespace dftracer
