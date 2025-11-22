@@ -221,7 +221,7 @@ class DFTLogger {
 
   inline void clean_stack() {
     std::unique_lock<std::shared_mutex> lock(level_mtx);
-    index_stack.resize(0);
+    index_stack.clear();
   }
   inline int enter_event() {
     std::unique_lock<std::shared_mutex> lock(level_mtx);
@@ -268,7 +268,7 @@ class DFTLogger {
 
   inline TimeResolution get_time() {
     DFTRACER_LOG_DEBUG("DFTLogger.get_time", "");
-    struct timeval tv{};
+    struct timeval tv {};
     gettimeofday(&tv, NULL);
     TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
     return t;
