@@ -138,7 +138,7 @@ class DFTLogger {
       std::unique_lock<std::shared_mutex> lock(level_mtx);
       index.store(0);
       level = 0;
-      index_stack.resize(0);
+      index_stack = std::vector<int>();
     }
     this->process_id = df_getpid();
     ThreadID tid = 0;
@@ -268,7 +268,7 @@ class DFTLogger {
 
   inline TimeResolution get_time() {
     DFTRACER_LOG_DEBUG("DFTLogger.get_time", "");
-    struct timeval tv {};
+    struct timeval tv{};
     gettimeofday(&tv, NULL);
     TimeResolution t = 1000000 * tv.tv_sec + tv.tv_usec;
     return t;
@@ -413,8 +413,11 @@ class DFTLogger {
     if (this->buffer_manager != nullptr) {
       auto meta = new dftracer::Metadata();
       meta->insert_or_assign("num_events", index.load());
-      this->enter_event();
-      this->log("end", "dftracer", this->get_time(), 0, meta);
+      int current_index = this->enter_event();
+      auto tid = df_gettid();
+      this->buffer_manager->log_data_event(current_index, "end", "dftracer",
+                                           this->get_time(), 0, meta,
+                                           this->process_id, tid);
       this->exit_event();
       this->buffer_manager->finalize(index.load(), this->process_id, true);
       DFTRACER_LOG_INFO("Released Logger", "");
