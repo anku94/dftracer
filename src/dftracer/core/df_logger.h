@@ -134,12 +134,6 @@ class DFTLogger {
   inline void update_log_file(std::string log_file, std::string exec_name,
                               std::string cmd, ProcessID process_id = -1) {
     DFTRACER_LOG_DEBUG("DFTLogger.update_log_file %s", log_file.c_str());
-    {
-      std::unique_lock<std::shared_mutex> lock(level_mtx);
-      index.store(0);
-      level = 0;
-      index_stack = std::vector<int>();
-    }
     this->process_id = df_getpid();
     ThreadID tid = 0;
     if (dftracer_tid) {
@@ -240,7 +234,8 @@ class DFTLogger {
 
   inline int get_parent() {
     std::shared_lock<std::shared_mutex> lock(level_mtx);
-    if (level > 1 && !index_stack.empty() && index_stack.size() > 1) {
+    size_t stack_size = index_stack.size();
+    if (level > 1 && stack_size > 1 && level <= stack_size) {
       return index_stack[level - 2];
     }
     return -1;
@@ -248,7 +243,8 @@ class DFTLogger {
 
   inline int get_current() {
     std::shared_lock<std::shared_mutex> lock(level_mtx);
-    if (level > 0 && index_stack.size() > 0) {
+    size_t stack_size = index_stack.size();
+    if (level > 0 && stack_size > 0 && level <= stack_size) {
       return index_stack[level - 1];
     }
     return -1;
