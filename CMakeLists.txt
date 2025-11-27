@@ -318,7 +318,8 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DFTRACER_PRELOAD_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/dftracer_preload.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/mpi_collectives.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/mpi_collectives.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/kokkos_hooks.cpp)
 set(DFTRACER_PRELOAD_PRIVATE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/dftracer_preload.h)
 
 set(DFTRACER_CORE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/dftracer/core/brahma/posix.cpp
