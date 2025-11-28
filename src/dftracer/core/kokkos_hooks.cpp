@@ -28,6 +28,7 @@ std::vector<EventRecord *> event_stack;  // rely on ordered callbacks
 void push_event(ConstEventNameType category, const char *tag, const char *name) {
   ensure_dftracer_initialized();
   std::string label = std::string(tag) + ":" + (name ? name : "");
+  if (label == "region:TaskRegion::CheckAndUpdate") return;
   auto *rec = new EventRecord{std::move(label), nullptr};
   rec->handle = initialize_region(rec->name.c_str(), category, DF_DATA_EVENT);
   event_stack.push_back(rec);
